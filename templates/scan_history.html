@@ -23,63 +23,63 @@
             </div>
         </div>
     </div>
-    </div>
+</div>
 
 <!-- Scan History Container -->
 <div class="scan-container">
     <!-- History Header -->
-        <div class="history-header">
-            <h2>Barcha tahlillar</h2>
+    <div class="history-header">
+        <h2>Barcha tahlillar</h2>
         <a href="{% url 'scan' %}" class="btn btn-primary">Yangi tahlil</a>
-        </div>
-        
-        {% if page_obj %}
-        <div class="history-grid">
-            {% for scan in page_obj %}
-            <div class="scan-item">
-                <div class="scan-item-header">
-                    <h3>{{ scan.domain_name }}</h3>
-                    <span class="scan-status {{ scan.status }}">{{ scan.get_status_display }}</span>
-                </div>
-                <div class="scan-item-details">
-                    <p><strong>IP:</strong> {{ scan.ip_address|default:"N/A" }}</p>
-                    <p><strong>Sana:</strong> {{ scan.scan_date|date:"d.m.Y H:i" }}</p>
-                    <p><strong>Davomiyligi:</strong> {{ scan.get_duration }}</p>
-                </div>
-                {% if scan.status == 'completed' %}
-                <div class="scan-item-actions">
-                    <button class="btn btn-small" onclick="viewScanDetails({{ scan.id }})">Batafsil</button>
-                </div>
-                {% endif %}
+    </div>
+    
+    {% if page_obj %}
+    <div class="history-grid">
+        {% for scan in page_obj %}
+        <div class="scan-item">
+            <div class="scan-item-header">
+                <h3>{{ scan.domain_name }}</h3>
+                <span class="scan-status {{ scan.status }}">{{ scan.get_status_display }}</span>
             </div>
-            {% endfor %}
-        </div>
-        
-        <!-- Pagination -->
-        {% if page_obj.has_other_pages %}
-        <div class="pagination">
-            {% if page_obj.has_previous %}
-                <a href="?page=1" class="page-link">&laquo; Birinchi</a>
-                <a href="?page={{ page_obj.previous_page_number }}" class="page-link">&lsaquo; Oldingi</a>
-            {% endif %}
-            
-            <span class="current-page">
-                Sahifa {{ page_obj.number }} / {{ page_obj.paginator.num_pages }}
-            </span>
-            
-            {% if page_obj.has_next %}
-                <a href="?page={{ page_obj.next_page_number }}" class="page-link">Keyingi &rsaquo;</a>
-                <a href="?page={{ page_obj.paginator.num_pages }}" class="page-link">Oxirgi &raquo;</a>
+            <div class="scan-item-details">
+                <p><strong>IP:</strong> {{ scan.ip_address|default:"N/A" }}</p>
+                <p><strong>Sana:</strong> {{ scan.scan_date|date:"d.m.Y H:i" }}</p>
+                <p><strong>Davomiyligi:</strong> {{ scan.get_duration }}</p>
+            </div>
+            {% if scan.status == 'completed' %}
+            <div class="scan-item-actions">
+                <button class="btn btn-small" onclick="viewScanDetails({{ scan.id }})">Batafsil</button>
+            </div>
             {% endif %}
         </div>
+        {% endfor %}
+    </div>
+    
+    <!-- Pagination -->
+    {% if page_obj.has_other_pages %}
+    <div class="pagination">
+        {% if page_obj.has_previous %}
+            <a href="?page=1" class="page-link">&laquo; Birinchi</a>
+            <a href="?page={{ page_obj.previous_page_number }}" class="page-link">&lsaquo; Oldingi</a>
         {% endif %}
         
-        {% else %}
-        <div class="no-scans">
-            <p>Hali hech qanday tahlil qilinmagan.</p>
+        <span class="current-page">
+            Sahifa {{ page_obj.number }} / {{ page_obj.paginator.num_pages }}
+        </span>
+        
+        {% if page_obj.has_next %}
+            <a href="?page={{ page_obj.next_page_number }}" class="page-link">Keyingi &rsaquo;</a>
+            <a href="?page={{ page_obj.paginator.num_pages }}" class="page-link">Oxirgi &raquo;</a>
+        {% endif %}
+    </div>
+    {% endif %}
+    
+    {% else %}
+    <div class="no-scans">
+        <p>Hali hech qanday tahlil qilinmagan.</p>
         <a href="{% url 'scan' %}" class="btn btn-primary">Birinchi tahlilni boshlash</a>
-        </div>
-        {% endif %}
+    </div>
+    {% endif %}
 </div>
 
 <!-- Scan Details Modal -->

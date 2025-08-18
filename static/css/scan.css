@@ -181,48 +181,29 @@
     justify-content: center;
 }
 
-/* Button protection - prevent inline styles from affecting appearance */
-.btn {
-    /* Force button appearance */
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
-    transform: none !important;
-    opacity: 1 !important;
-}
-
-/* Specific button type protection */
+/* Button type specific styles for scan page */
 .btn-primary {
-    background: linear-gradient(135deg, #3b82f6, #1d4ed8) !important;
-    border: 2px solid #3b82f6 !important;
-    color: white !important;
+    background: rgba(0, 0, 0, 0.8);
+    border: 2px solid #3b82f6;
+    color: #3b82f6;
 }
 
 .btn-secondary {
-    background: linear-gradient(135deg, #6b7280, #4b5563) !important;
-    border: 2px solid #6b7280 !important;
-    color: white !important;
+    background: rgba(0, 0, 0, 0.8);
+    border: 2px solid #6b7280;
+    color: #6b7280;
 }
 
 .btn-success {
-    background: linear-gradient(135deg, #10b981, #059669) !important;
-    border: 2px solid #10b981 !important;
-    color: white !important;
+    background: rgba(0, 0, 0, 0.8);
+    border: 2px solid #10b981;
+    color: #10b981;
 }
 
 .btn-danger {
-    background: linear-gradient(135deg, #ef4444, #dc2626) !important;
-    border: 2px solid #ef4444 !important;
-    color: white !important;
-}
-
-/* Hover effects protection */
-.btn:hover {
-    transform: translateY(-2px) !important;
-    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3) !important;
-}
-
-.btn:active {
-    transform: translateY(0) !important;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2) !important;
+    background: rgba(0, 0, 0, 0.8);
+    border: 2px solid #ef4444;
+    color: #ef4444;
 }
 
 

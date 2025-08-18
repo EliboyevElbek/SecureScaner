@@ -46,26 +46,22 @@ function prepareDomains() {
     
     // Hide input section
     const inputSection = document.querySelector('.input-section');
-    inputSection.style.transition = 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)';
-    inputSection.style.opacity = '0';
-    inputSection.style.transform = 'translateY(-20px)';
+    inputSection.classList.add('fade-out');
     
     setTimeout(() => {
         inputSection.style.display = 'none';
+        inputSection.classList.remove('fade-out');
     }, 400);
     
     // Show domains section with smooth animation
     renderDomains();
     const domainsSection = document.getElementById('domainsSection');
     domainsSection.style.display = 'block';
-    domainsSection.style.opacity = '0';
-    domainsSection.style.transform = 'translateY(20px)';
+    domainsSection.classList.add('fade-in');
     
     setTimeout(() => {
-        domainsSection.style.transition = 'all 0.6s cubic-bezier(0.4, 0, 0.2, 1)';
-        domainsSection.style.opacity = '1';
-        domainsSection.style.transform = 'translateY(0)';
-    }, 100);
+        domainsSection.classList.remove('fade-in');
+    }, 600);
     
     // Scroll to domains section
     domainsSection.scrollIntoView({ 
@@ -75,19 +71,6 @@ function prepareDomains() {
     
     // Show success notification
     showNotification(`${newDomains.length} ta yangi domain qo'shildi! Jami: ${domains.length} ta`, 'success');
-    
-    // Clean up inline styles after animation
-    setTimeout(() => {
-        // Remove all inline styles completely
-        inputSection.removeAttribute('style');
-        domainsSection.removeAttribute('style');
-        
-        // Remove inline styles from all buttons
-        const allButtons = document.querySelectorAll('.btn');
-        allButtons.forEach(btn => {
-            btn.removeAttribute('style');
-        });
-    }, 700);
 }
 
 function renderDomains() {
@@ -248,58 +231,93 @@ function startScan() {
 }
 
 function resetDomains() {
-    showCustomConfirm(
-        'Barcha domainlarni o\'chirishni xohlaysizmi?',
-        'Bu amal barcha tayyorlangan domainlarni o\'chirib tashlaydi va qaytadan boshlash imkonini beradi.',
-        () => {
-            // Ha - barcha domainlarni o'chir
-        domains = [];
-        document.getElementById('domainsInput').value = '';
-            
-            // Show input section again
-            const inputSection = document.querySelector('.input-section');
-            inputSection.style.display = 'block';
-            
-            // Hide domains section
-            const domainsSection = document.getElementById('domainsSection');
-            domainsSection.style.display = 'none';
-            
-            // Remove all inline styles completely
-            inputSection.removeAttribute('style');
-            domainsSection.removeAttribute('style');
-            
-            // Remove inline styles from all domain items
-            const domainItems = document.querySelectorAll('.domain-item');
-            domainItems.forEach(item => {
-                item.removeAttribute('style');
-            });
-            
-            // Remove inline styles from all buttons
-            const allButtons = document.querySelectorAll('.btn');
-            allButtons.forEach(btn => {
-                btn.removeAttribute('style');
-            });
-            
-            showNotification('Barcha domainlar o\'chirildi', 'info');
-        },
-        () => {
-            // Yo'q - hech narsa qilma
-            showNotification('Amal bekor qilindi', 'info');
-        }
-    );
+    console.log('resetDomains function called'); // Debug log
+    
+    // Custom modal stil bilan alert (O'chirish tugmasidagi stil bilan bir xil)
+    const modal = document.createElement('div');
+    modal.className = 'custom-modal';
+    modal.innerHTML = `
+        <div class="custom-modal-content">
+            <div class="custom-modal-header">
+                <h3>⚠️ Qayta boshlash</h3>
+            </div>
+            <div class="custom-modal-body">
+                <p>Haqiqatdan <strong>barcha domainlarni o'chirishni</strong> xohlaysizmi?</p>
+            </div>
+            <div class="custom-modal-actions">
+                <button class="btn btn-secondary" onclick="closeResetModal()">Yo'q</button>
+                <button class="btn btn-danger" onclick="confirmResetDomains()">Ha, o'chir</button>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    // Show modal with animation
+    setTimeout(() => {
+        modal.style.opacity = '1';
+        modal.style.transform = 'scale(1)';
+    }, 10);
+}
+
+function closeResetModal() {
+    const modal = document.querySelector('.custom-modal');
+    if (modal) {
+        modal.style.opacity = '0';
+        modal.style.transform = 'scale(0.8)';
+        setTimeout(() => {
+            modal.remove();
+        }, 200);
+    }
+}
+
+function confirmResetDomains() {
+    console.log('User confirmed - proceeding with reset'); // Debug log
+    
+    // Ha - barcha domainlarni o'chir
+    domains = [];
+    document.getElementById('domainsInput').value = '';
+    
+    // Show input section again
+    const inputSection = document.querySelector('.input-section');
+    inputSection.style.display = 'block';
+    
+    // Hide domains section
+    const domainsSection = document.getElementById('domainsSection');
+    domainsSection.style.display = 'none';
+    
+    // Reset all elements to their original state
+    inputSection.className = 'input-section card';
+    domainsSection.className = 'domains-section card';
+    
+    // Reset all domain items
+    const domainItems = document.querySelectorAll('.domain-item');
+    domainItems.forEach(item => {
+        item.className = 'domain-item fade-in';
+    });
+    
+    // Reset all buttons - preserve their original classes
+    const allButtons = document.querySelectorAll('.btn');
+    allButtons.forEach(btn => {
+        // Don't change button classes - just remove any inline styles
+        btn.removeAttribute('style');
+    });
+    
+    showNotification('Barcha domainlar o\'chirildi', 'info');
+    console.log('Reset completed successfully'); // Debug log
+    
+    // Close modal
+    closeResetModal();
 }
 
 function addMoreDomains() {
     // Show input section again without hiding domains section
     const inputSection = document.querySelector('.input-section');
     inputSection.style.display = 'block';
-    inputSection.style.opacity = '0';
-    inputSection.style.transform = 'translateY(20px)';
+    inputSection.classList.add('fade-in');
     
     setTimeout(() => {
-        inputSection.style.transition = 'all 0.6s cubic-bezier(0.4, 0, 0.2, 1)';
-        inputSection.style.opacity = '1';
-        inputSection.style.transform = 'translateY(0)';
+        inputSection.classList.remove('fade-in');
         
         // Focus on input
         const domainsInput = document.getElementById('domainsInput');
@@ -310,19 +328,7 @@ function addMoreDomains() {
             behavior: 'smooth',
             block: 'start'
         });
-    }, 100);
-    
-    // Clean up inline styles after animation
-    setTimeout(() => {
-        // Remove all inline styles completely
-        inputSection.removeAttribute('style');
-        
-        // Remove inline styles from all buttons
-        const allButtons = document.querySelectorAll('.btn');
-        allButtons.forEach(btn => {
-            btn.removeAttribute('style');
-        });
-    }, 700);
+    }, 600);
 }
 
 function isValidDomain(domain) {
