@@ -1,0 +1,103 @@
+{% extends 'base.html' %}
+
+{% block title %}Tahlil Natijalari - SiteScaner{% endblock title %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="/static/css/scan.css">
+{% endblock extra_css %}
+
+{% block content %}
+<div class="container">
+    <div class="header-section">
+        <h1 class="main-title">Tahlil Natijalari</h1>
+        <p class="subtitle">{{ total_scanned }} ta domen tahlil qilindi</p>
+        <p class="subtitle">Vaqt: {{ timestamp|date:"d.m.Y H:i:s" }}</p>
+    </div>
+
+    <!-- Scan Results -->
+    <div class="results-container">
+        <div class="results-header">
+            <h2>Tahlil natijalari</h2>
+            <div class="status-badge success">Tugallandi</div>
+        </div>
+        <div class="results-content">
+            {% for result in scan_results %}
+            <div class="result-item">
+                {% if result.status == 'completed' %}
+                <div class="result-domain">
+                    <h4>{{ result.domain }}</h4>
+                    <span class="status-badge success">Muvaffaqiyatli</span>
+                </div>
+                <div class="result-details">
+                    <p><strong>IP manzil:</strong> {{ result.ip_address|default:"N/A" }}</p>
+                    <p><strong>SSL:</strong> {% if result.ssl_info.ssl_enabled %}Yoqilgan{% else %}O'chirilgan{% endif %}</p>
+                    <p><strong>DNS yozuvlari:</strong> {{ result.dns_records.a_records|length|default:0 }} ta</p>
+                    <p><strong>Xavfsizlik sarlavhalari:</strong> 
+                        {% with security_headers=result.security_headers %}
+                            {% if security_headers.x_frame_options != 'Yo\'q' and security_headers.x_frame_options != 'Tekshirilmadi' %}
+                                {% if security_headers.x_content_type_options != 'Yo\'q' and security_headers.x_content_type_options != 'Tekshirilmadi' %}
+                                    {% if security_headers.x_xss_protection != 'Yo\'q' and security_headers.x_xss_protection != 'Tekshirilmadi' %}
+                                        {% if security_headers.strict_transport_security != 'Yo\'q' and security_headers.strict_transport_security != 'Tekshirilmadi' %}
+                                            {% if security_headers.content_security_policy != 'Yo\'q' and security_headers.content_security_policy != 'Tekshirilmadi' %}
+                                                5 ta
+                                            {% else %}
+                                                4 ta
+                                            {% endif %}
+                                        {% else %}
+                                            3 ta
+                                        {% endif %}
+                                    {% else %}
+                                        2 ta
+                                    {% endif %}
+                                {% else %}
+                                    1 ta
+                                {% endif %}
+                            {% else %}
+                                0 ta
+                            {% endif %}
+                        {% endwith %}
+                    </p>
+                </div>
+                <div class="result-actions">
+                    <button class="btn btn-small" onclick="viewDetailedResult('{{ result.domain }}', {{ result|safe }})">
+                        Batafsil
+                    </button>
+                </div>
+                {% else %}
+                <div class="result-domain">
+                    <h4>{{ result.domain }}</h4>
+                    <span class="status-badge error">Xatolik</span>
+                </div>
+                <div class="result-details">
+                    <p><strong>Xatolik:</strong> {{ result.error|default:"Noma'lum xatolik" }}</p>
+                </div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="action-buttons">
+        <a href="{% url 'scan' %}" class="btn btn-secondary">Yangi tahlil</a>
+        <a href="{% url 'scan_history' %}" class="btn">Barcha tahlillar</a>
+    </div>
+</div>
+
+<!-- Scan Details Modal -->
+<div class="modal" id="scanDetailsModal" style="display: none;">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 id="modalTitle">Tahlil tafsilotlari</h3>
+            <button class="modal-close" onclick="closeModal()">&times;</button>
+        </div>
+        <div class="modal-body" id="modalBody">
+            <!-- Modal content will be populated here -->
+        </div>
+    </div>
+</div>
+{% endblock content %}
+
+{% block extra_js %}
+<script src="/static/js/scan_results.js"></script>
+{% endblock extra_js %} 

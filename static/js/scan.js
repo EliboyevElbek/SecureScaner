@@ -1,0 +1,872 @@
+// Scan Page JavaScript - Professional Design
+
+let domains = [];
+
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('Scan page loaded');
+    
+    // Add professional animations
+    addProfessionalEffects();
+    
+    // Check for edited domains when page loads
+    checkForEditedDomains();
+});
+
+function prepareDomains() {
+    const domainsInput = document.getElementById('domainsInput');
+    const domainsText = domainsInput.value.trim();
+    
+    if (!domainsText) {
+        showNotification('Iltimos, domain nomlarini kiriting', 'warning');
+        return;
+    }
+    
+    // Parse domains from textarea
+    const newDomains = domainsText.split('\n')
+        .map(domain => domain.trim())
+        .filter(domain => domain.length > 0);
+    
+    if (newDomains.length === 0) {
+        showNotification('Iltimos, kamida bitta domain kiriting', 'warning');
+        return;
+    }
+    
+    // Validate domains
+    const invalidDomains = newDomains.filter(domain => !isValidDomain(domain));
+    if (invalidDomains.length > 0) {
+        showNotification('Quyidagi domainlar noto\'g\'ri formatda:\n' + invalidDomains.join('\n'), 'error');
+        return;
+    }
+    
+    // Add new domains to existing domains array
+    domains = [...domains, ...newDomains];
+    
+    // Clear the input after successful preparation
+    domainsInput.value = '';
+    
+    // Hide input section
+    const inputSection = document.querySelector('.input-section');
+    inputSection.style.transition = 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)';
+    inputSection.style.opacity = '0';
+    inputSection.style.transform = 'translateY(-20px)';
+    
+    setTimeout(() => {
+        inputSection.style.display = 'none';
+    }, 400);
+    
+    // Show domains section with smooth animation
+    renderDomains();
+    const domainsSection = document.getElementById('domainsSection');
+    domainsSection.style.display = 'block';
+    domainsSection.style.opacity = '0';
+    domainsSection.style.transform = 'translateY(20px)';
+    
+    setTimeout(() => {
+        domainsSection.style.transition = 'all 0.6s cubic-bezier(0.4, 0, 0.2, 1)';
+        domainsSection.style.opacity = '1';
+        domainsSection.style.transform = 'translateY(0)';
+    }, 100);
+    
+    // Scroll to domains section
+    domainsSection.scrollIntoView({ 
+        behavior: 'smooth',
+        block: 'start'
+    });
+    
+    // Show success notification
+    showNotification(`${newDomains.length} ta yangi domain qo'shildi! Jami: ${domains.length} ta`, 'success');
+    
+    // Clean up inline styles after animation
+    setTimeout(() => {
+        // Remove all inline styles completely
+        inputSection.removeAttribute('style');
+        domainsSection.removeAttribute('style');
+        
+        // Remove inline styles from all buttons
+        const allButtons = document.querySelectorAll('.btn');
+        allButtons.forEach(btn => {
+            btn.removeAttribute('style');
+        });
+    }, 700);
+}
+
+function renderDomains() {
+    const domainsList = document.getElementById('domainsList');
+    
+    if (domains.length === 0) {
+        domainsList.innerHTML = '<p class="no-items">Domainlar mavjud emas</p>';
+        return;
+    }
+    
+    domainsList.innerHTML = domains.map((domain, index) => `
+        <div class="domain-item fade-in" style="animation-delay: ${index * 0.1}s">
+            <div class="domain-info">
+                <div class="domain-icon">
+                    <img src="https://www.google.com/s2/favicons?domain=${domain}&sz=32" 
+                         alt="${domain} icon" 
+                         onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTEyIDJMMiA3VjIwQzIgMjAuNTUyMyAyLjQ0NzcyIDIxIDMgMjFIMjFDMjEuNTUyMyAyMSAyMiAyMC41NTIzIDIyIDIwVjdMMTIgMloiIHN0cm9rZT0iIzAwZmYwMCIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiLz4KPHBhdGggZD0iTTkgMjFWMTRMMTUgMTBWMjEiIHN0cm9rZT0iIzAwZmYwMCIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiLz4KPC9zdmc+'"
+                         class="favicon">
+                </div>
+                <h3>${domain}</h3>
+            </div>
+            <div class="domain-actions">
+                <button class="btn btn-small btn-secondary" onclick="editDomain(${index})">
+                    ✏️ Tahrirlash
+                </button>
+                <button class="btn btn-small btn-danger" onclick="deleteDomain(${index})">
+                    🗑️ O'chirish
+                </button>
+            </div>
+        </div>
+    `).join('');
+}
+
+function editDomain(index) {
+    const domain = domains[index];
+    // Save current domain info to localStorage for editing
+    localStorage.setItem('editingDomain', JSON.stringify({
+        index: index,
+        domain: domain
+    }));
+    // Redirect to edit page
+    window.location.href = `/scaner/edit/${encodeURIComponent(domain)}/`;
+}
+
+function deleteDomain(index) {
+    const domain = domains[index];
+    
+    // Create custom confirmation modal
+    const modal = document.createElement('div');
+    modal.className = 'custom-modal';
+    modal.innerHTML = `
+        <div class="custom-modal-content">
+            <div class="custom-modal-header">
+                <h3>⚠️ Domain o'chirish</h3>
+            </div>
+            <div class="custom-modal-body">
+                <p>Haqiqatdan <strong>${domain}</strong> o'chirasimi?</p>
+            </div>
+            <div class="custom-modal-actions">
+                <button class="btn btn-secondary" onclick="closeCustomModal()">Yo'q</button>
+                <button class="btn btn-danger" onclick="confirmDeleteDomain(${index})">Ha, o'chir</button>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    // Show modal with animation
+    setTimeout(() => {
+        modal.style.opacity = '1';
+        modal.style.transform = 'scale(1)';
+    }, 10);
+}
+
+function closeCustomModal() {
+    const modal = document.querySelector('.custom-modal');
+    if (modal) {
+        modal.style.opacity = '0';
+        modal.style.transform = 'scale(0.8)';
+        setTimeout(() => {
+            modal.remove();
+        }, 200);
+    }
+}
+
+function confirmDeleteDomain(index) {
+    const domain = domains[index];
+    
+    // Remove domain from array
+        domains.splice(index, 1);
+    
+    // Close modal
+    closeCustomModal();
+    
+    // Re-render domains list
+        renderDomains();
+        
+    // Show success notification
+    showNotification(`${domain} muvaffaqiyatli o'chirildi!`, 'success');
+}
+
+function startScan() {
+    if (domains.length === 0) {
+        showNotification('Iltimos, kamida bitta domain qo\'shing', 'warning');
+        return;
+    }
+    
+    console.log('Starting scan for domains:', domains);
+    
+    // Create form data
+    const formData = new FormData();
+    formData.append('domains', domains.join('\n'));
+    
+    // Show loading state with professional animation
+    const scanButton = document.querySelector('.btn-success');
+    const originalText = scanButton.textContent;
+    scanButton.textContent = '⏳ Tahlil qilinmoqda...';
+    scanButton.disabled = true;
+    scanButton.classList.add('loading');
+    
+    // Add loading animation to all domain items
+    document.querySelectorAll('.domain-item').forEach(item => {
+        item.classList.add('scanning');
+    });
+    
+    // Send request
+    fetch('/scaner/', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': getCSRFToken()
+        },
+        body: formData
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.text();
+    })
+    .then(html => {
+        // Replace the page content with the response
+        document.documentElement.innerHTML = html;
+        showNotification('Tahlil muvaffaqiyatli bajarildi!', 'success');
+    })
+    .catch(error => {
+        console.error('Scan error:', error);
+        showNotification('Tahlil xatosi: ' + error.message, 'error');
+        
+        // Reset button and domain items
+        scanButton.textContent = originalText;
+        scanButton.disabled = false;
+        scanButton.classList.remove('loading');
+        
+        document.querySelectorAll('.domain-item').forEach(item => {
+            item.classList.remove('scanning');
+        });
+    });
+}
+
+function resetDomains() {
+    showCustomConfirm(
+        'Barcha domainlarni o\'chirishni xohlaysizmi?',
+        'Bu amal barcha tayyorlangan domainlarni o\'chirib tashlaydi va qaytadan boshlash imkonini beradi.',
+        () => {
+            // Ha - barcha domainlarni o'chir
+        domains = [];
+        document.getElementById('domainsInput').value = '';
+            
+            // Show input section again
+            const inputSection = document.querySelector('.input-section');
+            inputSection.style.display = 'block';
+            
+            // Hide domains section
+            const domainsSection = document.getElementById('domainsSection');
+            domainsSection.style.display = 'none';
+            
+            // Remove all inline styles completely
+            inputSection.removeAttribute('style');
+            domainsSection.removeAttribute('style');
+            
+            // Remove inline styles from all domain items
+            const domainItems = document.querySelectorAll('.domain-item');
+            domainItems.forEach(item => {
+                item.removeAttribute('style');
+            });
+            
+            // Remove inline styles from all buttons
+            const allButtons = document.querySelectorAll('.btn');
+            allButtons.forEach(btn => {
+                btn.removeAttribute('style');
+            });
+            
+            showNotification('Barcha domainlar o\'chirildi', 'info');
+        },
+        () => {
+            // Yo'q - hech narsa qilma
+            showNotification('Amal bekor qilindi', 'info');
+        }
+    );
+}
+
+function addMoreDomains() {
+    // Show input section again without hiding domains section
+    const inputSection = document.querySelector('.input-section');
+    inputSection.style.display = 'block';
+    inputSection.style.opacity = '0';
+    inputSection.style.transform = 'translateY(20px)';
+    
+    setTimeout(() => {
+        inputSection.style.transition = 'all 0.6s cubic-bezier(0.4, 0, 0.2, 1)';
+        inputSection.style.opacity = '1';
+        inputSection.style.transform = 'translateY(0)';
+        
+        // Focus on input
+        const domainsInput = document.getElementById('domainsInput');
+        domainsInput.focus();
+        
+        // Scroll to input section
+        inputSection.scrollIntoView({ 
+            behavior: 'smooth',
+            block: 'start'
+        });
+    }, 100);
+    
+    // Clean up inline styles after animation
+    setTimeout(() => {
+        // Remove all inline styles completely
+        inputSection.removeAttribute('style');
+        
+        // Remove inline styles from all buttons
+        const allButtons = document.querySelectorAll('.btn');
+        allButtons.forEach(btn => {
+            btn.removeAttribute('style');
+        });
+    }, 700);
+}
+
+function isValidDomain(domain) {
+    const domainPattern = /^[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?)*$/;
+    return domainPattern.test(domain);
+}
+
+function getCSRFToken() {
+    const token = document.querySelector('[name=csrfmiddlewaretoken]');
+    return token ? token.value : '';
+}
+
+// Professional notification system
+function showNotification(message, type = 'info') {
+    // Remove existing notifications
+    const existingNotifications = document.querySelectorAll('.notification');
+    existingNotifications.forEach(notification => notification.remove());
+    
+    const notification = document.createElement('div');
+    notification.className = `notification notification-${type}`;
+    notification.innerHTML = `
+        <div class="notification-content">
+            <span class="notification-icon">${getNotificationIcon(type)}</span>
+            <span class="notification-message">${message}</span>
+            <button class="notification-close" onclick="this.parentElement.parentElement.remove()">×</button>
+        </div>
+    `;
+    
+    // Add styles
+    const style = document.createElement('style');
+    style.textContent = `
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 10000;
+            max-width: 400px;
+            animation: slideInRight 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .notification-content {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 16px 20px;
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(20px);
+            border: 1px solid;
+        }
+        
+        .notification-info {
+            background: rgba(59, 130, 246, 0.1);
+            border-color: #3b82f6;
+            color: #3b82f6;
+        }
+        
+        .notification-success {
+            background: rgba(16, 185, 129, 0.1);
+            border-color: #10b981;
+            color: #10b981;
+        }
+        
+        .notification-warning {
+            background: rgba(245, 158, 11, 0.1);
+            border-color: #f59e0b;
+            color: #f59e0b;
+        }
+        
+        .notification-error {
+            background: rgba(239, 68, 68, 0.1);
+            border-color: #ef4444;
+            color: #ef4444;
+        }
+        
+        .notification-icon {
+            font-size: 20px;
+        }
+        
+        .notification-message {
+            flex-grow: 1;
+            font-family: 'Inter', sans-serif;
+            font-size: 14px;
+            font-weight: 500;
+        }
+        
+        .notification-close {
+            background: none;
+            border: none;
+            color: inherit;
+            font-size: 20px;
+            cursor: pointer;
+            padding: 0;
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            transition: all 0.2s ease;
+        }
+        
+        .notification-close:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+        
+        @keyframes slideInRight {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+        
+        .scanning {
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .scanning::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(59, 130, 246, 0.1), transparent);
+            animation: scanning 2s ease-in-out infinite;
+        }
+        
+        @keyframes scanning {
+            0% { left: -100%; }
+            100% { left: 100%; }
+        }
+    `;
+    
+    if (!document.querySelector('#notification-styles')) {
+        style.id = 'notification-styles';
+        document.head.appendChild(style);
+    }
+    
+    document.body.appendChild(notification);
+    
+    // Auto remove after 5 seconds
+    setTimeout(() => {
+        if (notification.parentElement) {
+            notification.style.animation = 'slideOutRight 0.4s cubic-bezier(0.4, 0, 0.2, 1)';
+            setTimeout(() => {
+                if (notification.parentElement) {
+                    notification.remove();
+                }
+            }, 400);
+        }
+    }, 5000);
+}
+
+function getNotificationIcon(type) {
+    const icons = {
+        info: 'ℹ️',
+        success: '✅',
+        warning: '⚠️',
+        error: '❌'
+    };
+    return icons[type] || icons.info;
+}
+
+// Professional effects and animations
+function addProfessionalEffects() {
+    // Add smooth entrance animations
+    const elements = document.querySelectorAll('.input-section, .domains-section, .results-section');
+    elements.forEach((element, index) => {
+        element.style.opacity = '0';
+        element.style.transform = 'translateY(30px)';
+        
+        setTimeout(() => {
+            element.style.transition = 'all 0.6s cubic-bezier(0.4, 0, 0.2, 1)';
+            element.style.opacity = '1';
+            element.style.transform = 'translateY(0)';
+        }, index * 200);
+    });
+    
+    // Add hover effects to form inputs
+    const inputs = document.querySelectorAll('.form-input');
+    inputs.forEach(input => {
+        input.addEventListener('focus', function() {
+            this.style.transform = 'translateY(-2px)';
+        });
+        
+        input.addEventListener('blur', function() {
+            this.style.transform = 'translateY(0)';
+        });
+    });
+    
+    // Add ripple effect to buttons
+    const buttons = document.querySelectorAll('.btn');
+    buttons.forEach(btn => {
+        btn.addEventListener('click', function(e) {
+            const ripple = document.createElement('span');
+            const rect = this.getBoundingClientRect();
+            const size = Math.max(rect.width, rect.height);
+            const x = e.clientX - rect.left - size / 2;
+            const y = e.clientY - rect.top - size / 2;
+            
+            ripple.style.cssText = `
+                position: absolute;
+                width: ${size}px;
+                height: ${size}px;
+                left: ${x}px;
+                top: ${y}px;
+                background: rgba(255, 255, 255, 0.2);
+                border-radius: 50%;
+                transform: scale(0);
+                animation: ripple 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+                pointer-events: none;
+            `;
+            
+            this.appendChild(ripple);
+            
+            setTimeout(() => {
+                ripple.remove();
+            }, 600);
+        });
+    });
+    
+    // Add CSS for ripple animation
+    const style = document.createElement('style');
+    style.textContent = `
+        @keyframes ripple {
+            to {
+                transform: scale(4);
+                opacity: 0;
+            }
+        }
+        
+        .btn {
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .loading {
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .loading::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 20px;
+            height: 20px;
+            margin: -10px 0 0 -10px;
+            border: 2px solid #10b981;
+            border-top: 2px solid transparent;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    `;
+    
+    if (!document.querySelector('#professional-effects-styles')) {
+        style.id = 'professional-effects-styles';
+        document.head.appendChild(style);
+    }
+}
+
+// Keyboard shortcuts with professional feedback
+document.addEventListener('keydown', function(e) {
+    // Ctrl+Enter to start scan
+    if (e.ctrlKey && e.key === 'Enter') {
+        if (domains.length > 0) {
+            startScan();
+        } else {
+            prepareDomains();
+        }
+    }
+    
+    // Escape to reset
+    if (e.key === 'Escape') {
+        resetDomains();
+    }
+    
+    // Show keyboard shortcut hint
+    if (e.ctrlKey || e.key === 'Escape') {
+        showNotification('Klaviatura qisqartmalari: Ctrl+Enter (tahlil), Escape (qayta boshlash)', 'info');
+    }
+}); 
+
+// Check for edited domains when page loads
+function checkForEditedDomains() {
+    const editedDomainData = localStorage.getItem('editedDomain');
+    if (editedDomainData) {
+        try {
+            const { domain: editedDomain, timestamp } = JSON.parse(editedDomainData);
+            const editingDomainData = localStorage.getItem('editingDomain');
+            
+            if (editingDomainData) {
+                const { index, domain: originalDomain } = JSON.parse(editingDomainData);
+                
+                // Check if this edit is recent (within last 10 seconds)
+                if (Date.now() - timestamp < 10000) {
+                    // Update the domain in the domains array
+                    if (domains[index] === originalDomain) {
+                        domains[index] = editedDomain;
+                        renderDomains();
+                        showNotification(`${originalDomain} muvaffaqiyatli ${editedDomain} ga o'zgartirildi!`, 'success');
+                    }
+                }
+            }
+            
+            // Clean up localStorage
+            localStorage.removeItem('editedDomain');
+            localStorage.removeItem('editingDomain');
+        } catch (error) {
+            console.error('Error processing edited domain:', error);
+            localStorage.removeItem('editedDomain');
+            localStorage.removeItem('editingDomain');
+        }
+    }
+} 
+
+// Custom confirmation modal function
+function showCustomConfirm(title, message, onConfirm, onCancel) {
+    // Remove existing modals
+    const existingModals = document.querySelectorAll('.custom-confirm-modal');
+    existingModals.forEach(modal => modal.remove());
+    
+    // Create modal container
+    const modal = document.createElement('div');
+    modal.className = 'custom-confirm-modal';
+    modal.innerHTML = `
+        <div class="custom-confirm-content">
+            <div class="custom-confirm-header">
+                <h3 class="custom-confirm-title">${title}</h3>
+                <button class="custom-confirm-close" onclick="this.closest('.custom-confirm-modal').remove()">×</button>
+            </div>
+            <div class="custom-confirm-body">
+                <p class="custom-confirm-message">${message}</p>
+            </div>
+            <div class="custom-confirm-actions">
+                <button class="btn btn-danger custom-confirm-btn" onclick="confirmAction(this)">
+                    Ha, o'chirish
+                </button>
+                <button class="btn btn-secondary custom-confirm-btn" onclick="cancelAction(this)">
+                    Yo'q, bekor qilish
+                </button>
+            </div>
+        </div>
+    `;
+    
+    // Add modal to body
+    document.body.appendChild(modal);
+    
+    // Store callbacks in modal data
+    modal.dataset.onConfirm = 'true';
+    modal.dataset.onCancel = 'true';
+    
+    // Add event listeners
+    modal.querySelector('.btn-danger').addEventListener('click', () => {
+        modal.remove();
+        if (onConfirm) onConfirm();
+    });
+    
+    modal.querySelector('.btn-secondary').addEventListener('click', () => {
+        modal.remove();
+        if (onCancel) onCancel();
+    });
+    
+    // Close on backdrop click
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            modal.remove();
+            if (onCancel) onCancel();
+        }
+    });
+    
+    // Show modal with animation
+    setTimeout(() => {
+        modal.classList.add('show');
+    }, 10);
+    
+    // Add styles for modal
+    const style = document.createElement('style');
+    style.textContent = `
+        .custom-confirm-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(10px);
+            z-index: 10000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .custom-confirm-modal.show {
+            opacity: 1;
+        }
+        
+        .custom-confirm-content {
+            background: linear-gradient(135deg, #1a1a1a, #2a2a2a);
+            border: 2px solid #333;
+            border-radius: 20px;
+            padding: 0;
+            max-width: 500px;
+            width: 90%;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+            transform: scale(0.9) translateY(20px);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            overflow: hidden;
+        }
+        
+        .custom-confirm-modal.show .custom-confirm-content {
+            transform: scale(1) translateY(0);
+        }
+        
+        .custom-confirm-header {
+            background: linear-gradient(135deg, #dc2626, #b91c1c);
+            padding: 1.5rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #444;
+        }
+        
+        .custom-confirm-title {
+            color: white;
+            margin: 0;
+            font-size: 1.5rem;
+            font-weight: 600;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+        
+        .custom-confirm-close {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 1.5rem;
+            cursor: pointer;
+            padding: 0.5rem;
+            border-radius: 50%;
+            transition: all 0.2s ease;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .custom-confirm-close:hover {
+            background: rgba(255, 255, 255, 0.1);
+            transform: scale(1.1);
+        }
+        
+        .custom-confirm-body {
+            padding: 2rem;
+            background: linear-gradient(135deg, #1a1a1a, #2a2a2a);
+        }
+        
+        .custom-confirm-message {
+            color: #e5e5e5;
+            font-size: 1.1rem;
+            line-height: 1.6;
+            margin: 0;
+            text-align: center;
+        }
+        
+        .custom-confirm-actions {
+            padding: 1.5rem 2rem;
+            background: linear-gradient(135deg, #2a2a2a, #1a1a1a);
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            border-top: 1px solid #444;
+        }
+        
+        .custom-confirm-btn {
+            padding: 1rem 2rem;
+            font-size: 1rem;
+            font-weight: 600;
+            border-radius: 12px;
+            transition: all 0.2s ease;
+            min-width: 140px;
+        }
+        
+        .custom-confirm-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+        }
+        
+        .btn-danger {
+            background: linear-gradient(135deg, #dc2626, #b91c1c);
+            border: 2px solid #dc2626;
+            color: white;
+        }
+        
+        .btn-danger:hover {
+            background: linear-gradient(135deg, #b91c1c, #991b1b);
+            border-color: #b91c1c;
+        }
+        
+        .btn-secondary {
+            background: linear-gradient(135deg, #6b7280, #4b5563);
+            border: 2px solid #6b7280;
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background: linear-gradient(135deg, #4b5563, #374151);
+            border-color: #4b5563;
+        }
+        
+        @media (max-width: 768px) {
+            .custom-confirm-content {
+                width: 95%;
+                margin: 1rem;
+            }
+            
+            .custom-confirm-actions {
+                flex-direction: column;
+                gap: 0.75rem;
+            }
+            
+            .custom-confirm-btn {
+                min-width: auto;
+                width: 100%;
+            }
+        }
+    `;
+    
+    if (!document.querySelector('#custom-confirm-styles')) {
+        style.id = 'custom-confirm-styles';
+        document.head.appendChild(style);
+    }
+} 

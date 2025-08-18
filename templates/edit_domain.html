@@ -1,0 +1,207 @@
+{% extends 'base.html' %}
+
+{% block title %}Domain Tahrirlash - {{ domain }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="/static/css/scan.css">
+{% endblock extra_css %}
+
+{% block content %}
+<div class="edit-page-container">
+    <!-- Header Section -->
+    <div class="edit-header">
+        <div class="edit-header-content">
+            <div class="edit-title-section">
+                <h1 class="edit-main-title">Domain Tahrirlash</h1>
+                <p class="edit-subtitle">{{ domain }}</p>
+            </div>
+            <div class="edit-actions-top">
+                <a href="{% url 'scan' %}" class="btn btn-outline">
+                    <span class="btn-icon">←</span>
+                    Orqaga qaytish
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Edit Section -->
+    <div class="edit-main-section">
+        <div class="edit-form-container">
+            <div class="edit-form-header">
+                <div class="edit-form-icon">
+                    <img src="https://www.google.com/s2/favicons?domain={{ domain }}&sz=64" 
+                         alt="Domain Icon" 
+                         class="domain-favicon"
+                         onerror="this.style.display='none'; this.nextElementSibling.style.display='inline-block';">
+                    <span class="icon-emoji" style="display: none;">🌐</span>
+                </div>
+                <h2 class="edit-form-title">Domain Tahrirlash</h2>
+            </div>
+            
+            <form id="editDomainForm" class="edit-form-new">
+                <div class="input-field-group">
+                    <label for="domainInput" class="input-label">
+                        <span class="label-icon">🌐</span>
+                        Yangi domain nomi
+                    </label>
+                    <div class="input-wrapper">
+                        <input type="text" 
+                               id="domainInput" 
+                               name="domain" 
+                               value="{{ domain }}" 
+                               class="input-field" 
+                               placeholder="example.com"
+                               required>
+                        <div class="input-focus-border"></div>
+                    </div>
+                </div>
+                
+                <div class="form-actions-new">
+                    <button type="submit" class="btn btn-save">
+                        Saqlash
+                    </button>
+                </div>
+            </form>
+        </div>
+        
+        <!-- Side Info Panel -->
+        <div class="edit-info-panel">
+            <div class="info-card">
+                <h3>💡 Yordam</h3>
+                <ul class="info-list">
+                    <li>Domain nomi to'g'ri formatda bo'lishi kerak</li>
+                    <li>Harflar, raqamlar va chiziqcha ishlatish mumkin</li>
+                    <li>Uzunlik 63 belgidan oshmasligi kerak</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('editDomainForm');
+    const domainInput = document.getElementById('domainInput');
+    
+    // Focus on input
+    domainInput.focus();
+    domainInput.select();
+    
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const newDomain = domainInput.value.trim();
+        
+        if (!newDomain) {
+            showNotification('Iltimos, domain nomini kiriting', 'warning');
+            return;
+        }
+        
+        // Domain format validatsiyasi
+        const domainRegex = /^[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?)*$/;
+        if (!domainRegex.test(newDomain)) {
+            showNotification('Noto\'g\'ri domain format! Iltimos, to\'g\'ri formatda kiriting', 'error');
+            return;
+        }
+        
+        // Show loading state
+        const submitBtn = form.querySelector('button[type="submit"]');
+        const originalText = submitBtn.innerHTML;
+        submitBtn.innerHTML = '<span class="btn-icon">⏳</span> Saqlanmoqda...';
+        submitBtn.disabled = true;
+        
+        // Send request to server
+        fetch(window.location.href, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify({
+                domain: newDomain
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Save edited domain to localStorage
+                const editedDomain = domainInput.value.trim();
+                localStorage.setItem('editedDomain', JSON.stringify({
+                    domain: editedDomain,
+                    timestamp: Date.now()
+                }));
+                
+                showNotification(data.message, 'success');
+                
+                // Redirect back to scan page after 2 seconds
+                setTimeout(() => {
+                    window.location.href = '{% url "scan" %}';
+                }, 2000);
+            } else {
+                showNotification(data.error, 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showNotification('Xatolik yuz berdi. Iltimos, qaytadan urinib ko\'ring.', 'error');
+        })
+        .finally(() => {
+            // Reset button state
+            submitBtn.innerHTML = originalText;
+            submitBtn.disabled = false;
+        });
+    });
+    
+    // Keyboard shortcuts - no alerts
+    document.addEventListener('keydown', function(e) {
+        // Prevent default behavior for Ctrl key combinations
+        if (e.ctrlKey) {
+            e.preventDefault();
+            if (e.key === 'Enter') {
+                form.dispatchEvent(new Event('submit'));
+            }
+        }
+        if (e.key === 'Escape') {
+            window.location.href = '{% url "scan" %}';
+        }
+    });
+});
+
+// CSRF token olish
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+// Notification system
+function showNotification(message, type = 'info') {
+    const notification = document.createElement('div');
+    notification.className = `notification notification-${type}`;
+    notification.innerHTML = `
+        <div class="notification-content">
+            <span class="notification-message">${message}</span>
+            <button class="notification-close" onclick="this.parentElement.parentElement.remove()">×</button>
+        </div>
+    `;
+    
+    document.body.appendChild(notification);
+    
+    // Auto remove after 5 seconds
+    setTimeout(() => {
+        if (notification.parentElement) {
+            notification.remove();
+        }
+    }, 5000);
+}
+</script>
+{% endblock %}

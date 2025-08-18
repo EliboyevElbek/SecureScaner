@@ -1,0 +1,111 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Domain Tahlil - SiteScaner{% endblock title %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="/static/css/scan.css">
+{% endblock extra_css %}
+
+{% block content %}
+<div class="container">
+    <div class="header-section">
+        <h1 class="main-title glitch">Domain Tahlil</h1>
+        <p class="subtitle">Domainlarni kiritib, xavfsizlik tahlilini boshlang</p>
+    </div>
+
+    <div class="scan-container">
+        <!-- Domain Input Section -->
+        <div class="input-section card">
+            <h2>Domainlar</h2>
+            <div class="form-group">
+                <label for="domainsInput">Domain nomlarini kiriting (har qatorda bitta):</label>
+                <textarea 
+                    id="domainsInput" 
+                    class="form-input" 
+                    rows="5" 
+                    placeholder="example.com&#10;test.com&#10;demo.org"
+                ></textarea>
+            </div>
+            <button class="btn btn-primary" onclick="prepareDomains()">Tayyorlash</button>
+        </div>
+
+        <!-- Domains List Section -->
+        <div class="domains-section card" id="domainsSection" style="display: none;">
+            <h2>Tayyorlangan Domainlar</h2>
+            <div class="domains-list" id="domainsList">
+                <!-- Domains will be populated here -->
+            </div>
+            <div class="scan-actions">
+                <button class="btn btn-success btn-large" onclick="startScan()">Tahlilni boshlash</button>
+                <button class="btn btn-secondary" onclick="resetDomains()">Qaytadan boshlash</button>
+                <button class="btn btn-primary" onclick="addMoreDomains()">+ Domain qo'shish</button>
+            </div>
+        </div>
+
+        <!-- Scan Results Section -->
+        {% if show_results %}
+        <div class="results-section card">
+            <h2>Tahlil Natijalari</h2>
+            <div class="results-summary">
+                <p><strong>Jami tahlil qilingan:</strong> {{ total_scanned }} ta</p>
+                <p><strong>Tahlil vaqti:</strong> {{ timestamp|date:"d.m.Y H:i:s" }}</p>
+            </div>
+            
+            <div class="results-list">
+                {% for result in scan_results %}
+                <div class="result-item card">
+                    <div class="result-header">
+                        <h3>{{ result.domain }}</h3>
+                        <span class="status-badge status-{{ result.status }}">
+                            {% if result.status == 'completed' %}
+                                ✅ Tugallandi
+                            {% elif result.status == 'failed' %}
+                                ❌ Xatolik
+                            {% else %}
+                                ⏳ Jarayonda
+                            {% endif %}
+                        </span>
+                    </div>
+                    
+                    {% if result.status == 'completed' %}
+                    <div class="result-details">
+                        <div class="detail-row">
+                            <strong>IP Manzil:</strong> {{ result.ip_address|default:"Topilmadi" }}
+                        </div>
+                        <div class="detail-row">
+                            <strong>SSL:</strong> 
+                            {% if result.ssl_info.ssl_enabled %}
+                                ✅ Faol
+                            {% else %}
+                                ❌ Faol emas
+                            {% endif %}
+                        </div>
+                        <div class="detail-row">
+                            <strong>Xavfsizlik sarlavhalari:</strong>
+                            <ul class="security-headers">
+                                <li>X-Frame-Options: {{ result.security_headers.x_frame_options }}</li>
+                                <li>X-Content-Type-Options: {{ result.security_headers.x_content_type_options }}</li>
+                                <li>X-XSS-Protection: {{ result.security_headers.x_xss_protection }}</li>
+                                <li>HSTS: {{ result.security_headers.strict_transport_security }}</li>
+                                <li>CSP: {{ result.security_headers.content_security_policy }}</li>
+                            </ul>
+                        </div>
+                    </div>
+                    {% elif result.status == 'failed' %}
+                    <div class="error-message">
+                        <strong>Xatolik:</strong> {{ result.error }}
+                    </div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock content %}
+
+{% block extra_js %}
+<script src="/static/js/scan.js"></script>
+{% endblock extra_js %}

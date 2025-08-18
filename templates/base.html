@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}SiteScaner - Professional Domain Scanner{% endblock title %}</title>
+    
+    <!-- CSS Files -->
+    <link rel="stylesheet" href="/static/css/base.css">
+    {% block extra_css %}{% endblock extra_css %}
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/x-icon" href="/static/images/favicon.ico">
+    
+    <!-- Meta tags -->
+    <meta name="description" content="Professional domain scanning and analysis tool">
+    <meta name="keywords" content="domain scanner, website analysis, security tools">
+    <meta name="author" content="SiteScaner">
+    
+    <!-- Preload fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+</head>
+<body>
+    <!-- Matrix Rain Background -->
+    <div class="matrix-rain"></div>
+    
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <a href="{% url 'home' %}" class="nav-logo glitch" data-text="SiteScaner">
+                <span class="logo-text">SiteScaner</span>
+            </a>
+            <ul class="nav-menu">
+                <li><a href="{% url 'home' %}" class="nav-link {% if request.resolver_match.url_name == 'home' %}active{% endif %}">
+                    <span class="nav-text">Bosh sahifa</span>
+                </a></li>
+                <li><a href="{% url 'scan' %}" class="nav-link {% if request.resolver_match.url_name == 'scan' %}active{% endif %}">
+                    <span class="nav-text">Tahlil qilish</span>
+                </a></li>
+                <li><a href="{% url 'scan_history' %}" class="nav-link {% if request.resolver_match.url_name == 'scan_history' %}active{% endif %}">
+                    <span class="nav-text">Tahlil tarixi</span>
+                </a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main>
+        {% block content %}
+        {% endblock content %}
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="footer-bottom">
+            <p>&copy; 2024 SiteScaner. Barcha huquqlar himoyalangan.</p>
+            <p>Professional domain tahlil va xavfsizlik vositalari</p>
+        </div>
+    </footer>
+
+    <!-- JavaScript Files -->
+    <script src="/static/js/base.js"></script>
+    {% block extra_js %}{% endblock extra_js %}
+</body>
+</html>

@@ -1,0 +1,112 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}SiteScaner - Professional Domain Scanner{% endblock title %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="/static/css/home.css">
+{% endblock extra_css %}
+
+{% block content %}
+<!-- Matrix Rain Background -->
+<div class="matrix-rain"></div>
+
+<!-- Hero Section -->
+<div class="hero">
+    <div class="hero-content">
+        <h1 class="hero-title glitch">SITE SCANER</h1>
+        <p class="hero-subtitle">Domain tahlil qilish tizimi</p>
+        <div class="hero-buttons">
+            <a href="{% url 'scan' %}" class="btn btn-success btn-large">Tahlilni Boshlash</a>
+            <a href="{% url 'scan_history' %}" class="btn btn-secondary btn-large">Tahlil Tarixi</a>
+        </div>
+    </div>
+</div>
+
+<!-- Features Section -->
+<div class="features">
+    <div class="container">
+        <h2 class="section-title">Xususiyatlar</h2>
+        <div class="features-grid">
+            <div class="feature-card">
+                <div class="feature-icon">🔍</div>
+                <h3 class="feature-title">Domain Tahlil</h3>
+                <p class="feature-description">Bir yoki bir nechta domainlarni bir vaqtda tahlil qiling. IP manzil, DNS yozuvlari va xavfsizlik ma'lumotlarini oling.</p>
+            </div>
+            
+            <div class="feature-card">
+                <div class="feature-icon">🛡️</div>
+                <h3 class="feature-title">Xavfsizlik Tekshiruv</h3>
+                <p class="feature-description">SSL sertifikatlari, xavfsizlik sarlavhalari va boshqa xavfsizlik parametrlarini tekshiring.</p>
+            </div>
+            
+            <div class="feature-card">
+                <div class="feature-icon">📊</div>
+                <h3 class="feature-title">Batafsil Hisobotlar</h3>
+                <p class="feature-description">Har bir tahlil uchun batafsil hisobotlar va natijalarni ko'ring. Tarixni saqlang va taqqoslang.</p>
+            </div>
+            
+            <div class="feature-card">
+                <div class="feature-icon">⚡</div>
+                <h3 class="feature-title">Tezkor Natijalar</h3>
+                <p class="feature-description">Zamonaviy texnologiyalar yordamida tezkor va aniq natijalar oling.</p>
+            </div>
+            
+            <div class="feature-card">
+                <div class="feature-icon">🎯</div>
+                <h3 class="feature-title">Aniq Tahlil</h3>
+                <p class="feature-description">Yuqori aniqlikda domain xavfsizligini baholash va zaifliklarni aniqlash.</p>
+            </div>
+            
+            <div class="feature-card">
+                <div class="feature-icon">🔐</div>
+                <h3 class="feature-title">Maxfiy Ma'lumotlar</h3>
+                <p class="feature-description">Barcha ma'lumotlar xavfsiz saqlanadi va faqat sizga tegishli.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Stats Section -->
+<div class="stats">
+    <div class="container">
+        <div class="stats-grid">
+            <div class="stat-item">
+                <div class="stat-number">{{ total_scans }}+</div>
+                <div class="stat-label">Jami Tahlillar</div>
+            </div>
+            
+            <div class="stat-item">
+                <div class="stat-number">{{ total_domains }}+</div>
+                <div class="stat-label">Tahlil Qilingan Domainlar</div>
+            </div>
+            
+            <div class="stat-item">
+                <div class="stat-number">{{ success_rate }}%</div>
+                <div class="stat-label">Muvaffaqiyat Darajasi</div>
+            </div>
+            
+            <div class="stat-item">
+                <div class="stat-number">{{ avg_duration }}s</div>
+                <div class="stat-label">O'rtacha Vaqt</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- CTA Section -->
+<div class="cta-section">
+    <div class="container">
+        <h2 class="cta-title">Hozir Boshlang</h2>
+        <p class="cta-description">Domainlaringizni tahlil qilishni boshlang va xavfsizlik holatini bilib oling. Professional vositalar bilan xavfsizlikni ta'minlang.</p>
+        <div class="hero-buttons">
+            <a href="{% url 'scan' %}" class="btn btn-success btn-large">Bepul Tahlil</a>
+            <a href="{% url 'scan_history' %}" class="btn btn-secondary btn-large">Tahlil Tarixi</a>
+        </div>
+    </div>
+</div>
+{% endblock content %}
+
+{% block extra_js %}
+<script src="/static/js/home.js"></script>
+{% endblock extra_js %}
