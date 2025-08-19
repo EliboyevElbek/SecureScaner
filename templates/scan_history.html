@@ -38,7 +38,17 @@
         {% for scan in page_obj %}
         <div class="scan-item">
             <div class="scan-item-header">
-                <h3>{{ scan.domain_name }}</h3>
+                <div class="domain-info-with-icon">
+                    <div class="domain-icon">
+                        <img src="https://www.google.com/s2/favicons?domain={{ scan.domain_name }}&sz=32" 
+                             alt="{{ scan.domain_name }} icon" 
+                             onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTEyIDJMMiA3VjIwQzIgMjAuNTUyMyAyLjQ0NzcyIDIxIDMgMjFIMjFDMjEuNTUyMyAyMSAyMiAyMC41NTIzIDIyIDIwVjdMMTIgMloiIHN0cm9rZT0iIzAwZmYwMCIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiLz4KPHBhdGggZD0iTTkgMjFWMTRMMTUgMTBWMjEiIHN0cm9rZT0iIzAwZmYwMCIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiLz4KPC9zdmc+'"
+                             class="favicon">
+                    </div>
+                    <div class="domain-text">
+                        <h3>{{ scan.domain_name }}</h3>
+                    </div>
+                </div>
                 <span class="scan-status {{ scan.status }}">{{ scan.get_status_display }}</span>
             </div>
             <div class="scan-item-details">
@@ -86,7 +96,9 @@
 <div class="modal" id="scanDetailsModal" style="display: none;">
     <div class="modal-content">
         <div class="modal-header">
-            <h3 id="modalTitle">Tahlil tafsilotlari</h3>
+            <div class="modal-title-section">
+                <h3 id="modalTitle">Tahlil tafsilotlari</h3>
+            </div>
             <button class="modal-close" onclick="closeModal()">&times;</button>
         </div>
         <div class="modal-body" id="modalBody">

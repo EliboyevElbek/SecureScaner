@@ -22,7 +22,21 @@ function showScanDetailsModal(scanData) {
     const modalTitle = document.getElementById('modalTitle');
     const modalBody = document.getElementById('modalBody');
     
-    modalTitle.textContent = `${scanData.domain_name} - Batafsil natijalar`;
+    // Modal title ga domain iconini qo'shish
+    modalTitle.innerHTML = `
+        <div class="modal-title-with-icon">
+            <div class="modal-domain-icon">
+                <img src="https://www.google.com/s2/favicons?domain=${scanData.domain_name}&sz=32" 
+                     alt="${scanData.domain_name} icon" 
+                     onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTEyIDJMMiA3VjIwQzIgMjAuNTUyMyAyLjQ0NzcyIDIxIDMgMjFIMjFDMjEuNTUyMyAyMSAyMiAyMC41NTIzIDIyIDIwVjdMMTIgMloiIHN0cm9rZT0iIzAwZmYwMCIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiLz4KPHBhdGggZD0iTTkgMjFWMTRMMTUgMTBWMjEiIHN0cm9rZT0iIzAwZmYwMCIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiLz4KPC9zdmc+'"
+                     class="modal-favicon">
+            </div>
+            <div class="modal-title-text">
+                <span class="domain-name">${scanData.domain_name}</span>
+                <span class="modal-subtitle">Batafsil natijalar</span>
+            </div>
+        </div>
+    `;
     
     let modalContent = `
         <div class="detailed-result">
