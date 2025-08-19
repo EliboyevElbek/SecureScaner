@@ -26,7 +26,7 @@
                     class="form-input" 
                     rows="5" 
                     placeholder="example.com&#10;test.com&#10;demo.org"
-                ></textarea>
+                >{% if existing_domains %}{{ existing_domains|join:"&#10;" }}{% endif %}</textarea>
             </div>
             <button class="btn btn-primary" onclick="prepareDomains()">Tayyorlash</button>
         </div>

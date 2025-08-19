@@ -107,8 +107,16 @@ def scan(request):
         except Exception as e:
             return JsonResponse({'error': f'Xatolik yuz berdi: {str(e)}'}, status=500)
     
-    # GET so'rov uchun - faqat form ko'rsatish
-    return render(request, template_name='scan.html')
+    # GET so'rov uchun - KeshDomain bazasidagi domainlarni ham qaytarish
+    try:
+        from .models import KeshDomain
+        existing_domains = list(KeshDomain.objects.values_list('domain_name', flat=True))
+    except:
+        existing_domains = []
+    
+    return render(request, template_name='scan.html', context={
+        'existing_domains': existing_domains
+    })
 
 def scan_history(request):
     """Tahlil tarixini HTML sahifada ko'rsatish"""

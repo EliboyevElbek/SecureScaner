@@ -898,6 +898,7 @@ document.addEventListener('keydown', function(e) {
 
 // Check for edited domains when page loads
 function checkForEditedDomains() {
+    // Check for edited domains from localStorage
     const editedDomainData = localStorage.getItem('editedDomain');
     if (editedDomainData) {
         try {
@@ -925,6 +926,26 @@ function checkForEditedDomains() {
             console.error('Error processing edited domain:', error);
             localStorage.removeItem('editedDomain');
             localStorage.removeItem('editingDomain');
+        }
+    }
+    
+    // Check for existing domains in textarea and auto-prepare them
+    const domainsInput = document.getElementById('domainsInput');
+    if (domainsInput && domainsInput.value.trim()) {
+        const existingDomains = domainsInput.value.trim().split('\n').filter(domain => domain.trim());
+        if (existingDomains.length > 0) {
+            // Auto-prepare domains
+            domains = existingDomains;
+            renderDomains();
+            
+            // Hide input section and show domains section
+            const inputSection = document.querySelector('.input-section');
+            inputSection.style.display = 'none';
+            
+            const domainsSection = document.getElementById('domainsSection');
+            domainsSection.style.display = 'block';
+            
+            showNotification(`${existingDomains.length} ta domain avtomatik ravishda tayyorlandi!`, 'success');
         }
     }
 } 
