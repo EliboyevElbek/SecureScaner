@@ -1,10 +1,15 @@
 from django.shortcuts import render, get_object_or_404
 from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
 import re
 import json
 import socket
 import requests
-from .models import DomainScan, Tool
+import urllib3
+from .models import DomainScan, Tool, KeshDomain
+
+# SSL warnings ni o'chirish
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 # Create your views here.
 
@@ -31,6 +36,7 @@ def home(request):
     
     return render(request, template_name='home.html', context=context)
 
+@csrf_exempt
 def scan(request):
     """Yangi scaner sahifasi - domain kiritish va tahlil qilish"""
     if request.method == 'POST':
@@ -78,9 +84,19 @@ def scan(request):
                     scan_result = perform_domain_scan(domain)
                     scan_results.append(scan_result)
                 
+                # Tahlil tugagandan so'ng KeshDomain bazasidagi barcha domainlarni o'chirish
+                try:
+                    from .models import KeshDomain
+                    deleted_count = KeshDomain.objects.count()
+                    KeshDomain.objects.all().delete()
+                    print(f"Tahlil tugagandan so'ng {deleted_count} ta domain KeshDomain bazasidan o'chirildi")
+                except Exception as e:
+                    print(f"KeshDomain o'chirishda xatolik: {e}")
+                
                 return JsonResponse({
                     'success': True,
-                    'results': scan_results
+                    'results': scan_results,
+                    'message': f'Tahlil muvaffaqiyatli tugallandi. {len(scan_results)} ta domain tahlil qilindi.'
                 })
             
             else:
@@ -175,6 +191,7 @@ def is_valid_domain(domain):
 
 def perform_domain_scan(domain):
     """Domen tahlilini amalga oshirish"""
+    scan = None
     try:
         # Yangi scan yaratish
         scan = DomainScan.objects.create(
@@ -183,10 +200,14 @@ def perform_domain_scan(domain):
         )
         
         # IP manzilni olish
+        ip_address = None
         try:
             ip_address = socket.gethostbyname(domain)
             scan.ip_address = ip_address
         except socket.gaierror:
+            ip_address = None
+        except Exception as e:
+            print(f"IP olishda xatolik {domain}: {e}")
             ip_address = None
         
         # DNS ma'lumotlarini olish
@@ -226,11 +247,12 @@ def perform_domain_scan(domain):
         
     except Exception as e:
         # Xatolik yuz berganda
-        if 'scan' in locals():
+        if scan:
             scan.status = 'failed'
             scan.error_message = str(e)
             scan.save()
         
+        print(f"Domain tahlilida xatolik {domain}: {e}")
         return {
             'domain': domain,
             'status': 'failed',
@@ -266,23 +288,42 @@ def get_ssl_info(domain):
     """SSL ma'lumotlarini olish"""
     try:
         # HTTPS orqali tekshirish
-        response = requests.get(f"https://{domain}", timeout=5, verify=False)
+        response = requests.get(f"https://{domain}", timeout=5, verify=False, allow_redirects=False)
         return {
             'ssl_enabled': True,
             'ssl_version': 'TLS 1.2+',
             'certificate_valid': True
         }
-    except:
+    except requests.exceptions.SSLError:
+        return {
+            'ssl_enabled': True,
+            'ssl_version': 'SSL xatolik',
+            'certificate_valid': False
+        }
+    except requests.exceptions.ConnectionError:
         return {
             'ssl_enabled': False,
-            'ssl_version': None,
+            'ssl_version': 'Ulanish xatolik',
+            'certificate_valid': False
+        }
+    except requests.exceptions.Timeout:
+        return {
+            'ssl_enabled': False,
+            'ssl_version': 'Vaqt tugadi',
+            'certificate_valid': False
+        }
+    except Exception as e:
+        print(f"SSL tekshirishda xatolik {domain}: {e}")
+        return {
+            'ssl_enabled': False,
+            'ssl_version': 'N/A',
             'certificate_valid': False
         }
 
 def get_security_headers(domain):
     """Xavfsizlik sarlavhalarini olish"""
     try:
-        response = requests.get(f"https://{domain}", timeout=5, verify=False)
+        response = requests.get(f"https://{domain}", timeout=5, verify=False, allow_redirects=False)
         headers = response.headers
         
         return {
@@ -292,7 +333,35 @@ def get_security_headers(domain):
             'strict_transport_security': headers.get('Strict-Transport-Security', 'Yo\'q'),
             'content_security_policy': headers.get('Content-Security-Policy', 'Yo\'q')
         }
-    except:
+    except requests.exceptions.SSLError:
+        print(f"SSL xatolik {domain} uchun xavfsizlik sarlavhalarini olishda")
+        return {
+            'x_frame_options': 'SSL xatolik',
+            'x_content_type_options': 'SSL xatolik',
+            'x_xss_protection': 'SSL xatolik',
+            'strict_transport_security': 'SSL xatolik',
+            'content_security_policy': 'SSL xatolik'
+        }
+    except requests.exceptions.ConnectionError:
+        print(f"Ulanish xatolik {domain} uchun xavfsizlik sarlavhalarini olishda")
+        return {
+            'x_frame_options': 'Ulanish xatolik',
+            'x_content_type_options': 'Ulanish xatolik',
+            'x_xss_protection': 'Ulanish xatolik',
+            'strict_transport_security': 'Ulanish xatolik',
+            'content_security_policy': 'Ulanish xatolik'
+        }
+    except requests.exceptions.Timeout:
+        print(f"Vaqt tugadi {domain} uchun xavfsizlik sarlavhalarini olishda")
+        return {
+            'x_frame_options': 'Vaqt tugadi',
+            'x_content_type_options': 'Vaqt tugadi',
+            'x_xss_protection': 'Vaqt tugadi',
+            'strict_transport_security': 'Vaqt tugadi',
+            'content_security_policy': 'Vaqt tugadi'
+        }
+    except Exception as e:
+        print(f"Xavfsizlik sarlavhalarini olishda xatolik {domain}: {e}")
         return {
             'x_frame_options': 'Tekshirilmadi',
             'x_content_type_options': 'Tekshirilmadi',
@@ -301,25 +370,53 @@ def get_security_headers(domain):
             'content_security_policy': 'Tekshirilmadi'
         }
 
-def edit_domain(request, domain):
-    """Domain tahrirlash sahifasi"""
+@csrf_exempt
+def save_domains(request):
+    """Domainlarni KeshDomain bazasiga saqlash"""
     if request.method == 'POST':
         try:
             data = json.loads(request.body)
-            new_domain = data.get('domain', '').strip()
+            domains = data.get('domains', [])
             
-            if not new_domain:
-                return JsonResponse({'error': 'Yangi domain nomi kiritilmagan'}, status=400)
+            if not domains:
+                return JsonResponse({'error': 'Domainlar kiritilmagan'}, status=400)
             
-            if not is_valid_domain(new_domain):
-                return JsonResponse({'error': 'Noto\'g\'ri domain format'}, status=400)
+            # Har bir domain uchun validatsiya va saqlash
+            saved_domains = []
+            errors = []
             
-            # Bu yerda domain ma'lumotlarini yangilash logikasi bo'ladi
-            # Hozircha faqat validatsiya qilamiz
+            for domain in domains:
+                domain = domain.strip()
+                if not domain:
+                    continue
+                
+                # Domain validatsiyasi
+                if not is_valid_domain(domain):
+                    errors.append(f'{domain} - noto\'g\'ri format')
+                    continue
+                
+                try:
+                    # Domain mavjudligini tekshirish
+                    kesh_domain, created = KeshDomain.objects.get_or_create(
+                        domain_name=domain
+                    )
+                    
+                    if created:
+                        saved_domains.append(domain)
+                    else:
+                        # Domain allaqachon mavjud
+                        saved_domains.append(f'{domain} (mavjud)')
+                        
+                except Exception as e:
+                    errors.append(f'{domain} - xatolik: {str(e)}')
             
             return JsonResponse({
                 'success': True,
-                'message': f'Domain {domain} muvaffaqiyatli {new_domain} ga o\'zgartirildi!'
+                'saved_count': len([d for d in saved_domains if '(mavjud)' not in d]),
+                'total_count': len(saved_domains),
+                'saved_domains': saved_domains,
+                'errors': errors,
+                'message': f'{len(saved_domains)} ta domain muvaffaqiyatli saqlandi!'
             })
             
         except json.JSONDecodeError:
@@ -327,7 +424,106 @@ def edit_domain(request, domain):
         except Exception as e:
             return JsonResponse({'error': f'Xatolik yuz berdi: {str(e)}'}, status=500)
     
-    # GET so'rov uchun - tahrirlash formini ko'rsatish
-    return render(request, template_name='edit_domain.html', context={
-        'domain': domain
-    })
+    return JsonResponse({'error': 'Faqat POST so\'rov qabul qilinadi'}, status=405)
+
+@csrf_exempt
+def delete_domain(request):
+    """KeshDomain bazasidan domain o'chirish"""
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            domain_name = data.get('domain_name', '').strip()
+            
+            if not domain_name:
+                return JsonResponse({'error': 'Domain nomi kiritilmagan'}, status=400)
+            
+            try:
+                # Domain ni bazadan topish va o'chirish
+                kesh_domain = KeshDomain.objects.get(domain_name=domain_name)
+                kesh_domain.delete()
+                
+                return JsonResponse({
+                    'success': True,
+                    'message': f'Domain {domain_name} muvaffaqiyatli o\'chirildi!'
+                })
+                
+            except KeshDomain.DoesNotExist:
+                return JsonResponse({
+                    'error': f'Domain {domain_name} bazada topilmadi'
+                }, status=404)
+                
+        except json.JSONDecodeError:
+            return JsonResponse({'error': 'Noto\'g\'ri JSON format'}, status=400)
+        except Exception as e:
+            return JsonResponse({'error': f'Xatolik yuz berdi: {str(e)}'}, status=500)
+    
+    return JsonResponse({'error': 'Faqat POST so\'rov qabul qilinadi'}, status=405)
+
+@csrf_exempt
+def clear_all_domains(request):
+    """KeshDomain bazasidagi barcha domainlarni o'chirish"""
+    if request.method == 'POST':
+        try:
+            # Barcha domainlarni o'chirish
+            deleted_count = KeshDomain.objects.count()
+            KeshDomain.objects.all().delete()
+            
+            return JsonResponse({
+                'success': True,
+                'message': f'Barcha {deleted_count} ta domain muvaffaqiyatli o\'chirildi!',
+                'deleted_count': deleted_count
+            })
+                
+        except Exception as e:
+            return JsonResponse({'error': f'Xatolik yuz berdi: {str(e)}'}, status=500)
+    
+    return JsonResponse({'error': 'Faqat POST so\'rov qabul qilinadi'}, status=405)
+
+@csrf_exempt
+def update_domain(request):
+    """KeshDomain bazasida domainni tahrirlash"""
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            old_domain = data.get('old_domain', '').strip()
+            new_domain = data.get('new_domain', '').strip()
+            
+            if not old_domain or not new_domain:
+                return JsonResponse({'error': 'Eski va yangi domain nomlari kiritilmagan'}, status=400)
+            
+            # Yangi domain validatsiyasi
+            if not is_valid_domain(new_domain):
+                return JsonResponse({'error': 'Yangi domain noto\'g\'ri formatda'}, status=400)
+            
+            try:
+                # Eski domain ni bazadan topish
+                kesh_domain = KeshDomain.objects.get(domain_name=old_domain)
+                
+                # Yangi domain allaqachon mavjudligini tekshirish
+                if KeshDomain.objects.filter(domain_name=new_domain).exclude(id=kesh_domain.id).exists():
+                    return JsonResponse({
+                        'error': f'Domain {new_domain} allaqachon mavjud'
+                    }, status=400)
+                
+                # Domain nomini yangilash
+                kesh_domain.domain_name = new_domain
+                kesh_domain.save()
+                
+                return JsonResponse({
+                    'success': True,
+                    'message': f'Domain {old_domain} muvaffaqiyatli {new_domain} ga o\'zgartirildi!',
+                    'old_domain': old_domain,
+                    'new_domain': new_domain
+                })
+            
+            except KeshDomain.DoesNotExist:
+                return JsonResponse({
+                    'error': f'Domain {old_domain} bazada topilmadi'
+                }, status=404)
+            
+        except json.JSONDecodeError:
+            return JsonResponse({'error': 'Noto\'g\'ri JSON format'}, status=400)
+        except Exception as e:
+            return JsonResponse({'error': f'Xatolik yuz berdi: {str(e)}'}, status=500)
+    
+    return JsonResponse({'error': 'Faqat POST so\'rov qabul qilinadi'}, status=405)

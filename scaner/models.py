@@ -51,6 +51,20 @@ class DomainScan(models.Model):
         }
         return colors.get(self.status, 'secondary')
 
+class KeshDomain(models.Model):
+    domain_name = models.CharField(max_length=255, verbose_name="Domain nomi", unique=True)
+    
+    class Meta:
+        verbose_name = "Kesh Domain"
+        verbose_name_plural = "Kesh Domainlar"
+        ordering = ['domain_name']
+        indexes = [
+            models.Index(fields=['domain_name']),
+        ]
+    
+    def __str__(self):
+        return self.domain_name
+
 class Tool(models.Model):
     TOOL_TYPES = [
         ('sqlmap', 'SQLMap'),

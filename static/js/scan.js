@@ -38,39 +38,79 @@ function prepareDomains() {
         return;
     }
     
-    // Add new domains to existing domains array
-    domains = [...domains, ...newDomains];
+    // Show loading state
+    const prepareButton = document.querySelector('.btn-primary');
+    const originalText = prepareButton.textContent;
+    prepareButton.textContent = '⏳ Saqlanmoqda...';
+    prepareButton.disabled = true;
     
-    // Clear the input after successful preparation
-    domainsInput.value = '';
-    
-    // Hide input section
-    const inputSection = document.querySelector('.input-section');
-    inputSection.classList.add('fade-out');
-    
-    setTimeout(() => {
-        inputSection.style.display = 'none';
-        inputSection.classList.remove('fade-out');
-    }, 400);
-    
-    // Show domains section with smooth animation
-    renderDomains();
-    const domainsSection = document.getElementById('domainsSection');
-    domainsSection.style.display = 'block';
-    domainsSection.classList.add('fade-in');
-    
-    setTimeout(() => {
-        domainsSection.classList.remove('fade-in');
-    }, 600);
-    
-    // Scroll to domains section
-    domainsSection.scrollIntoView({ 
-        behavior: 'smooth',
-        block: 'start'
+    // Send domains to backend for saving
+    fetch('/scaner/save-domains/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCSRFToken()
+        },
+        body: JSON.stringify({
+            domains: newDomains
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Add new domains to existing domains array
+            domains = [...domains, ...newDomains];
+            
+            // Clear the input after successful preparation
+            domainsInput.value = '';
+            
+            // Hide input section
+            const inputSection = document.querySelector('.input-section');
+            inputSection.classList.add('fade-out');
+            
+            setTimeout(() => {
+                inputSection.style.display = 'none';
+                inputSection.classList.remove('fade-out');
+            }, 400);
+            
+            // Show domains section with smooth animation
+            renderDomains();
+            const domainsSection = document.getElementById('domainsSection');
+            domainsSection.style.display = 'block';
+            domainsSection.classList.add('fade-in');
+            
+            setTimeout(() => {
+                domainsSection.classList.remove('fade-in');
+            }, 600);
+            
+            // Scroll to domains section
+            domainsSection.scrollIntoView({ 
+                behavior: 'smooth',
+                block: 'start'
+            });
+            
+            // Show success notification with backend response
+            showNotification(data.message, 'success');
+            
+            // Log detailed results
+            if (data.errors && data.errors.length > 0) {
+                console.log('Domain saqlash xatolari:', data.errors);
+            }
+            console.log('Saqlangan domainlar:', data.saved_domains);
+            
+        } else {
+            showNotification('Xatolik: ' + data.error, 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Domain saqlash xatosi:', error);
+        showNotification('Domain saqlash xatosi: ' + error.message, 'error');
+    })
+    .finally(() => {
+        // Reset button state
+        prepareButton.textContent = originalText;
+        prepareButton.disabled = false;
     });
-    
-    // Show success notification
-    showNotification(`${newDomains.length} ta yangi domain qo'shildi! Jami: ${domains.length} ta`, 'success');
 }
 
 function renderDomains() {
@@ -106,13 +146,161 @@ function renderDomains() {
 
 function editDomain(index) {
     const domain = domains[index];
-    // Save current domain info to localStorage for editing
-    localStorage.setItem('editingDomain', JSON.stringify({
-        index: index,
-        domain: domain
-    }));
-    // Redirect to edit page
-    window.location.href = `/scaner/edit/${encodeURIComponent(domain)}/`;
+    
+    // Create compact professional edit modal
+    const modal = document.createElement('div');
+    modal.className = 'edit-modal-compact';
+    modal.innerHTML = `
+        <div class="edit-modal-content-compact">
+            <div class="edit-modal-header-compact">
+                <div class="edit-modal-title-section-compact">
+                    <div class="edit-modal-icon-compact">
+                        <img src="https://www.google.com/s2/favicons?domain=${domain}&sz=32" 
+                             alt="Domain Icon" 
+                             class="domain-favicon-compact"
+                             onerror="this.style.display='none'; this.nextElementSibling.style.display='inline-block';">
+                        <span class="icon-emoji-compact" style="display: none;">🌐</span>
+                    </div>
+                    <div class="edit-modal-text-section">
+                        <h2 class="edit-modal-title-compact">Domain Tahrirlash</h2>
+                        <p class="edit-modal-subtitle-compact">${domain}</p>
+                    </div>
+                </div>
+                <button class="edit-modal-close-compact" onclick="closeEditModal()">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </button>
+            </div>
+            
+            <div class="edit-modal-body-compact">
+                <div class="input-field-group-compact">
+                    <label for="editDomainInput" class="input-label-compact">
+                        Yangi domain nomi
+                    </label>
+                    <div class="input-wrapper-compact">
+                        <input type="text" 
+                               id="editDomainInput" 
+                               class="input-field-compact" 
+                               value="${domain}" 
+                               placeholder="example.com"
+                               required>
+                    </div>
+                </div>
+                
+                <div class="edit-modal-actions-compact">
+                    <button class="btn btn-secondary" onclick="closeEditModal()">
+                        Bekor qilish
+                    </button>
+                    <button class="btn btn-primary" onclick="saveEditedDomain(${index}, '${domain}')">
+                        Saqlash
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    // Show modal with animation
+    setTimeout(() => {
+        modal.style.opacity = '1';
+        modal.style.transform = 'scale(1)';
+    }, 10);
+    
+    // Focus on input
+    const editInput = document.getElementById('editDomainInput');
+    editInput.focus();
+    editInput.select();
+    
+    // Add keyboard shortcuts
+    editInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+            saveEditedDomain(index, domain);
+        } else if (e.key === 'Escape') {
+            closeEditModal();
+        }
+    });
+    
+    showNotification(`${domain} tahrirlanmoqda...`, 'info');
+}
+
+function closeEditModal() {
+    const modal = document.querySelector('.edit-modal-compact');
+    if (modal) {
+        modal.style.opacity = '0';
+        modal.style.transform = 'scale(0.8)';
+        setTimeout(() => {
+            modal.remove();
+        }, 200);
+    }
+}
+
+function saveEditedDomain(index, originalDomain) {
+    const editInput = document.getElementById('editDomainInput');
+    const newDomain = editInput.value.trim();
+
+    if (!newDomain) {
+        showNotification('Iltimos, yangi domain nomini kiriting', 'warning');
+        return;
+    }
+
+    if (!isValidDomain(newDomain)) {
+        showNotification('Yangi domain nomi noto\'g\'ri formatda', 'error');
+        return;
+    }
+
+    if (newDomain === originalDomain) {
+        showNotification('Yangi domain nomi eski nomiga teng', 'warning');
+        return;
+    }
+
+    // Show loading state
+    const saveButton = document.querySelector('.edit-modal-compact .btn-primary');
+    const originalText = saveButton.textContent;
+    saveButton.textContent = '⏳ Saqlanmoqda...';
+    saveButton.disabled = true;
+
+    // Send update request to backend
+    fetch('/scaner/update-domain/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCSRFToken()
+        },
+        body: JSON.stringify({
+            old_domain: originalDomain,
+            new_domain: newDomain
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Update the domain in the array
+            domains[index] = newDomain;
+            
+            // Close modal
+            closeEditModal();
+            
+            // Re-render domains list
+            renderDomains();
+            
+            showNotification(data.message, 'success');
+            console.log('Domain updated successfully:', data);
+            
+        } else {
+            showNotification('Xatolik: ' + data.error, 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Domain update xatosi:', error);
+        showNotification('Domain update xatosi: ' + error.message, 'error');
+    })
+    .finally(() => {
+        // Reset button state
+        saveButton.textContent = originalText;
+        saveButton.disabled = false;
+    });
 }
 
 function deleteDomain(index) {
@@ -159,6 +347,26 @@ function closeCustomModal() {
 function confirmDeleteDomain(index) {
     const domain = domains[index];
     
+    // Show loading state
+    const deleteButton = document.querySelector('.custom-modal .btn-danger');
+    const originalText = deleteButton.textContent;
+    deleteButton.textContent = '⏳ O\'chirilmoqda...';
+    deleteButton.disabled = true;
+    
+    // Send delete request to backend
+    fetch('/scaner/delete-domain/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCSRFToken()
+        },
+        body: JSON.stringify({
+            domain_name: domain
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
     // Remove domain from array
         domains.splice(index, 1);
     
@@ -169,7 +377,30 @@ function confirmDeleteDomain(index) {
         renderDomains();
         
     // Show success notification
-    showNotification(`${domain} muvaffaqiyatli o'chirildi!`, 'success');
+            showNotification(data.message, 'success');
+            
+            // If no domains left, show input section again
+            if (domains.length === 0) {
+                const inputSection = document.querySelector('.input-section');
+                inputSection.style.display = 'block';
+                
+                const domainsSection = document.getElementById('domainsSection');
+                domainsSection.style.display = 'none';
+            }
+            
+        } else {
+            showNotification('Xatolik: ' + data.error, 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Domain o\'chirish xatosi:', error);
+        showNotification('Domain o\'chirish xatosi: ' + error.message, 'error');
+    })
+    .finally(() => {
+        // Reset button state
+        deleteButton.textContent = originalText;
+        deleteButton.disabled = false;
+    });
 }
 
 function startScan() {
@@ -179,10 +410,6 @@ function startScan() {
     }
     
     console.log('Starting scan for domains:', domains);
-    
-    // Create form data
-    const formData = new FormData();
-    formData.append('domains', domains.join('\n'));
     
     // Show loading state with professional animation
     const scanButton = document.querySelector('.btn-success');
@@ -196,24 +423,37 @@ function startScan() {
         item.classList.add('scanning');
     });
     
-    // Send request
+    // Send request with JSON data
     fetch('/scaner/', {
         method: 'POST',
         headers: {
+            'Content-Type': 'application/json',
             'X-CSRFToken': getCSRFToken()
         },
-        body: formData
+        body: JSON.stringify({
+            action: 'start_scan',
+            domains: domains
+        })
     })
     .then(response => {
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
-        return response.text();
+        return response.json();
     })
-    .then(html => {
-        // Replace the page content with the response
-        document.documentElement.innerHTML = html;
-        showNotification('Tahlil muvaffaqiyatli bajarildi!', 'success');
+    .then(data => {
+        if (data.success) {
+            // Backend dan kelgan xabarni ko'rsatish
+            const message = data.message || 'Tahlil muvaffaqiyatli bajarildi!';
+            showNotification(message, 'success');
+            
+            // Redirect to scan results or show results
+            setTimeout(() => {
+                window.location.href = '/scaner/history/';
+            }, 2000);
+        } else {
+            throw new Error(data.error || 'Noma\'lum xatolik');
+        }
     })
     .catch(error => {
         console.error('Scan error:', error);
@@ -274,6 +514,24 @@ function closeResetModal() {
 function confirmResetDomains() {
     console.log('User confirmed - proceeding with reset'); // Debug log
     
+    // Show loading state
+    const resetButton = document.querySelector('.custom-modal .btn-danger');
+    const originalText = resetButton.textContent;
+    resetButton.textContent = '⏳ O\'chirilmoqda...';
+    resetButton.disabled = true;
+    
+    // Send clear all request to backend
+    fetch('/scaner/clear-all-domains/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCSRFToken()
+        },
+        body: JSON.stringify({})
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
     // Ha - barcha domainlarni o'chir
     domains = [];
     document.getElementById('domainsInput').value = '';
@@ -303,11 +561,25 @@ function confirmResetDomains() {
         btn.removeAttribute('style');
     });
     
-    showNotification('Barcha domainlar o\'chirildi', 'info');
+            showNotification(data.message, 'success');
     console.log('Reset completed successfully'); // Debug log
+            
+        } else {
+            showNotification('Xatolik: ' + data.error, 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Barcha domainlarni o\'chirish xatosi:', error);
+        showNotification('Barcha domainlarni o\'chirish xatosi: ' + error.message, 'error');
+    })
+    .finally(() => {
+        // Reset button state
+        resetButton.textContent = originalText;
+        resetButton.disabled = false;
     
     // Close modal
     closeResetModal();
+    });
 }
 
 function addMoreDomains() {

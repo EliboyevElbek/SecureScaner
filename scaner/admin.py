@@ -1,7 +1,19 @@
 from django.contrib import admin
-from .models import DomainScan, Tool, ToolParameter, ScanSession, ToolExecution
+from .models import DomainScan, Tool, ToolParameter, ScanSession, ToolExecution, KeshDomain
 
 # Register your models here.
+
+@admin.register(KeshDomain)
+class KeshDomainAdmin(admin.ModelAdmin):
+    list_display = ['domain_name']
+    search_fields = ['domain_name']
+    ordering = ['domain_name']
+    
+    fieldsets = (
+        ('Asosiy ma\'lumotlar', {
+            'fields': ('domain_name',)
+        }),
+    )
 
 @admin.register(DomainScan)
 class DomainScanAdmin(admin.ModelAdmin):
