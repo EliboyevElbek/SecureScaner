@@ -575,15 +575,15 @@ function saveToolCommandsToBackend(domain) {
         
         if (savedParams.length > 0) {
             // Agar parametrlar tanlangan bo'lsa, ularni qo'shish
-            const baseCommand = getBaseCommand(toolType, domain);
+            const baseCommand = getDefaultCommand(toolType, domain);
             const finalCommand = `${baseCommand} ${savedParams.join(' ')}`;
             toolCommands.push({[toolType]: finalCommand});
         } else {
             // Agar parametrlar tanlanmagan bo'lsa, default buyruqni saqlash
-            const baseCommand = getBaseCommand(toolType, domain);
+            const baseCommand = getDefaultCommand(toolType, domain);
             toolCommands.push({[toolType]: baseCommand});
         }
-    });
+        });
     
     // Send to backend
     fetch('/scaner/save-tool-commands/', {
@@ -601,6 +601,29 @@ function saveToolCommandsToBackend(domain) {
     .then(data => {
         if (data.success) {
             console.log('Tool commands saved successfully:', data);
+            
+            // Tool buyruqlarini saqlagandan keyin bazadan yangi ma'lumotlarni o'qish
+            // Bu global o'zgaruvchini yangilaydi
+            if (window.domainToolCommands) {
+                // Bazadan yangi tool buyruqlarini olish
+                fetch(`/scaner/get-tools-for-domain/?domain=${encodeURIComponent(domain)}`, {
+                    method: 'GET',
+                    headers: {
+                        'X-CSRFToken': getCSRFToken()
+                    }
+                })
+                .then(response => response.json())
+                .then(toolData => {
+                    if (toolData.success && toolData.domain_tool_commands) {
+                        // Global o'zgaruvchini yangilash
+                        window.domainToolCommands = toolData.domain_tool_commands;
+                        console.log('Updated tool commands from database:', window.domainToolCommands);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error updating tool commands from database:', error);
+                });
+            }
         } else {
             console.error('Error saving tool commands:', data.error);
         }
@@ -694,8 +717,18 @@ function saveEditedDomain(index, originalDomain) {
     }
     
     // Tool buyruqlarida o'zgarish bor-yo'qligini tekshirish
-    if (window.domainToolCommands && window.domainToolCommands.length > 0) {
-        // Avval tanlangan parametrlarni tekshirish
+    // Avval tanlangan parametrlarni tekshirish
+    if (selectedToolParams) {
+        Object.keys(selectedToolParams).forEach(toolType => {
+            if (selectedToolParams[toolType] && selectedToolParams[toolType].length > 0) {
+                hasChanges = true;
+            }
+        });
+    }
+    
+    // Agar domain nomida o'zgarish bo'lmasa, lekin tool buyruqlarida o'zgarish bo'lsa ham saqlash kerak
+    if (!hasChanges && newDomain === originalDomain) {
+        // Tool buyruqlarida o'zgarish bor-yo'qligini qaytadan tekshirish
         if (selectedToolParams) {
             Object.keys(selectedToolParams).forEach(toolType => {
                 if (selectedToolParams[toolType] && selectedToolParams[toolType].length > 0) {
@@ -716,7 +749,23 @@ function saveEditedDomain(index, originalDomain) {
     saveButton.textContent = '⏳ Saqlanmoqda...';
     saveButton.disabled = true;
 
-    // Send update request to backend
+    // Agar faqat tool buyruqlarida o'zgarish bo'lsa, domain nomini o'zgartirmaslik
+    if (newDomain === originalDomain) {
+        // Faqat tool buyruqlarini saqlash
+        saveToolCommandsToBackend(originalDomain);
+        
+        // Close modal
+        closeEditModal();
+        
+        // Re-render domains list
+        renderDomains();
+        
+        showNotification('Tool buyruqlari muvaffaqiyatli saqlandi!', 'success');
+        console.log('Tool commands saved successfully');
+        return;
+    }
+    
+    // Domain nomini ham o'zgartirish kerak bo'lsa
     fetch('/scaner/update-domain/', {
         method: 'POST',
         headers: {
