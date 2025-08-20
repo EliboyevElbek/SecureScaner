@@ -548,7 +548,13 @@ def save_domains(request):
                 try:
                     # Domain mavjudligini tekshirish
                     kesh_domain, created = KeshDomain.objects.get_or_create(
-                        domain_name=domain
+                        domain_name=domain,
+                        defaults={
+                            'nmap': f'nmap -sS -sV -O -p- {domain}',
+                            'sqlmap': f'sqlmap -u https://{domain} --batch --random-agent',
+                            'xsstrike': f'python xsstrike.py -u https://{domain} --skip-dom',
+                            'gobuster': f'gobuster dir -u https://{domain} -w /usr/share/wordlists/dirb/common.txt'
+                        }
                     )
                     
                     if created:
