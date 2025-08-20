@@ -265,6 +265,19 @@ function loadToolsPreview(domain) {
     const toolsPreviewList = document.getElementById('toolsPreviewList');
     if (!toolsPreviewList) return;
     
+    // Agar domain bo'sh yoki juda qisqa bo'lsa, tool'larni ko'rsatmaslik
+    if (!domain || domain.trim().length < 3) {
+        toolsPreviewList.innerHTML = `
+            <div class="tool-preview-item info">
+                <div class="tool-preview-info">
+                    <div class="tool-preview-name">Ma'lumot</div>
+                    <div class="tool-preview-command">Domain nomini to'liq kiriting</div>
+                </div>
+            </div>
+        `;
+        return;
+    }
+    
     // Show loading state
     toolsPreviewList.innerHTML = `
         <div class="tool-preview-item loading">
@@ -366,7 +379,19 @@ function renderToolsPreview(tools, domain) {
             }
         }
         
-        const finalCommand = savedParams.length > 0 ? `${command} ${savedParams.join(' ')}` : command;
+        // Agar command allaqachon parametrlar bilan kelgan bo'lsa, ularni qo'shmaslik
+        let finalCommand = command;
+        if (savedParams.length > 0) {
+            // Bazadan saqlangan buyruqda allaqachon parametrlar bor-yo'qligini tekshirish
+            const baseCommand = getDefaultCommand(tool.tool_type, domain);
+            if (command === baseCommand) {
+                // Agar command default buyruq bo'lsa, parametrlarni qo'shish
+                finalCommand = `${command} ${savedParams.join(' ')}`;
+            } else {
+                // Agar command allaqachon parametrlar bilan kelgan bo'lsa, faqat command ni ishlatish
+                finalCommand = command;
+            }
+        }
         
         return `
             <div class="tool-preview-item" data-tool-type="${tool.tool_type}">
@@ -554,6 +579,9 @@ function updateToolCommandsForNewDomain(oldDomain, newDomain) {
             }
         });
     }
+    
+    // Avtomatik saqlashni to'xtatish - faqat "Saqlash" tugmasi bosilganda saqlansin
+    // saveToolCommandsToBackend(newDomain);
 }
 
 function saveToolCommandsToBackend(domain) {
@@ -577,12 +605,12 @@ function saveToolCommandsToBackend(domain) {
             // Agar parametrlar tanlangan bo'lsa, ularni qo'shish
             const baseCommand = getDefaultCommand(toolType, domain);
             const finalCommand = `${baseCommand} ${savedParams.join(' ')}`;
-            toolCommands.push({[toolType]: finalCommand});
-        } else {
+                toolCommands.push({[toolType]: finalCommand});
+            } else {
             // Agar parametrlar tanlanmagan bo'lsa, default buyruqni saqlash
             const baseCommand = getDefaultCommand(toolType, domain);
-            toolCommands.push({[toolType]: baseCommand});
-        }
+                toolCommands.push({[toolType]: baseCommand});
+            }
         });
     
     // Send to backend
@@ -788,6 +816,9 @@ function saveEditedDomain(index, originalDomain) {
             
             // Barcha tool buyruqlarini bazaga saqlash
             saveToolCommandsToBackend(newDomain);
+            
+            // Domain o'zgartirilgandan keyin yangi domain uchun endpoint chaqirish
+            loadToolsPreview(newDomain);
             
             // Close modal
             closeEditModal();
