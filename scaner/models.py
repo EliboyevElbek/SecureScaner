@@ -53,6 +53,7 @@ class DomainScan(models.Model):
 
 class KeshDomain(models.Model):
     domain_name = models.CharField(max_length=255, verbose_name="Domain nomi", unique=True)
+    tool_commands = models.JSONField(default=list, verbose_name="Tool buyruqlari", help_text="Tool va buyruqlar ro'yxati")
     
     class Meta:
         verbose_name = "Kesh Domain"

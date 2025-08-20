@@ -546,7 +546,8 @@ def save_domains(request):
                 try:
                     # Domain mavjudligini tekshirish
                     kesh_domain, created = KeshDomain.objects.get_or_create(
-                        domain_name=domain
+                        domain_name=domain,
+                        defaults={'tool_commands': []}
                     )
                     
                     if created:
@@ -655,6 +656,22 @@ def update_domain(request):
                 
                 # Domain nomini yangilash
                 kesh_domain.domain_name = new_domain
+                
+                # Tool buyruqlarini yangilash (agar mavjud bo'lsa)
+                if hasattr(kesh_domain, 'tool_commands') and kesh_domain.tool_commands:
+                    # Eski domain nomini yangi domain nomiga o'zgartirish
+                    updated_commands = []
+                    for command_data in kesh_domain.tool_commands:
+                        if isinstance(command_data, dict):
+                            for tool_name, command in command_data.items():
+                                # Command ichidagi eski domain nomini yangilash
+                                updated_command = command.replace(old_domain, new_domain)
+                                updated_commands.append({tool_name: updated_command})
+                        else:
+                            updated_commands.append(command_data)
+                    
+                    kesh_domain.tool_commands = updated_commands
+                
                 kesh_domain.save()
                 
                 return JsonResponse({
@@ -750,3 +767,41 @@ def get_tools(request):
             return JsonResponse({'error': f'Xatolik yuz berdi: {str(e)}'}, status=500)
     
     return JsonResponse({'error': 'Faqat GET so\'rov qabul qilinadi'}, status=405)
+
+@csrf_exempt
+def save_tool_commands(request):
+    """Tool buyruqlarini saqlash"""
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            domain_name = data.get('domain_name', '').strip()
+            tool_commands = data.get('tool_commands', [])
+            
+            if not domain_name:
+                return JsonResponse({'error': 'Domain nomi kiritilmagan'}, status=400)
+            
+            try:
+                # Domain ni bazadan topish
+                kesh_domain = KeshDomain.objects.get(domain_name=domain_name)
+                
+                # Tool buyruqlarini yangilash
+                kesh_domain.tool_commands = tool_commands
+                kesh_domain.save()
+                
+                return JsonResponse({
+                    'success': True,
+                    'message': f'Domain {domain_name} uchun tool buyruqlari muvaffaqiyatli saqlandi!',
+                    'saved_commands': tool_commands
+                })
+                
+            except KeshDomain.DoesNotExist:
+                return JsonResponse({
+                    'error': f'Domain {domain_name} bazada topilmadi'
+                }, status=404)
+            
+        except json.JSONDecodeError:
+            return JsonResponse({'error': 'Noto\'g\'ri JSON format'}, status=400)
+        except Exception as e:
+            return JsonResponse({'error': f'Xatolik yuz berdi: {str(e)}'}, status=500)
+    
+    return JsonResponse({'error': 'Faqat POST so\'rov qabul qilinadi'}, status=405)
