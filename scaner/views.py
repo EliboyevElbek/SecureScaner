@@ -192,6 +192,45 @@ def api_tools(request):
             'error': f'Xatolik yuz berdi: {str(e)}'
         }, status=500)
 
+def tools(request):
+    """Tools sahifasi - mavjud toolar ro'yxati"""
+    tools_list = [
+        {
+            'name': 'Nmap',
+            'description': 'Network scanner va port discovery tool',
+            'category': 'Network Security',
+            'icon': '🔍',
+            'features': ['Port scanning', 'Service detection', 'OS fingerprinting', 'Vulnerability assessment']
+        },
+        {
+            'name': 'SQLMap',
+            'description': 'SQL injection va database exploitation tool',
+            'category': 'Web Security',
+            'icon': '💉',
+            'features': ['SQL injection detection', 'Database enumeration', 'Data extraction', 'Automated exploitation']
+        },
+        {
+            'name': 'XSStrike',
+            'description': 'XSS (Cross-Site Scripting) detection va exploitation tool',
+            'category': 'Web Security',
+            'icon': '🎯',
+            'features': ['XSS detection', 'Payload generation', 'Filter bypass', 'Automated testing']
+        },
+        {
+            'name': 'Gobuster',
+            'description': 'Directory va file discovery tool',
+            'category': 'Reconnaissance',
+            'icon': '📁',
+            'features': ['Directory brute forcing', 'File discovery', 'Subdomain enumeration', 'Custom wordlists']
+        }
+    ]
+    
+    context = {
+        'tools': tools_list
+    }
+    
+    return render(request, template_name='tools.html', context=context)
+
 def is_valid_domain(domain):
     """Domain formatini tekshirish"""
     domain_pattern = r'^[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?)*$'

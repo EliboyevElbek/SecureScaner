@@ -10,4 +10,5 @@ urlpatterns = [
     path('scaner/clear-all-domains/', views.clear_all_domains, name='clear_all_domains'),
     path('scaner/update-domain/', views.update_domain, name='update_domain'),
     path('api/scan-details/<int:scan_id>/', views.viewScanDetails, name='scan_details'),
+    path('tools/', views.tools, name='tools'),
 ]

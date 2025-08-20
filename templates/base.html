@@ -41,6 +41,9 @@
                 <li><a href="{% url 'scan_history' %}" class="nav-link {% if request.resolver_match.url_name == 'scan_history' %}active{% endif %}">
                     <span class="nav-text">Tahlil tarixi</span>
                 </a></li>
+                <li><a href="{% url 'tools' %}" class="nav-link {% if request.resolver_match.url_name == 'tools' %}active{% endif %}">
+                    <span class="nav-text">Tool</span>
+                </a></li>
             </ul>
         </div>
     </nav>
