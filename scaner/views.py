@@ -550,10 +550,10 @@ def save_domains(request):
                     kesh_domain, created = KeshDomain.objects.get_or_create(
                         domain_name=domain,
                         defaults={
-                            'nmap': f'nmap -sS -sV -O -p- {domain}',
-                            'sqlmap': f'sqlmap -u https://{domain} --batch --random-agent',
-                            'xsstrike': f'python xsstrike.py -u https://{domain} --skip-dom',
-                            'gobuster': f'gobuster dir -u https://{domain} -w /usr/share/wordlists/dirb/common.txt'
+                            'nmap': f'nmap {domain}',
+                            'sqlmap': f'sqlmap -u https://{domain}',
+                            'xsstrike': f'xsstrike -u https://{domain}',
+                            'gobuster': f'gobuster dir -u https://{domain} -w common.txt'
                         }
                     )
                     
@@ -664,11 +664,11 @@ def update_domain(request):
                 # Domain nomini yangilash
                 kesh_domain.domain_name = new_domain
                 
-                # Tool buyruqlarini yangilash
-                kesh_domain.nmap = kesh_domain.nmap.replace(old_domain, new_domain)
-                kesh_domain.sqlmap = kesh_domain.sqlmap.replace(old_domain, new_domain)
-                kesh_domain.xsstrike = kesh_domain.xsstrike.replace(old_domain, new_domain)
-                kesh_domain.gobuster = kesh_domain.gobuster.replace(old_domain, new_domain)
+                # Tool buyruqlarini yangilash - domain nomini yangilash
+                kesh_domain.nmap = f'nmap {new_domain}'
+                kesh_domain.sqlmap = f'sqlmap -u https://{new_domain}'
+                kesh_domain.xsstrike = f'xsstrike -u https://{new_domain}'
+                kesh_domain.gobuster = f'gobuster dir -u https://{new_domain} -w common.txt'
                 
                 kesh_domain.save()
                 
@@ -785,11 +785,11 @@ def save_tool_commands(request):
                 # Domain ni bazadan topish
                 kesh_domain = KeshDomain.objects.get(domain_name=domain_name)
                 
-                # Tool buyruqlarini yangilash
-                kesh_domain.nmap = nmap
-                kesh_domain.sqlmap = sqlmap
-                kesh_domain.xsstrike = xsstrike
-                kesh_domain.gobuster = gobuster
+                # Tool buyruqlarini yangilash - domain nomini avtomatik qo'shish
+                kesh_domain.nmap = nmap if domain_name in nmap else f'nmap {domain_name}'
+                kesh_domain.sqlmap = sqlmap if domain_name in sqlmap else f'sqlmap -u https://{domain_name}'
+                kesh_domain.xsstrike = xsstrike if domain_name in xsstrike else f'xsstrike -u https://{domain_name}'
+                kesh_domain.gobuster = gobuster if domain_name in gobuster else f'gobuster dir -u https://{domain_name} -w common.txt'
                 kesh_domain.save()
                 
                 return JsonResponse({
