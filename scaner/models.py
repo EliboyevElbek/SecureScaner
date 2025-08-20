@@ -53,7 +53,10 @@ class DomainScan(models.Model):
 
 class KeshDomain(models.Model):
     domain_name = models.CharField(max_length=255, verbose_name="Domain nomi", unique=True)
-    tool_commands = models.JSONField(default=list, verbose_name="Tool buyruqlari", help_text="Tool va buyruqlar ro'yxati")
+    nmap = models.TextField(default="nmap -sS -sV -O -p- {domain}", verbose_name="Nmap buyrug'i")
+    sqlmap = models.TextField(default="sqlmap -u http://{domain} --batch --random-agent", verbose_name="SQLMap buyrug'i")
+    xsstrike = models.TextField(default="python xsstrike.py -u http://{domain} --skip-dom", verbose_name="XSStrike buyrug'i")
+    gobuster = models.TextField(default="gobuster dir -u http://{domain} -w /usr/share/wordlists/dirb/common.txt", verbose_name="Gobuster buyrug'i")
     
     class Meta:
         verbose_name = "Kesh Domain"
