@@ -337,6 +337,15 @@ def is_valid_domain(domain):
     domain_pattern = r'^[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?)*$'
     return bool(re.match(domain_pattern, domain))
 
+def get_default_tool_commands(domain):
+    """Domain uchun default tool buyruqlarini qaytarish"""
+    return [
+        {'sqlmap': f'sqlmap -u https://{domain}'},
+        {'nmap': f'nmap {domain}'},
+        {'xsstrike': f'xsstrike -u https://{domain}'},
+        {'gobuster': f'gobuster dir -u https://{domain} -w wordlist.txt'}
+    ]
+
 def perform_domain_scan(domain):
     """Domen tahlilini amalga oshirish"""
     scan = None
@@ -547,7 +556,7 @@ def save_domains(request):
                     # Domain mavjudligini tekshirish
                     kesh_domain, created = KeshDomain.objects.get_or_create(
                         domain_name=domain,
-                        defaults={'tool_commands': []}
+                        defaults={'tool_commands': get_default_tool_commands(domain)}
                     )
                     
                     if created:
