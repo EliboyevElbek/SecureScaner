@@ -196,25 +196,29 @@ def tools(request):
     """Tools sahifasi - mavjud toolar ro'yxati"""
     tools_list = [
         {
-            'name': 'Nmap',
+            'name': 'nmap',
+            'display_name': 'Nmap',
             'description': 'Tarmoq skanerlash va portlarni topish vositasi',
             'category': 'Tarmoq Xavfsizligi',
             'features': ['Port skanerlash', 'Xizmatlarni aniqlash', 'OS fingerprinting', 'Zaifliklarni baholash']
         },
         {
-            'name': 'SQLMap',
+            'name': 'sqlmap',
+            'display_name': 'SQLMap',
             'description': 'SQL injection va ma\'lumotlar bazasini ekspluatatsiya qilish vositasi',
             'category': 'Veb Xavfsizlik',
             'features': ['SQL injection aniqlash', 'Ma\'lumotlar bazasini sanash', 'Ma\'lumotlarni olish', 'Avtomatik ekspluatatsiya']
         },
         {
-            'name': 'XSStrike',
+            'name': 'xsstrike',
+            'display_name': 'XSStrike',
             'description': 'XSS (Cross-Site Scripting) aniqlash va ekspluatatsiya vositasi',
             'category': 'Veb Xavfsizlik',
             'features': ['XSS aniqlash', 'Payload yaratish', 'Filtrlarni aylanib o\'tish', 'Avtomatik sinab ko\'rish']
         },
         {
-            'name': 'Gobuster',
+            'name': 'gobuster',
+            'display_name': 'Gobuster',
             'description': 'Papka va fayllarni topish vositasi',
             'category': 'Razvedka',
             'features': ['Papka brute forcing', 'Fayllarni topish', 'Subdomain sanash', 'Maxsus so\'zlar ro\'yxati']

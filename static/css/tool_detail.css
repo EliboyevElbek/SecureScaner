@@ -96,45 +96,49 @@
 
 .parameters-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
-    gap: 1.5rem;
-}
-
-.parameter-card {
-    background: linear-gradient(145deg, rgba(20, 20, 20, 0.9), rgba(30, 30, 30, 0.9));
-    border: 1px solid rgba(0, 255, 0, 0.3);
-    border-radius: 15px;
-    padding: 1.5rem;
-    transition: all 0.3s ease;
-    display: flex;
-    align-items: center;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
     gap: 1rem;
 }
 
+.parameter-card {
+    background: #1a1a1a;
+    border: 1px solid #333;
+    border-radius: 8px;
+    padding: 1rem;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
 .parameter-card:hover {
-    transform: translateY(-5px);
-    border-color: rgba(0, 255, 0, 0.6);
-    box-shadow: 0 10px 25px rgba(0, 255, 0, 0.2);
+    transform: translateY(-2px);
+    border-color: #555;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
 }
 
 .parameter-flag {
-    background: linear-gradient(45deg, #00ff00, #00ffff);
-    color: #000;
+    background: #2a2a2a;
+    color: #ffffff;
     padding: 0.5rem 1rem;
-    border-radius: 10px;
+    border-radius: 8px;
     font-family: 'Courier New', monospace;
     font-weight: 700;
     font-size: 0.9rem;
-    min-width: 120px;
+    min-width: 100px;
     text-align: center;
-    box-shadow: 0 2px 10px rgba(0, 255, 0, 0.3);
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.4);
+    border: 2px solid #444;
+    letter-spacing: 0.5px;
 }
 
 .parameter-description {
-    color: #d0d0d0;
+    color: #ffffff;
     font-size: 0.95rem;
     line-height: 1.5;
     flex: 1;
+    text-align: center;
+    font-weight: 400;
 }
 
 .examples-section {
@@ -177,28 +181,23 @@
     white-space: nowrap;
 }
 
-.copy-btn {
-    background: linear-gradient(45deg, #00ff00, #00ffff);
-    color: #000;
-    border: none;
-    padding: 0.8rem 1.2rem;
-    border-radius: 8px;
-    font-weight: 600;
+.copy-icon {
+    width: 32px;
+    height: 32px;
     cursor: pointer;
     transition: all 0.3s ease;
-    font-size: 0.8rem;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    min-width: 100px;
+    opacity: 0.8;
+    filter: brightness(0.8);
 }
 
-.copy-btn:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 5px 15px rgba(0, 255, 0, 0.3);
+.copy-icon:hover {
+    transform: scale(1.1);
+    opacity: 1;
+    filter: brightness(1);
 }
 
-.copy-btn:active {
-    transform: translateY(0);
+.copy-icon:active {
+    transform: scale(0.95);
 }
 
 .tool-detail-footer {
@@ -258,12 +257,19 @@
     
     .parameters-grid {
         grid-template-columns: 1fr;
-        gap: 1rem;
+        gap: 0.75rem;
     }
     
     .parameter-card {
         flex-direction: column;
         text-align: center;
+        padding: 0.75rem;
+    }
+    
+    .parameter-flag {
+        min-width: 90px;
+        font-size: 0.8rem;
+        padding: 0.4rem 0.8rem;
     }
     
     .example-item {
@@ -274,6 +280,12 @@
     .example-command {
         white-space: normal;
         word-break: break-all;
+    }
+    
+    .copy-icon {
+        width: 28px;
+        height: 28px;
+        margin-top: 0.5rem;
     }
     
     .tools-stats {

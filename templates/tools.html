@@ -18,7 +18,7 @@
         <div class="tool-card">
             <div class="tool-header">
                 <div class="tool-info">
-                    <h3 class="tool-name">{{ tool.name }}</h3>
+                    <h3 class="tool-name">{{ tool.display_name }}</h3>
                     <span class="tool-category">{{ tool.category }}</span>
                 </div>
             </div>
@@ -29,7 +29,7 @@
             
             
             <div class="tool-actions">
-                <a href="{% url 'tool_detail' tool.name|lower %}" class="tool-btn primary">Batafsil ma'lumot</a>
+                <a href="{% url 'tool_detail' tool.name %}" class="tool-btn primary">Batafsil ma'lumot</a>
             </div>
         </div>
         {% endfor %}

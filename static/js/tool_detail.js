@@ -12,8 +12,8 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 // Copy to clipboard functionality
-function copyToClipboard(button) {
-    const commandElement = button.previousElementSibling;
+function copyToClipboard(imgElement) {
+    const commandElement = imgElement.previousElementSibling;
     const commandText = commandElement.textContent;
     
     // Create temporary textarea for copying
@@ -26,14 +26,14 @@ function copyToClipboard(button) {
         document.execCommand('copy');
         showCopyNotification('Buyruq nusxalandi!', 'success');
         
-        // Change button text temporarily
-        const originalText = button.textContent;
-        button.textContent = 'Nusxalandi!';
-        button.style.background = 'linear-gradient(45deg, #00ff00, #00cc00)';
+        // Change icon temporarily to show success
+        const originalSrc = imgElement.src;
+        imgElement.style.filter = 'brightness(1.5) saturate(2)';
+        imgElement.style.transform = 'scale(1.2)';
         
         setTimeout(() => {
-            button.textContent = originalText;
-            button.style.background = 'linear-gradient(45deg, #00ff00, #00ffff)';
+            imgElement.style.filter = 'brightness(0.8)';
+            imgElement.style.transform = 'scale(1)';
         }, 2000);
         
     } catch (err) {
@@ -43,12 +43,12 @@ function copyToClipboard(button) {
     document.body.removeChild(textarea);
 }
 
-// Initialize copy buttons with event listeners
+// Initialize copy icons with event listeners
 function initializeCopyButtons() {
-    const copyButtons = document.querySelectorAll('.copy-btn');
+    const copyIcons = document.querySelectorAll('.copy-icon');
     
-    copyButtons.forEach(button => {
-        button.addEventListener('click', function(e) {
+    copyIcons.forEach(icon => {
+        icon.addEventListener('click', function(e) {
             e.preventDefault();
             copyToClipboard(this);
         });

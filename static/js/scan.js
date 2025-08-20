@@ -147,48 +147,95 @@ function renderDomains() {
 function editDomain(index) {
     const domain = domains[index];
     
-    // Create compact professional edit modal
+    // Create comprehensive edit modal with tools
     const modal = document.createElement('div');
-    modal.className = 'edit-modal-compact';
+    modal.className = 'edit-modal-tools';
     modal.innerHTML = `
-        <div class="edit-modal-content-compact">
-            <div class="edit-modal-header-compact">
-                <div class="edit-modal-title-section-compact">
-                    <div class="edit-modal-icon-compact">
+        <div class="edit-modal-content-tools">
+            <div class="edit-modal-header-tools">
+                <div class="edit-modal-title-section-tools">
+                    <div class="edit-modal-icon-tools">
                         <img src="https://www.google.com/s2/favicons?domain=${domain}&sz=32" 
                              alt="Domain Icon" 
-                             class="domain-favicon-compact"
+                             class="domain-favicon-tools"
                              onerror="this.style.display='none'; this.nextElementSibling.style.display='inline-block';">
-                        <span class="icon-emoji-compact" style="display: none;">🌐</span>
+                        <span class="icon-emoji-tools" style="display: none;">🌐</span>
                     </div>
                     <div class="edit-modal-text-section">
-                        <h2 class="edit-modal-title-compact">Domain Tahrirlash</h2>
-                        <p class="edit-modal-subtitle-compact">${domain}</p>
+                        <h2 class="edit-modal-title-tools">Domain Tahrirlash</h2>
+                        <p class="edit-modal-subtitle-tools">${domain}</p>
                     </div>
                 </div>
-                <button class="edit-modal-close-compact" onclick="closeEditModal()">
+                <button class="edit-modal-close-tools" onclick="closeEditModal()">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                     </svg>
                 </button>
             </div>
             
-            <div class="edit-modal-body-compact">
-                <div class="input-field-group-compact">
-                    <label for="editDomainInput" class="input-label-compact">
+            <div class="edit-modal-body-tools">
+                <div class="input-field-group-tools">
+                    <label for="editDomainInput" class="input-label-tools">
                         Yangi domain nomi
                     </label>
-                    <div class="input-wrapper-compact">
+                    <div class="input-wrapper-tools">
                         <input type="text" 
                                id="editDomainInput" 
-                               class="input-field-compact" 
+                               class="input-field-tools" 
                                value="${domain}" 
                                placeholder="example.com"
                                required>
                     </div>
                 </div>
                 
-                <div class="edit-modal-actions-compact">
+                <div class="tools-preview-section">
+                    <h3 class="tools-preview-title">Tool Buyruqlari Ko'rinishi</h3>
+                    <p class="tools-preview-subtitle">Domain tahrirlanganda barcha toolarda avtomatik yangilanadi</p>
+                    
+                    <div class="tools-preview-list">
+                        <div class="tool-preview-item">
+                            <div class="tool-preview-header">
+                                <span class="tool-icon">🔍</span>
+                                <span class="tool-name">Nmap</span>
+                            </div>
+                            <div class="tool-command">
+                                <code>nmap <span class="domain-placeholder">${domain}</span></code>
+                            </div>
+                        </div>
+                        
+                        <div class="tool-preview-item">
+                            <div class="tool-preview-header">
+                                <span class="tool-icon">💉</span>
+                                <span class="tool-name">SQLMap</span>
+                            </div>
+                            <div class="tool-command">
+                                <code>sqlmap -u https://<span class="domain-placeholder">${domain}</span></code>
+                            </div>
+                        </div>
+                        
+                        <div class="tool-preview-item">
+                            <div class="tool-preview-header">
+                                <span class="tool-icon">🎯</span>
+                                <span class="tool-name">XSStrike</span>
+                            </div>
+                            <div class="tool-command">
+                                <code>xsstrike -u https://<span class="domain-placeholder">${domain}</span></code>
+                            </div>
+                        </div>
+                        
+                        <div class="tool-preview-item">
+                            <div class="tool-preview-header">
+                                <span class="tool-icon">📁</span>
+                                <span class="tool-name">Gobuster</span>
+                            </div>
+                            <div class="tool-command">
+                                <code>gobuster dir -u https://<span class="domain-placeholder">${domain}</span></code>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="edit-modal-actions-tools">
                     <button class="btn btn-secondary" onclick="closeEditModal()">
                         Bekor qilish
                     </button>
@@ -213,6 +260,18 @@ function editDomain(index) {
     editInput.focus();
     editInput.select();
     
+    // Add real-time preview update
+    editInput.addEventListener('input', function() {
+        const newDomain = this.value.trim();
+        if (newDomain) {
+            // Update all tool commands in real-time
+            const domainPlaceholders = modal.querySelectorAll('.domain-placeholder');
+            domainPlaceholders.forEach(placeholder => {
+                placeholder.textContent = newDomain;
+            });
+        }
+    });
+    
     // Add keyboard shortcuts
     editInput.addEventListener('keydown', function(e) {
         if (e.key === 'Enter') {
@@ -226,7 +285,7 @@ function editDomain(index) {
 }
 
 function closeEditModal() {
-    const modal = document.querySelector('.edit-modal-compact');
+    const modal = document.querySelector('.edit-modal-tools');
     if (modal) {
         modal.style.opacity = '0';
         modal.style.transform = 'scale(0.8)';
