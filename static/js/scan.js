@@ -1,6 +1,7 @@
 // Scan Page JavaScript - Professional Design
 
 let domains = [];
+let selectedToolParams = {}; // Tanlangan tool parametrlarini saqlash uchun
 
 document.addEventListener('DOMContentLoaded', function() {
     console.log('Scan page loaded');
@@ -267,7 +268,6 @@ function loadToolsPreview(domain) {
     // Show loading state
     toolsPreviewList.innerHTML = `
         <div class="tool-preview-item loading">
-            <div class="tool-preview-icon">⏳</div>
             <div class="tool-preview-info">
                 <div class="tool-preview-name">Tool'lar yuklanmoqda...</div>
                 <div class="tool-preview-command">Biroz kuting...</div>
@@ -285,11 +285,14 @@ function loadToolsPreview(domain) {
     .then(response => response.json())
     .then(data => {
         if (data.success && data.tools) {
+            // Tools data ni global o'zgaruvchiga saqlash
+            if (data.tools_data) {
+                window.toolsData = data.tools_data;
+            }
             renderToolsPreview(data.tools, domain);
         } else {
             toolsPreviewList.innerHTML = `
                 <div class="tool-preview-item error">
-                    <div class="tool-preview-icon">❌</div>
                     <div class="tool-preview-info">
                         <div class="tool-preview-name">Xatolik</div>
                         <div class="tool-preview-command">Tool'lar yuklanmadi</div>
@@ -302,7 +305,6 @@ function loadToolsPreview(domain) {
         console.error('Tools yuklash xatosi:', error);
         toolsPreviewList.innerHTML = `
             <div class="tool-preview-item error">
-                <div class="tool-preview-icon">❌</div>
                 <div class="tool-preview-info">
                     <div class="tool-preview-name">Xatolik</div>
                     <div class="tool-preview-command">${error.message}</div>
@@ -318,43 +320,222 @@ function renderToolsPreview(tools, domain) {
     
     const toolsHtml = tools.map(tool => {
         let command = '';
-        let icon = '🔧';
         
-        // Tool turiga qarab command va icon ni belgilash
+        // Tool turiga qarab command ni belgilash
         switch (tool.tool_type) {
             case 'nmap':
                 command = `nmap ${domain}`;
-                icon = '🌐';
                 break;
             case 'sqlmap':
                 command = `sqlmap -u https://${domain}`;
-                icon = '💉';
                 break;
             case 'xsstrike':
                 command = `xsstrike -u https://${domain}`;
-                icon = '🎯';
                 break;
             case 'gobuster':
                 command = `gobuster dir -u https://${domain} -w wordlist.txt`;
-                icon = '📁';
                 break;
             default:
                 command = `${tool.name} ${domain}`;
-                icon = '🔧';
         }
         
+        // Saqlangan parametrlarni olish
+        const savedParams = selectedToolParams[tool.tool_type] || [];
+        const finalCommand = savedParams.length > 0 ? `${command} ${savedParams.join(' ')}` : command;
+        
         return `
-            <div class="tool-preview-item">
-                <div class="tool-preview-icon">${icon}</div>
+            <div class="tool-preview-item" data-tool-type="${tool.tool_type}">
                 <div class="tool-preview-info">
-                    <div class="tool-preview-name">${tool.name}</div>
-                    <div class="tool-preview-command">${command}</div>
+                    <div class="tool-preview-name">
+                        <span class="tool-name-text">${tool.name}</span>
+                        <button class="tool-params-btn" onclick="toggleToolParams('${tool.tool_type}', '${domain}')">
+                            parametrlari
+                        </button>
+                    </div>
+                    <div class="tool-preview-command">${finalCommand}</div>
                 </div>
             </div>
         `;
     }).join('');
     
     toolsPreviewList.innerHTML = toolsHtml;
+}
+
+function toggleToolParams(toolType, domain) {
+    // Check if params are already shown anywhere on the page
+    const existingParams = document.querySelector('.tool-params-dropdown');
+    if (existingParams) {
+        existingParams.style.opacity = '0';
+        existingParams.style.transform = 'translate(-50%, -50%) scale(0.8)';
+        setTimeout(() => {
+            existingParams.remove();
+        }, 300);
+        return;
+    }
+    
+    // Get tool parameters based on tool type
+    const params = getToolParameters(toolType);
+    
+    // Create params dropdown
+    const paramsDropdown = document.createElement('div');
+    paramsDropdown.className = 'tool-params-dropdown';
+    paramsDropdown.innerHTML = `
+        <div class="tool-params-header">
+            <h4>${getToolDisplayName(toolType)} parametrlari</h4>
+            <button class="tool-params-close" onclick="closeToolParams()">×</button>
+        </div>
+        <div class="tool-params-command-preview">
+            <div class="command-preview-label">Buyruq:</div>
+            <div class="command-preview-text" id="commandPreview">${getCommandWithSavedParams(toolType, domain)}</div>
+        </div>
+        <div class="tool-params-content">
+            ${params.map(param => {
+                const isChecked = (selectedToolParams[toolType] || []).includes(param.value);
+                return `
+                    <div class="tool-param-item">
+                        <label class="tool-param-checkbox">
+                            <input type="checkbox" 
+                                   value="${param.value}" 
+                                   data-param="${param.name}"
+                                   ${isChecked ? 'checked' : ''}
+                                   onchange="updateToolCommandInPopup('${toolType}', '${domain}')">
+                            <span class="checkmark"></span>
+                            <div class="param-info">
+                                <div class="param-name">${param.name}</div>
+                                <div class="param-description">${param.description}</div>
+                            </div>
+                        </label>
+                    </div>
+                `;
+            }).join('')}
+        </div>
+    `;
+    
+    // Add to body for fixed positioning
+    document.body.appendChild(paramsDropdown);
+    
+    // Show with animation
+    setTimeout(() => {
+        paramsDropdown.style.opacity = '1';
+        paramsDropdown.style.transform = 'translate(-50%, -50%) scale(1)';
+    }, 10);
+    
+    // Close on backdrop click
+    paramsDropdown.addEventListener('click', function(e) {
+        if (e.target === this) {
+            closeToolParams();
+        }
+    });
+}
+
+function getToolParameters(toolType) {
+    // Global tools data ni ishlatish
+    if (window.toolsData && window.toolsData[toolType]) {
+        return window.toolsData[toolType].parameters.map(param => ({
+            name: param.flag,
+            value: param.flag,
+            description: param.description
+        }));
+    }
+    
+    // Fallback - agar tools data mavjud bo'lmasa
+    const fallbackParams = {
+        'nmap': [
+            { name: '-sS', value: '-sS', description: 'TCP SYN scan (stealth)' },
+            { name: '-sV', value: '-sV', description: 'Version detection' },
+            { name: '-O', value: '-O', description: 'OS detection' }
+        ],
+        'sqlmap': [
+            { name: '--dbs', value: '--dbs', description: 'Enumerate databases' },
+            { name: '--tables', value: '--tables', description: 'Enumerate tables' },
+            { name: '--dump', value: '--dump', description: 'Dump database' }
+        ],
+        'xsstrike': [
+            { name: '--crawl', value: '--crawl', description: 'Crawl website' },
+            { name: '--blind', value: '--blind', description: 'Blind XSS detection' }
+        ],
+        'gobuster': [
+            { name: 'dir', value: 'dir', description: 'Directory enumeration' },
+            { name: '-x php', value: '-x php', description: 'File extensions' }
+        ]
+    };
+    
+    return fallbackParams[toolType] || [];
+}
+
+function getToolDisplayName(toolType) {
+    const names = {
+        'nmap': 'Nmap',
+        'sqlmap': 'SQLMap',
+        'xsstrike': 'XSStrike',
+        'gobuster': 'Gobuster'
+    };
+    
+    return names[toolType] || toolType;
+}
+
+function closeToolParams() {
+    const existingParams = document.querySelector('.tool-params-dropdown');
+    if (existingParams) {
+        existingParams.style.opacity = '0';
+        existingParams.style.transform = 'translate(-50%, -50%) scale(0.8)';
+        setTimeout(() => {
+            existingParams.remove();
+        }, 300);
+    }
+}
+
+function getBaseCommand(toolType, domain) {
+    switch (toolType) {
+        case 'nmap':
+            return `nmap ${domain}`;
+        case 'sqlmap':
+            return `sqlmap -u https://${domain}`;
+        case 'xsstrike':
+            return `xsstrike -u https://${domain}`;
+        case 'gobuster':
+            return `gobuster dir -u https://${domain} -w wordlist.txt`;
+        default:
+            return `${toolType} ${domain}`;
+    }
+}
+
+function getCommandWithSavedParams(toolType, domain) {
+    const baseCommand = getBaseCommand(toolType, domain);
+    const savedParams = selectedToolParams[toolType] || [];
+    return savedParams.length > 0 ? `${baseCommand} ${savedParams.join(' ')}` : baseCommand;
+}
+
+function updateToolCommand(toolType, domain) {
+    const toolItem = document.querySelector(`[data-tool-type="${toolType}"]`);
+    if (!toolItem) return;
+    
+    const commandDiv = toolItem.querySelector('.tool-preview-command');
+    
+    // Saqlangan parametrlarni ishlatish
+    const savedParams = selectedToolParams[toolType] || [];
+    const baseCommand = getBaseCommand(toolType, domain);
+    const finalCommand = savedParams.length > 0 ? `${baseCommand} ${savedParams.join(' ')}` : baseCommand;
+    
+    commandDiv.textContent = finalCommand;
+}
+
+function updateToolCommandInPopup(toolType, domain) {
+    // Update popup command preview
+    const commandPreview = document.getElementById('commandPreview');
+    if (commandPreview) {
+        const baseCommand = getBaseCommand(toolType, domain);
+        const checkboxes = document.querySelectorAll('.tool-params-dropdown input[type="checkbox"]:checked');
+        const selectedParams = Array.from(checkboxes).map(cb => cb.value).join(' ');
+        const finalCommand = selectedParams ? `${baseCommand} ${selectedParams}` : baseCommand;
+        commandPreview.textContent = finalCommand;
+        
+        // Tanlangan parametrlarni global o'zgaruvchiga saqlash
+        selectedToolParams[toolType] = Array.from(checkboxes).map(cb => cb.value);
+    }
+    
+    // Also update the main tool command
+    updateToolCommand(toolType, domain);
 }
 
 function saveEditedDomain(index, originalDomain) {
@@ -372,7 +553,7 @@ function saveEditedDomain(index, originalDomain) {
     }
 
     if (newDomain === originalDomain) {
-        showNotification('Yangi domain nomi eski nomiga teng', 'warning');
+        showNotification('O\'zgarish qilinmadi', 'warning');
         return;
     }
 

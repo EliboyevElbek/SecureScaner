@@ -189,6 +189,12 @@ body {
     overflow: hidden;
 }
 
+.btn-small {
+    padding: 8px 16px;
+    font-size: 12px;
+    border-radius: 6px;
+}
+
 
 
 .btn::before {

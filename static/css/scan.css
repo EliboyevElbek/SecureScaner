@@ -2550,8 +2550,8 @@
     background: linear-gradient(135deg, rgba(0, 0, 0, 0.95), rgba(20, 20, 20, 0.95));
     border: 2px solid #333333;
     border-radius: 20px;
-    width: 95%;
-    max-width: 1000px;
+    width: 90%;
+    max-width: 1200px;
     max-height: 90vh;
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8);
     overflow: hidden;
@@ -2751,7 +2751,6 @@
 .tool-preview-item {
     display: flex;
     align-items: center;
-    gap: 1rem;
     padding: 1rem;
     background: rgba(0, 0, 0, 0.5);
     border: 1px solid #333333;
@@ -2763,6 +2762,7 @@
     border-color: #00ff00;
     background: rgba(0, 0, 0, 0.7);
     transform: translateX(5px);
+    box-shadow: 0 8px 25px rgba(0, 255, 0, 0.3);
 }
 
 .tool-preview-item.loading {
@@ -2775,32 +2775,45 @@
     background: rgba(239, 68, 68, 0.1);
 }
 
-.tool-preview-icon {
-    font-size: 1.5rem;
-    width: 40px;
-    height: 40px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: rgba(0, 255, 0, 0.1);
-    border: 2px solid #00ff00;
-    border-radius: 8px;
-    flex-shrink: 0;
-}
 
-.tool-preview-item.loading .tool-preview-icon {
-    border-color: #f59e0b;
-    background: rgba(245, 158, 11, 0.1);
-}
-
-.tool-preview-item.error .tool-preview-icon {
-    border-color: #ef4444;
-    background: rgba(239, 68, 68, 0.1);
-}
 
 .tool-preview-info {
     flex: 1;
     min-width: 0;
+    width: 100%;
+}
+
+.tool-preview-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-shrink: 0;
+}
+
+.tool-params-btn {
+    background: rgba(0, 255, 0, 0.1);
+    border: 1px solid #00ff00;
+    color: #00ff00;
+    padding: 0.3rem 0.6rem;
+    font-size: 0.75rem;
+    font-weight: 500;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-family: 'Inter', sans-serif;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.tool-params-btn:hover {
+    background: rgba(0, 255, 0, 0.2);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0, 255, 0, 0.3);
+}
+
+.tool-name-text {
+    flex: 1;
+    color: #ffffff;
 }
 
 .tool-preview-name {
@@ -2809,7 +2822,22 @@
     font-size: 1rem;
     margin-bottom: 0.3rem;
     font-family: 'Inter', sans-serif;
+    text-shadow: 0 0 10px rgba(0, 255, 0, 0.5);
+    box-shadow: 0 4px 15px rgba(0, 255, 0, 0.2);
+    padding: 0.5rem 0.8rem;
+    background: rgba(0, 0, 0, 0.6);
+    border-radius: 8px;
+    border: 1px solid rgba(0, 255, 0, 0.3);
+    transition: all 0.3s ease;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    min-height: 40px;
 }
+
+
 
 .tool-preview-command {
     color: #00ff00;
@@ -2827,8 +2855,248 @@
     color: #f59e0b;
 }
 
+.tool-preview-item.loading .tool-preview-name {
+    color: #f59e0b;
+    border-color: rgba(245, 158, 11, 0.5);
+    box-shadow: 0 4px 15px rgba(245, 158, 11, 0.3);
+    text-shadow: 0 0 10px rgba(245, 158, 11, 0.5);
+}
+
 .tool-preview-item.error .tool-preview-command {
     color: #ef4444;
+}
+
+.tool-preview-item.error .tool-preview-name {
+    color: #ef4444;
+    border-color: rgba(239, 68, 68, 0.5);
+    box-shadow: 0 4px 15px rgba(239, 68, 68, 0.3);
+    text-shadow: 0 0 10px rgba(239, 68, 68, 0.5);
+}
+
+/* Tool Parameters Popup */
+.tool-params-dropdown {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(0.8);
+    width: 98%;
+    max-width: 1350px;
+    max-height: 80vh;
+    background: linear-gradient(135deg, rgba(0, 0, 0, 0.98), rgba(20, 20, 20, 0.98));
+    border: 2px solid #00ff00;
+    border-radius: 16px;
+    overflow: hidden;
+    opacity: 0;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 10000;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.9);
+    backdrop-filter: blur(20px);
+}
+
+.tool-params-dropdown::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, #00ff00, #00cc00, #00ff00);
+    animation: borderGlow 3s ease-in-out infinite;
+}
+
+.tool-params-header {
+    background: linear-gradient(135deg, rgba(0, 255, 0, 0.15), rgba(0, 204, 0, 0.15));
+    border-bottom: 1px solid #333333;
+    padding: 1.2rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.tool-params-header h4 {
+    color: #00ff00;
+    margin: 0;
+    font-size: 1.2rem;
+    font-weight: 700;
+    font-family: 'Inter', sans-serif;
+    text-shadow: 0 0 10px rgba(0, 255, 0, 0.3);
+}
+
+/* Command Preview Section */
+.tool-params-command-preview {
+    background: rgba(0, 0, 0, 0.8);
+    border-bottom: 1px solid #333333;
+    padding: 1rem 1.2rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.command-preview-label {
+    color: #00ff00;
+    font-weight: 600;
+    font-size: 0.9rem;
+    font-family: 'Inter', sans-serif;
+    white-space: nowrap;
+}
+
+.command-preview-text {
+    color: #ffffff;
+    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+    font-size: 0.8rem;
+    background: rgba(0, 0, 0, 0.6);
+    padding: 0.6rem 0.8rem;
+    border-radius: 8px;
+    border: 1px solid #333333;
+    flex: 1;
+    word-break: break-all;
+    line-height: 1.4;
+    box-shadow: 0 2px 8px rgba(0, 255, 0, 0.1);
+}
+
+.tool-params-close {
+    background: none;
+    border: none;
+    color: #00ff00;
+    font-size: 1.5rem;
+    cursor: pointer;
+    padding: 0.2rem;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.tool-params-close:hover {
+    background: rgba(0, 255, 0, 0.1);
+    transform: scale(1.1);
+}
+
+.tool-params-content {
+    padding: 1.2rem;
+    max-height: 400px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: #00ff00 #333333;
+}
+
+.tool-params-content::-webkit-scrollbar {
+    width: 8px;
+}
+
+.tool-params-content::-webkit-scrollbar-track {
+    background: #333333;
+    border-radius: 4px;
+}
+
+.tool-params-content::-webkit-scrollbar-thumb {
+    background: #00ff00;
+    border-radius: 4px;
+}
+
+.tool-params-content::-webkit-scrollbar-thumb:hover {
+    background: #00cc00;
+}
+
+.tool-param-item {
+    margin-bottom: 0.8rem;
+}
+
+.tool-param-item:last-child {
+    margin-bottom: 0;
+}
+
+.tool-param-checkbox {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.8rem;
+    cursor: pointer;
+    padding: 0.8rem;
+    border-radius: 8px;
+    transition: all 0.15s ease;
+    border: 1px solid transparent;
+}
+
+.tool-param-checkbox:hover {
+    background: rgba(0, 255, 0, 0.08);
+    border-color: rgba(0, 255, 0, 0.3);
+    transform: translateX(3px);
+}
+
+.tool-param-checkbox input[type="checkbox"] {
+    display: none;
+}
+
+.checkmark {
+    width: 20px;
+    height: 20px;
+    border: 2px solid #00ff00;
+    border-radius: 4px;
+    background: rgba(0, 0, 0, 0.5);
+    position: relative;
+    flex-shrink: 0;
+    margin-top: 0.2rem;
+    transition: all 0.1s ease;
+    cursor: pointer;
+}
+
+.tool-param-checkbox:hover .checkmark {
+    border-color: #00cc00;
+    background: rgba(0, 255, 0, 0.1);
+    transform: scale(1.1);
+}
+
+.tool-param-checkbox input[type="checkbox"]:checked + .checkmark {
+    background: #00ff00;
+    border-color: #00ff00;
+    transform: scale(1.05);
+    box-shadow: 0 0 10px rgba(0, 255, 0, 0.5);
+}
+
+.tool-param-checkbox input[type="checkbox"]:checked + .checkmark::after {
+    content: '✓';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: #000;
+    font-size: 14px;
+    font-weight: bold;
+    animation: checkmarkAppear 0.15s ease-out;
+}
+
+@keyframes checkmarkAppear {
+    from {
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(0.5);
+    }
+    to {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1);
+    }
+}
+
+.param-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.param-name {
+    color: #00ff00;
+    font-weight: 600;
+    font-size: 0.9rem;
+    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+    margin-bottom: 0.2rem;
+}
+
+.param-description {
+    color: #cccccc;
+    font-size: 0.8rem;
+    line-height: 1.4;
+    font-family: 'Inter', sans-serif;
 }
 
 /* Actions Section - Using /scaner page button styles */
