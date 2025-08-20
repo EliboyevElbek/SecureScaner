@@ -685,7 +685,27 @@ function saveEditedDomain(index, originalDomain) {
         return;
     }
 
-    if (newDomain === originalDomain) {
+    // Domain nomida yoki tool buyruqlarida o'zgarish bor-yo'qligini tekshirish
+    let hasChanges = false;
+    
+    // Domain nomida o'zgarish bor-yo'qligini tekshirish
+    if (newDomain !== originalDomain) {
+        hasChanges = true;
+    }
+    
+    // Tool buyruqlarida o'zgarish bor-yo'qligini tekshirish
+    if (window.domainToolCommands && window.domainToolCommands.length > 0) {
+        // Avval tanlangan parametrlarni tekshirish
+        if (selectedToolParams) {
+            Object.keys(selectedToolParams).forEach(toolType => {
+                if (selectedToolParams[toolType] && selectedToolParams[toolType].length > 0) {
+                    hasChanges = true;
+                }
+            });
+        }
+    }
+    
+    if (!hasChanges) {
         showNotification('O\'zgarish qilinmadi', 'warning');
         return;
     }
