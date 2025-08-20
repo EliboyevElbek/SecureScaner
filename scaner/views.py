@@ -674,7 +674,14 @@ def update_domain(request):
                         if isinstance(command_data, dict):
                             for tool_name, command in command_data.items():
                                 # Command ichidagi eski domain nomini yangilash
-                                updated_command = command.replace(old_domain, new_domain)
+                                # URL va domain nomlarini to'g'ri o'zgartirish
+                                if 'https://' in command:
+                                    updated_command = command.replace(f'https://{old_domain}', f'https://{new_domain}')
+                                elif 'http://' in command:
+                                    updated_command = command.replace(f'http://{old_domain}', f'http://{new_domain}')
+                                else:
+                                    # Domain nomini alohida o'zgartirish (nmap uchun)
+                                    updated_command = command.replace(old_domain, new_domain)
                                 updated_commands.append({tool_name: updated_command})
                         else:
                             updated_commands.append(command_data)
@@ -790,8 +797,11 @@ def save_tool_commands(request):
                 return JsonResponse({'error': 'Domain nomi kiritilmagan'}, status=400)
             
             try:
-                # Domain ni bazadan topish
-                kesh_domain = KeshDomain.objects.get(domain_name=domain_name)
+                # Domain ni bazadan topish yoki yangi yaratish
+                kesh_domain, created = KeshDomain.objects.get_or_create(
+                    domain_name=domain_name,
+                    defaults={'tool_commands': get_default_tool_commands(domain_name)}
+                )
                 
                 # Tool buyruqlarini yangilash
                 kesh_domain.tool_commands = tool_commands
@@ -814,3 +824,98 @@ def save_tool_commands(request):
             return JsonResponse({'error': f'Xatolik yuz berdi: {str(e)}'}, status=500)
     
     return JsonResponse({'error': 'Faqat POST so\'rov qabul qilinadi'}, status=405)
+
+@csrf_exempt
+def get_tools_for_domain(request):
+    """Domain uchun tool buyruqlarini olish"""
+    if request.method == 'GET':
+        try:
+            domain_name = request.GET.get('domain', '').strip()
+            
+            if not domain_name:
+                return JsonResponse({'error': 'Domain nomi kiritilmagan'}, status=400)
+            
+            # Faol tool'larni bazadan olish
+            tools = Tool.objects.filter(is_active=True).values('id', 'name', 'tool_type', 'description')
+            tools_list = list(tools)
+            
+            # Domain uchun saqlangan tool buyruqlarini olish
+            domain_tool_commands = []
+            try:
+                kesh_domain = KeshDomain.objects.get(domain_name=domain_name)
+                if kesh_domain.tool_commands:
+                    domain_tool_commands = kesh_domain.tool_commands
+            except KeshDomain.DoesNotExist:
+                # Domain bazada mavjud emas, default buyruqlarni yaratish
+                domain_tool_commands = get_default_tool_commands(domain_name)
+                
+                # Yangi KeshDomain yaratish
+                KeshDomain.objects.create(
+                    domain_name=domain_name,
+                    tool_commands=domain_tool_commands
+                )
+            
+            # Tool parametrlarini qo'shish
+            tools_data = {
+                'nmap': {
+                    'parameters': [
+                        {'flag': '-sS', 'description': 'TCP SYN skanerlash - portlarni ochiq yoki yopiqligini aniqlash'},
+                        {'flag': '-sU', 'description': 'UDP skanerlash - UDP portlarni tekshirish'},
+                        {'flag': '-O', 'description': 'OS fingerprinting - operatsion tizimni aniqlash'},
+                        {'flag': '-sV', 'description': 'Xizmat versiyasini aniqlash'},
+                        {'flag': '-p', 'description': 'Maxsus portlarni skanerlash (masalan: -p 80,443,8080)'},
+                        {'flag': '-A', 'description': 'Aggressive skanerlash - barcha xususiyatlarni faollashtirish'},
+                        {'flag': '--script', 'description': 'NSE skriptlarini ishlatish'},
+                        {'flag': '-T4', 'description': 'Tezlik - 4 darajada tez skanerlash'}
+                    ]
+                },
+                'sqlmap': {
+                    'parameters': [
+                        {'flag': '--dbs', 'description': 'Mavjud ma\'lumotlar bazalarini ko\'rish'},
+                        {'flag': '--batch', 'description': 'Savollarsiz ishlash - avtomatik javoblar'},
+                        {'flag': '--random-agent', 'description': 'Tasodifiy User-Agent ishlatish'},
+                        {'flag': '--tables', 'description': 'Ma\'lumotlar bazasidagi jadvallarni ko\'rish'},
+                        {'flag': '--columns', 'description': 'Jadvaldagi ustunlarni ko\'rish'},
+                        {'flag': '--dump', 'description': 'Ma\'lumotlarni olish va saqlash'},
+                        {'flag': '--level', 'description': 'Test darajasi (1-5) - yuqori daraja ko\'proq test'},
+                        {'flag': '--risk', 'description': 'Xavf darajasi (1-3) - yuqori xavf ko\'proq payload'}
+                    ]
+                },
+                'xsstrike': {
+                    'parameters': [
+                        {'flag': '--crawl', 'description': 'Sahifalarni avtomatik ko\'rish va tekshirish'},
+                        {'flag': '--blind', 'description': 'Blind XSS testlarini o\'tkazish'},
+                        {'flag': '--skip-dom', 'description': 'DOM XSS testlarini o\'tkazmaslik'},
+                        {'flag': '--skip-payload', 'description': 'Payload testlarini o\'tkazmaslik'},
+                        {'flag': '--params', 'description': 'Maxsus parametrlarni tekshirish'},
+                        {'flag': '--headers', 'description': 'HTTP headerlarni tekshirish'},
+                        {'flag': '--cookies', 'description': 'Cookie larni tekshirish'},
+                        {'flag': '--json', 'description': 'JSON formatida natijalarni ko\'rsatish'}
+                    ]
+                },
+                'gobuster': {
+                    'parameters': [
+                        {'flag': 'dir', 'description': 'Papkalarni qidirish rejimi'},
+                        {'flag': 'dns', 'description': 'DNS subdomain qidirish rejimi'},
+                        {'flag': 'fuzz', 'description': 'Fayl nomlarini qidirish rejimi'},
+                        {'flag': '-w', 'description': 'So\'zlar ro\'yxati fayli (wordlist)'},
+                        {'flag': '-u', 'description': 'Target URL yoki domain'},
+                        {'flag': '-t', 'description': 'Threadlar soni (parallel ishlash)'},
+                        {'flag': '-x', 'description': 'Fayl kengaytmalarini qo\'shish'},
+                        {'flag': '--status-codes', 'description': 'Qaysi HTTP kodlarni ko\'rsatish'}
+                    ]
+                }
+            }
+            
+            return JsonResponse({
+                'success': True,
+                'tools': tools_list,
+                'tools_data': tools_data,
+                'domain_tool_commands': domain_tool_commands,
+                'total_tools': len(tools_list)
+            })
+                
+        except Exception as e:
+            return JsonResponse({'error': f'Xatolik yuz berdi: {str(e)}'}, status=500)
+    
+    return JsonResponse({'error': 'Faqat GET so\'rov qabul qilinadi'}, status=405)

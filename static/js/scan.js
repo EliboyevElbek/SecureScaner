@@ -275,8 +275,8 @@ function loadToolsPreview(domain) {
         </div>
     `;
     
-    // Fetch tools from backend
-    fetch('/scaner/get-tools/', {
+    // Fetch tools from backend with domain-specific commands
+    fetch(`/scaner/get-tools-for-domain/?domain=${encodeURIComponent(domain)}`, {
         method: 'GET',
         headers: {
             'X-CSRFToken': getCSRFToken()
@@ -288,6 +288,10 @@ function loadToolsPreview(domain) {
             // Tools data ni global o'zgaruvchiga saqlash
             if (data.tools_data) {
                 window.toolsData = data.tools_data;
+            }
+            // Domain uchun saqlangan tool buyruqlarini olish
+            if (data.domain_tool_commands) {
+                window.domainToolCommands = data.domain_tool_commands;
             }
             renderToolsPreview(data.tools, domain);
         } else {
@@ -321,26 +325,47 @@ function renderToolsPreview(tools, domain) {
     const toolsHtml = tools.map(tool => {
         let command = '';
         
-        // Tool turiga qarab command ni belgilash
-        switch (tool.tool_type) {
-            case 'nmap':
-                command = `nmap ${domain}`;
-                break;
-            case 'sqlmap':
-                command = `sqlmap -u https://${domain}`;
-                break;
-            case 'xsstrike':
-                command = `xsstrike -u https://${domain}`;
-                break;
-            case 'gobuster':
-                command = `gobuster dir -u https://${domain} -w wordlist.txt`;
-                break;
-            default:
-                command = `${tool.name} ${domain}`;
+        // Avval bazadan saqlangan tool buyruqlarini tekshirish
+        if (window.domainToolCommands && window.domainToolCommands.length > 0) {
+            // Bazadan tool buyruqlarini topish
+            const savedCommand = window.domainToolCommands.find(cmd => {
+                if (typeof cmd === 'object' && cmd[tool.tool_type]) {
+                    return true;
+                }
+                return false;
+            });
+            
+            if (savedCommand && savedCommand[tool.tool_type]) {
+                command = savedCommand[tool.tool_type];
+            } else {
+                // Agar bazada saqlanmagan bo'lsa, default buyruqni ishlatish
+                command = getDefaultCommand(tool.tool_type, domain);
+            }
+        } else {
+            // Bazada saqlanmagan bo'lsa, default buyruqni ishlatish
+            command = getDefaultCommand(tool.tool_type, domain);
         }
         
-        // Saqlangan parametrlarni olish
-        const savedParams = selectedToolParams[tool.tool_type] || [];
+        // Avval tanlangan parametrlarni olish (agar mavjud bo'lsa)
+        let savedParams = selectedToolParams[tool.tool_type] || [];
+        
+        // Agar avval tanlangan parametrlar mavjud bo'lmasa, bazadan saqlangan buyruqdan parametrlarni ajratib olish
+        if (savedParams.length === 0 && command !== getDefaultCommand(tool.tool_type, domain)) {
+            // Bazadan saqlangan buyruqdan parametrlarni ajratib olish
+            const baseCommand = getDefaultCommand(tool.tool_type, domain);
+            if (command.startsWith(baseCommand)) {
+                const extraParams = command.substring(baseCommand.length).trim();
+                if (extraParams) {
+                    savedParams = extraParams.split(' ');
+                    // selectedToolParams ni yangilash
+                    if (!selectedToolParams[tool.tool_type]) {
+                        selectedToolParams[tool.tool_type] = [];
+                    }
+                    selectedToolParams[tool.tool_type] = savedParams;
+                }
+            }
+        }
+        
         const finalCommand = savedParams.length > 0 ? `${command} ${savedParams.join(' ')}` : command;
         
         return `
@@ -498,9 +523,36 @@ function updateToolCommandsForNewDomain(oldDomain, newDomain) {
                 });
             }
         });
-        
-        // Save updated tool commands to backend
-        saveToolCommandsToBackend(newDomain);
+    }
+    
+    // Avval tanlangan parametrlarni saqlash uchun global o'zgaruvchiga qo'shish
+    if (window.domainToolCommands && window.domainToolCommands.length > 0) {
+        window.domainToolCommands.forEach(cmd => {
+            if (typeof cmd === 'object') {
+                Object.keys(cmd).forEach(toolType => {
+                    if (!selectedToolParams[toolType]) {
+                        selectedToolParams[toolType] = [];
+                    }
+                    
+                    // Bazadan saqlangan buyruqdan parametrlarni ajratib olish
+                    const baseCommand = getDefaultCommand(toolType, newDomain);
+                    const savedCommand = cmd[toolType];
+                    
+                    if (savedCommand && savedCommand.startsWith(baseCommand)) {
+                        const extraParams = savedCommand.substring(baseCommand.length).trim();
+                        if (extraParams) {
+                            const params = extraParams.split(' ');
+                            // Avval tanlangan parametrlarni qo'shish
+                            params.forEach(param => {
+                                if (!selectedToolParams[toolType].includes(param)) {
+                                    selectedToolParams[toolType].push(param);
+                                }
+                            });
+                        }
+                    }
+                });
+            }
+        });
     }
 }
 
@@ -508,22 +560,30 @@ function saveToolCommandsToBackend(domain) {
     // Prepare tool commands data
     const toolCommands = [];
     
-    if (selectedToolParams) {
-        Object.keys(selectedToolParams).forEach(toolType => {
-            if (selectedToolParams[toolType] && selectedToolParams[toolType].length > 0) {
-                // Get base command for this tool type
-                const baseCommand = getBaseCommand(toolType, domain);
-                const selectedParams = selectedToolParams[toolType].join(' ');
-                const finalCommand = selectedParams ? `${baseCommand} ${selectedParams}` : baseCommand;
-                
-                toolCommands.push({[toolType]: finalCommand});
-            } else {
-                // Default command if no parameters selected
-                const baseCommand = getBaseCommand(toolType, domain);
-                toolCommands.push({[toolType]: baseCommand});
-            }
-        });
+    // Barcha tool turlarini olish (mavjud tool'lardan yoki global toolsData dan)
+    let allToolTypes = ['nmap', 'sqlmap', 'xsstrike', 'gobuster']; // Default tool types
+    
+    // Agar global toolsData mavjud bo'lsa, undan tool turlarini olish
+    if (window.toolsData) {
+        allToolTypes = Object.keys(window.toolsData);
     }
+    
+    // Barcha tool'lar uchun buyruqlarni yaratish
+    allToolTypes.forEach(toolType => {
+        // Avval tanlangan parametrlarni olish
+        const savedParams = selectedToolParams[toolType] || [];
+        
+        if (savedParams.length > 0) {
+            // Agar parametrlar tanlangan bo'lsa, ularni qo'shish
+            const baseCommand = getBaseCommand(toolType, domain);
+            const finalCommand = `${baseCommand} ${savedParams.join(' ')}`;
+            toolCommands.push({[toolType]: finalCommand});
+        } else {
+            // Agar parametrlar tanlanmagan bo'lsa, default buyruqni saqlash
+            const baseCommand = getBaseCommand(toolType, domain);
+            toolCommands.push({[toolType]: baseCommand});
+        }
+    });
     
     // Send to backend
     fetch('/scaner/save-tool-commands/', {
@@ -551,18 +611,23 @@ function saveToolCommandsToBackend(domain) {
 }
 
 function getBaseCommand(toolType, domain) {
-    switch (toolType) {
-        case 'nmap':
-            return `nmap ${domain}`;
-        case 'sqlmap':
-            return `sqlmap -u https://${domain}`;
-        case 'xsstrike':
-            return `xsstrike -u https://${domain}`;
-        case 'gobuster':
-            return `gobuster dir -u https://${domain} -w wordlist.txt`;
-        default:
-            return `${toolType} ${domain}`;
+    // Avval bazadan saqlangan tool buyruqlarini tekshirish
+    if (window.domainToolCommands && window.domainToolCommands.length > 0) {
+        // Bazadan tool buyruqlarini topish
+        const savedCommand = window.domainToolCommands.find(cmd => {
+            if (typeof cmd === 'object' && cmd[toolType]) {
+                return true;
+            }
+            return false;
+        });
+        
+        if (savedCommand && savedCommand[toolType]) {
+            return savedCommand[toolType];
+        }
     }
+    
+    // Agar bazada saqlanmagan bo'lsa, default buyruqni ishlatish
+    return getDefaultCommand(toolType, domain);
 }
 
 function getCommandWithSavedParams(toolType, domain) {
@@ -602,8 +667,8 @@ function updateToolCommandInPopup(toolType, domain) {
     // Also update the main tool command
     updateToolCommand(toolType, domain);
     
-    // Save tool commands to backend
-    saveToolCommandsToBackend(domain);
+    // Avtomatik saqlashni to'xtatish - faqat "Saqlash" tugmasi bosilganda saqlansin
+    // saveToolCommandsToBackend(domain);
 }
 
 function saveEditedDomain(index, originalDomain) {
@@ -651,6 +716,9 @@ function saveEditedDomain(index, originalDomain) {
             
             // Update tool commands for the new domain
             updateToolCommandsForNewDomain(originalDomain, newDomain);
+            
+            // Barcha tool buyruqlarini bazaga saqlash
+            saveToolCommandsToBackend(newDomain);
             
             // Close modal
             closeEditModal();
@@ -1540,5 +1608,21 @@ function showCustomConfirm(title, message, onConfirm, onCancel) {
     if (!document.querySelector('#custom-confirm-styles')) {
         style.id = 'custom-confirm-styles';
         document.head.appendChild(style);
+    }
+} 
+
+// Default tool buyruqlarini qaytarish uchun funksiya
+function getDefaultCommand(toolType, domain) {
+    switch (toolType) {
+        case 'nmap':
+            return `nmap ${domain}`;
+        case 'sqlmap':
+            return `sqlmap -u https://${domain}`;
+        case 'xsstrike':
+            return `xsstrike -u https://${domain}`;
+        case 'gobuster':
+            return `gobuster dir -u https://${domain} -w wordlist.txt`;
+        default:
+            return `${toolType} ${domain}`;
     }
 } 
