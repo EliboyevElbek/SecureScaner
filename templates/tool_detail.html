@@ -1,0 +1,63 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ tool.name }} - SiteScaner{% endblock title %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="/static/css/tool_detail.css">
+{% endblock extra_css %}
+
+{% block content %}
+<div class="tool-detail-container">
+    <div class="tool-detail-header">
+        <div class="back-button">
+            <a href="{% url 'tools' %}" class="back-link">← Orqaga qaytish</a>
+        </div>
+        <h1 class="tool-detail-title">{{ tool.name }}</h1>
+        <p class="tool-detail-subtitle">{{ tool.description }}</p>
+        <span class="tool-detail-category">{{ tool.category }}</span>
+    </div>
+
+    <div class="tool-detail-content">
+        <div class="parameters-section">
+            <h2 class="section-title">Asosiy parametrlar</h2>
+            <div class="parameters-grid">
+                {% for param in tool.parameters %}
+                <div class="parameter-card">
+                    <div class="parameter-flag">{{ param.flag }}</div>
+                    <div class="parameter-description">{{ param.description }}</div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="examples-section">
+            <h2 class="section-title">Foydalanish misollari</h2>
+            <div class="examples-list">
+                {% for example in tool.examples %}
+                <div class="example-item">
+                    <code class="example-command">{{ example }}</code>
+                    <button class="copy-btn" onclick="copyToClipboard(this)">Nusxalash</button>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <div class="tool-detail-footer">
+        <div class="tool-info-stats">
+            <div class="stat-item">
+                <span class="stat-number">{{ tool.parameters|length }}</span>
+                <span class="stat-label">Parametr</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-number">{{ tool.examples|length }}</span>
+                <span class="stat-label">Misol</span>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock content %}
+
+{% block extra_js %}
+<script src="/static/js/tool_detail.js"></script>
+{% endblock extra_js %}

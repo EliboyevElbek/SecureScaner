@@ -17,27 +17,19 @@
         {% for tool in tools %}
         <div class="tool-card">
             <div class="tool-header">
-                <div class="tool-icon">{{ tool.icon }}</div>
                 <div class="tool-info">
                     <h3 class="tool-name">{{ tool.name }}</h3>
                     <span class="tool-category">{{ tool.category }}</span>
                 </div>
             </div>
             
-            <p class="tool-description">{{ tool.description }}</p>
-            
-            <div class="tool-features">
-                <h4>Asosiy xususiyatlar:</h4>
-                <ul class="features-list">
-                    {% for feature in tool.features %}
-                    <li>{{ feature }}</li>
-                    {% endfor %}
-                </ul>
+            <div class="tool-description">
+                <p>{{ tool.description }}</p>
             </div>
             
+            
             <div class="tool-actions">
-                <button class="tool-btn primary">Batafsil ma'lumot</button>
-                <button class="tool-btn secondary">Ishlatish</button>
+                <a href="{% url 'tool_detail' tool.name|lower %}" class="tool-btn primary">Batafsil ma'lumot</a>
             </div>
         </div>
         {% endfor %}
@@ -47,15 +39,7 @@
         <div class="tools-stats">
             <div class="stat-item">
                 <span class="stat-number">{{ tools|length }}</span>
-                <span class="stat-label">Professional Tool</span>
-            </div>
-            <div class="stat-item">
-                <span class="stat-number">4</span>
-                <span class="stat-label">Kategoriya</span>
-            </div>
-            <div class="stat-item">
-                <span class="stat-number">24/7</span>
-                <span class="stat-label">Mavjud</span>
+                <span class="stat-label">Jami Tool Soni</span>
             </div>
         </div>
     </div>

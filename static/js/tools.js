@@ -27,11 +27,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 this.style.transform = 'scale(1)';
             }, 150);
             
-            // Button functionality based on class
+            // Button functionality - only primary button now
             if (this.classList.contains('primary')) {
                 showToolDetails(this);
-            } else if (this.classList.contains('secondary')) {
-                showToolUsage(this);
             }
         });
     });
@@ -97,15 +95,6 @@ function showToolDetails(button) {
             setTimeout(() => modal.remove(), 300);
         }
     });
-}
-
-// Show tool usage instructions
-function showToolUsage(button) {
-    const toolCard = button.closest('.tool-card');
-    const toolName = toolCard.querySelector('.tool-name').textContent;
-    
-    // Show notification
-    showNotification(`${toolName} tool ishlatish ko'rsatmalari ko'rsatildi`, 'info');
 }
 
 // Create matrix rain effect
