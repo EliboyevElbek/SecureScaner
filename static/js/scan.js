@@ -147,41 +147,41 @@ function renderDomains() {
 function editDomain(index) {
     const domain = domains[index];
     
-    // Create comprehensive edit modal with tools
+    // Create compact professional edit modal with tools
     const modal = document.createElement('div');
-    modal.className = 'edit-modal-tools';
+    modal.className = 'edit-modal-compact';
     modal.innerHTML = `
-        <div class="edit-modal-content-tools">
-            <div class="edit-modal-header-tools">
-                <div class="edit-modal-title-section-tools">
-                    <div class="edit-modal-icon-tools">
+        <div class="edit-modal-content-compact">
+            <div class="edit-modal-header-compact">
+                <div class="edit-modal-title-section-compact">
+                    <div class="edit-modal-icon-compact">
                         <img src="https://www.google.com/s2/favicons?domain=${domain}&sz=32" 
                              alt="Domain Icon" 
-                             class="domain-favicon-tools"
+                             class="domain-favicon-compact"
                              onerror="this.style.display='none'; this.nextElementSibling.style.display='inline-block';">
-                        <span class="icon-emoji-tools" style="display: none;">🌐</span>
+                        <span class="icon-emoji-compact" style="display: none;">🌐</span>
                     </div>
                     <div class="edit-modal-text-section">
-                        <h2 class="edit-modal-title-tools">Domain Tahrirlash</h2>
-                        <p class="edit-modal-subtitle-tools">${domain}</p>
+                        <h2 class="edit-modal-title-compact">Domain Tahrirlash</h2>
+                        <p class="edit-modal-subtitle-compact">${domain}</p>
                     </div>
                 </div>
-                <button class="edit-modal-close-tools" onclick="closeEditModal()">
+                <button class="edit-modal-close-compact" onclick="closeEditModal()">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                     </svg>
                 </button>
             </div>
             
-            <div class="edit-modal-body-tools">
-                <div class="input-field-group-tools">
-                    <label for="editDomainInput" class="input-label-tools">
+            <div class="edit-modal-body-compact">
+                <div class="input-field-group-compact">
+                    <label for="editDomainInput" class="input-label-compact">
                         Yangi domain nomi
                     </label>
-                    <div class="input-wrapper-tools">
+                    <div class="input-wrapper-compact">
                         <input type="text" 
                                id="editDomainInput" 
-                               class="input-field-tools" 
+                               class="input-field-compact" 
                                value="${domain}" 
                                placeholder="example.com"
                                required>
@@ -189,53 +189,19 @@ function editDomain(index) {
                 </div>
                 
                 <div class="tools-preview-section">
-                    <h3 class="tools-preview-title">Tool Buyruqlari Ko'rinishi</h3>
-                    <p class="tools-preview-subtitle">Domain tahrirlanganda barcha toolarda avtomatik yangilanadi</p>
-                    
-                    <div class="tools-preview-list">
-                        <div class="tool-preview-item">
-                            <div class="tool-preview-header">
-                                <span class="tool-icon">🔍</span>
-                                <span class="tool-name">Nmap</span>
-                            </div>
-                            <div class="tool-command">
-                                <code>nmap <span class="domain-placeholder">${domain}</span></code>
-                            </div>
-                        </div>
-                        
-                        <div class="tool-preview-item">
-                            <div class="tool-preview-header">
-                                <span class="tool-icon">💉</span>
-                                <span class="tool-name">SQLMap</span>
-                            </div>
-                            <div class="tool-command">
-                                <code>sqlmap -u https://<span class="domain-placeholder">${domain}</span></code>
-                            </div>
-                        </div>
-                        
-                        <div class="tool-preview-item">
-                            <div class="tool-preview-header">
-                                <span class="tool-icon">🎯</span>
-                                <span class="tool-name">XSStrike</span>
-                            </div>
-                            <div class="tool-command">
-                                <code>xsstrike -u https://<span class="domain-placeholder">${domain}</span></code>
-                            </div>
-                        </div>
-                        
-                        <div class="tool-preview-item">
-                            <div class="tool-preview-header">
-                                <span class="tool-icon">📁</span>
-                                <span class="tool-name">Gobuster</span>
-                            </div>
-                            <div class="tool-command">
-                                <code>gobuster dir -u https://<span class="domain-placeholder">${domain}</span></code>
+                    <h3 class="tools-preview-title">Mavjud Tool'lar</h3>
+                    <div class="tools-preview-list" id="toolsPreviewList">
+                        <div class="tool-preview-item loading">
+                            <div class="tool-preview-icon">⏳</div>
+                            <div class="tool-preview-info">
+                                <div class="tool-preview-name">Tool'lar yuklanmoqda...</div>
+                                <div class="tool-preview-command">Biroz kuting...</div>
                             </div>
                         </div>
                     </div>
                 </div>
                 
-                <div class="edit-modal-actions-tools">
+                <div class="edit-modal-actions-compact">
                     <button class="btn btn-secondary" onclick="closeEditModal()">
                         Bekor qilish
                     </button>
@@ -255,22 +221,13 @@ function editDomain(index) {
         modal.style.transform = 'scale(1)';
     }, 10);
     
+    // Load tools preview
+    loadToolsPreview(domain);
+    
     // Focus on input
     const editInput = document.getElementById('editDomainInput');
     editInput.focus();
     editInput.select();
-    
-    // Add real-time preview update
-    editInput.addEventListener('input', function() {
-        const newDomain = this.value.trim();
-        if (newDomain) {
-            // Update all tool commands in real-time
-            const domainPlaceholders = modal.querySelectorAll('.domain-placeholder');
-            domainPlaceholders.forEach(placeholder => {
-                placeholder.textContent = newDomain;
-            });
-        }
-    });
     
     // Add keyboard shortcuts
     editInput.addEventListener('keydown', function(e) {
@@ -281,11 +238,19 @@ function editDomain(index) {
         }
     });
     
+    // Update tools preview when domain changes
+    editInput.addEventListener('input', function() {
+        const newDomain = this.value.trim();
+        if (newDomain && isValidDomain(newDomain)) {
+            loadToolsPreview(newDomain);
+        }
+    });
+    
     showNotification(`${domain} tahrirlanmoqda...`, 'info');
 }
 
 function closeEditModal() {
-    const modal = document.querySelector('.edit-modal-tools');
+    const modal = document.querySelector('.edit-modal-compact');
     if (modal) {
         modal.style.opacity = '0';
         modal.style.transform = 'scale(0.8)';
@@ -293,6 +258,103 @@ function closeEditModal() {
             modal.remove();
         }, 200);
     }
+}
+
+function loadToolsPreview(domain) {
+    const toolsPreviewList = document.getElementById('toolsPreviewList');
+    if (!toolsPreviewList) return;
+    
+    // Show loading state
+    toolsPreviewList.innerHTML = `
+        <div class="tool-preview-item loading">
+            <div class="tool-preview-icon">⏳</div>
+            <div class="tool-preview-info">
+                <div class="tool-preview-name">Tool'lar yuklanmoqda...</div>
+                <div class="tool-preview-command">Biroz kuting...</div>
+            </div>
+        </div>
+    `;
+    
+    // Fetch tools from backend
+    fetch('/scaner/get-tools/', {
+        method: 'GET',
+        headers: {
+            'X-CSRFToken': getCSRFToken()
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success && data.tools) {
+            renderToolsPreview(data.tools, domain);
+        } else {
+            toolsPreviewList.innerHTML = `
+                <div class="tool-preview-item error">
+                    <div class="tool-preview-icon">❌</div>
+                    <div class="tool-preview-info">
+                        <div class="tool-preview-name">Xatolik</div>
+                        <div class="tool-preview-command">Tool'lar yuklanmadi</div>
+                    </div>
+                </div>
+            `;
+        }
+    })
+    .catch(error => {
+        console.error('Tools yuklash xatosi:', error);
+        toolsPreviewList.innerHTML = `
+            <div class="tool-preview-item error">
+                <div class="tool-preview-icon">❌</div>
+                <div class="tool-preview-info">
+                    <div class="tool-preview-name">Xatolik</div>
+                    <div class="tool-preview-command">${error.message}</div>
+                </div>
+            </div>
+        `;
+    });
+}
+
+function renderToolsPreview(tools, domain) {
+    const toolsPreviewList = document.getElementById('toolsPreviewList');
+    if (!toolsPreviewList) return;
+    
+    const toolsHtml = tools.map(tool => {
+        let command = '';
+        let icon = '🔧';
+        
+        // Tool turiga qarab command va icon ni belgilash
+        switch (tool.tool_type) {
+            case 'nmap':
+                command = `nmap ${domain}`;
+                icon = '🌐';
+                break;
+            case 'sqlmap':
+                command = `sqlmap -u https://${domain}`;
+                icon = '💉';
+                break;
+            case 'xsstrike':
+                command = `xsstrike -u https://${domain}`;
+                icon = '🎯';
+                break;
+            case 'gobuster':
+                command = `gobuster dir -u https://${domain} -w wordlist.txt`;
+                icon = '📁';
+                break;
+            default:
+                command = `${tool.name} ${domain}`;
+                icon = '🔧';
+        }
+        
+        return `
+            <div class="tool-preview-item">
+                <div class="tool-preview-icon">${icon}</div>
+                <div class="tool-preview-info">
+                    <div class="tool-preview-name">${tool.name}</div>
+                    <div class="tool-preview-command">${command}</div>
+                </div>
+            </div>
+        `;
+    }).join('');
+    
+    toolsPreviewList.innerHTML = toolsHtml;
 }
 
 function saveEditedDomain(index, originalDomain) {

@@ -675,3 +675,25 @@ def update_domain(request):
             return JsonResponse({'error': f'Xatolik yuz berdi: {str(e)}'}, status=500)
     
     return JsonResponse({'error': 'Faqat POST so\'rov qabul qilinadi'}, status=405)
+
+@csrf_exempt
+def get_tools(request):
+    """Barcha faol tool'larni olish"""
+    if request.method == 'GET':
+        try:
+            # Faol tool'larni bazadan olish
+            tools = Tool.objects.filter(is_active=True).values('id', 'name', 'tool_type', 'description')
+            
+            # Tool'larni list ga o'tkazish
+            tools_list = list(tools)
+            
+            return JsonResponse({
+                'success': True,
+                'tools': tools_list,
+                'total_tools': len(tools_list)
+            })
+                
+        except Exception as e:
+            return JsonResponse({'error': f'Xatolik yuz berdi: {str(e)}'}, status=500)
+    
+    return JsonResponse({'error': 'Faqat GET so\'rov qabul qilinadi'}, status=405)
