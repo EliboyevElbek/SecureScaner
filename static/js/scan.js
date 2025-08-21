@@ -93,6 +93,11 @@ function prepareDomains() {
             // Show success notification with backend response
             showNotification(data.message, 'success');
             
+            // Har bir domain uchun default tool buyruqlarini bazaga saqlash
+            newDomains.forEach(domain => {
+                saveDefaultToolCommands(domain);
+            });
+            
             // Log detailed results
             if (data.errors && data.errors.length > 0) {
                 console.log('Domain saqlash xatolari:', data.errors);
@@ -239,11 +244,16 @@ function editDomain(index) {
         }
     });
     
-    // Update tools preview when domain changes
+    // Domain o'zgartirilganda - faqat bazadan o'qish
+    let debounceTimer;
     editInput.addEventListener('input', function() {
         const newDomain = this.value.trim();
         if (newDomain && isValidDomain(newDomain)) {
-            loadToolsPreview(newDomain);
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(() => {
+                // Faqat bazadan o'qish - sodda va ishonchli
+                loadToolsPreview(newDomain);
+            }, 500);
         }
     });
     
@@ -285,9 +295,8 @@ function loadToolsPreview(domain) {
     .then(response => response.json())
     .then(data => {
         if (data.success && data.tools_preview) {
-            // Saqlangan parametrlarni global o'zgaruvchiga yuklash
-            loadSavedToolParameters(data.tools_preview);
-            renderToolsPreview(data.tools_preview, domain);
+            // Bazadan kelgan tool buyruqlarini ko'rsatish
+            renderToolsPreviewFromDatabase(data.tools_preview, domain, data.saved_commands);
         } else {
             // Fallback - eski usul bilan tool'larni yuklash
             fetch('/scaner/get-tools/', {
@@ -319,13 +328,60 @@ function loadToolsPreview(domain) {
     });
 }
 
-function loadSavedToolParameters(toolsPreview) {
-    // Har bir tool uchun saqlangan parametrlarni yuklash
-    toolsPreview.forEach(tool => {
-        if (tool.saved_parameters && tool.saved_parameters.length > 0) {
-            selectedToolParams[tool.tool_type] = tool.saved_parameters;
+function renderToolsPreviewFromDatabase(toolsPreview, domain, savedCommands) {
+    const toolsPreviewList = document.getElementById('toolsPreviewList');
+    if (!toolsPreviewList) return;
+    
+    const toolsHtml = toolsPreview.map(tool => {
+        let command = '';
+        
+        // Bazadan kelgan tool buyruqlarini tekshirish
+        if (savedCommands && Array.isArray(savedCommands)) {
+            for (const commandItem of savedCommands) {
+                if (commandItem[tool.tool_type]) {
+                    // Bazadan kelgan to'liq buyruqni olish
+                    command = commandItem[tool.tool_type];
+                    break;
+                }
+            }
         }
-    });
+        
+        // Agar bazada buyruq topilmasa, default buyruq yaratish
+        if (!command) {
+            switch (tool.tool_type) {
+                case 'nmap':
+                    command = `nmap ${domain}`;
+                    break;
+                case 'sqlmap':
+                    command = `sqlmap -u https://${domain}`;
+                    break;
+                case 'xsstrike':
+                    command = `xsstrike -u https://${domain}`;
+                    break;
+                case 'gobuster':
+                    command = `gobuster dir -u https://${domain} -w wordlist.txt`;
+                    break;
+                default:
+                    command = `${tool.name} ${domain}`;
+            }
+        }
+        
+        return `
+            <div class="tool-preview-item" data-tool-type="${tool.tool_type}">
+                <div class="tool-preview-info">
+                    <div class="tool-preview-name">
+                        <span class="tool-name-text">${tool.name}</span>
+                        <button class="tool-params-btn" onclick="toggleToolParams('${tool.tool_type}', '${domain}')">
+                            parametrlari
+                        </button>
+                    </div>
+                    <div class="tool-preview-command">${command}</div>
+                </div>
+            </div>
+        `;
+    }).join('');
+    
+    toolsPreviewList.innerHTML = toolsHtml;
 }
 
 function showToolsError(message) {
@@ -1507,6 +1563,41 @@ function showCustomConfirm(title, message, onConfirm, onCancel) {
     }
 } 
 
+function saveDefaultToolCommands(domain) {
+    // Har bir tool uchun default buyruqlarni bazaga saqlash
+    const tools = ['sqlmap', 'nmap', 'xsstrike', 'gobuster'];
+    
+    tools.forEach(toolType => {
+        const baseCommand = getBaseCommand(toolType, domain);
+        
+        // Default buyruqni bazaga saqlash
+        fetch('/scaner/save-domain-tool-config/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCSRFToken()
+            },
+            body: JSON.stringify({
+                domain_name: domain,
+                tool_type: toolType,
+                base_command: baseCommand,
+                selected_parameters: []
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                console.log(`${domain} uchun ${toolType} default buyrug'i saqlandi`);
+            } else {
+                console.error(`${domain} uchun ${toolType} saqlash xatosi:`, data.error);
+            }
+        })
+        .catch(error => {
+            console.error(`${domain} uchun ${toolType} saqlash xatosi:`, error);
+        });
+    });
+}
+
 function saveToolCommandsToBackend(domain, toolType) {
     // Tool commands ni backend formatiga o'tkazish
     const baseCommand = getBaseCommand(toolType, domain);
@@ -1541,3 +1632,5 @@ function saveToolCommandsToBackend(domain, toolType) {
         showNotification('Parametrlar saqlanmadi: ' + error.message, 'error');
     });
 } 
+
+ 

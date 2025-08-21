@@ -6,7 +6,7 @@ import json
 import socket
 import requests
 import urllib3
-from .models import DomainScan, Tool, KeshDomain
+from .models import DomainScan, Tool, KeshDomain, DomainToolConfiguration
 
 # SSL warnings ni o'chirish
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
