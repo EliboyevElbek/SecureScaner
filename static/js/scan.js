@@ -3,6 +3,32 @@
 let domains = [];
 let selectedToolParams = {}; // Tanlangan tool parametrlarini saqlash uchun
 
+// localStorage funksiyalari - tanlangan parametrlarni saqlash uchun
+function saveToolParamsToStorage(domain, toolType, params) {
+    const key = `tool_params_${domain}_${toolType}`;
+    localStorage.setItem(key, JSON.stringify(params));
+    console.log(`Parametrlar saqlandi: ${key} = ${JSON.stringify(params)}`);
+}
+
+function getToolParamsFromStorage(domain, toolType) {
+    const key = `tool_params_${domain}_${toolType}`;
+    const saved = localStorage.getItem(key);
+    const params = saved ? JSON.parse(saved) : [];
+    console.log(`Parametrlar yuklandi: ${key} = ${JSON.stringify(params)}`);
+    return params;
+}
+
+function loadSavedToolParams(domain) {
+    const tools = ['sqlmap', 'nmap', 'xsstrike', 'gobuster'];
+    tools.forEach(toolType => {
+        const savedParams = getToolParamsFromStorage(domain, toolType);
+        if (savedParams.length > 0) {
+            selectedToolParams[toolType] = savedParams;
+            console.log(`${domain} uchun ${toolType} parametrlari yuklandi:`, savedParams);
+        }
+    });
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     console.log('Scan page loaded');
     
@@ -285,6 +311,9 @@ function loadToolsPreview(domain) {
         </div>
     `;
     
+    // Saqlangan parametrlarni localStorage dan yuklash
+    loadSavedToolParams(domain);
+    
     // Fetch domain tools preview from backend
     fetch(`/scaner/get-domain-tools-preview/?domain_name=${encodeURIComponent(domain)}`, {
         method: 'GET',
@@ -375,6 +404,16 @@ function renderToolsPreviewFromDatabase(toolsPreview, domain, savedCommands) {
             console.log(`Using default command for ${tool.tool_type}:`, command);
         }
         
+        // Saqlangan parametrlarni localStorage dan olish va buyruqga qo'shish
+        const savedParams = getToolParamsFromStorage(domain, tool.tool_type);
+        if (savedParams.length > 0) {
+            const baseCommand = getBaseCommand(tool.tool_type, domain);
+            if (command === baseCommand) {
+                command = `${baseCommand} ${savedParams.join(' ')}`;
+                console.log(`Updated command with saved params for ${tool.tool_type}:`, command);
+            }
+        }
+        
         return `
             <div class="tool-preview-item" data-tool-type="${tool.tool_type}">
                 <div class="tool-preview-info">
@@ -436,8 +475,8 @@ function renderToolsPreview(tools, domain) {
             }
         }
         
-        // Saqlangan parametrlarni olish
-        const savedParams = selectedToolParams[tool.tool_type] || [];
+        // localStorage dan saqlangan parametrlarni olish
+        const savedParams = getToolParamsFromStorage(domain, tool.tool_type);
         const finalCommand = savedParams.length > 0 ? `${command} ${savedParams.join(' ')}` : command;
         
         return `
@@ -473,6 +512,9 @@ function toggleToolParams(toolType, domain) {
     // Get tool parameters based on tool type
     const params = getToolParameters(toolType);
     
+    // Saqlangan parametrlarni localStorage dan olish
+    const savedParams = getToolParamsFromStorage(domain, toolType);
+    
     // Create params dropdown
     const paramsDropdown = document.createElement('div');
     paramsDropdown.className = 'tool-params-dropdown';
@@ -487,7 +529,7 @@ function toggleToolParams(toolType, domain) {
         </div>
         <div class="tool-params-content">
             ${params.map(param => {
-                const isChecked = (selectedToolParams[toolType] || []).includes(param.value);
+                const isChecked = savedParams.includes(param.value);
                 return `
                     <div class="tool-param-item">
                         <label class="tool-param-checkbox">
@@ -599,7 +641,8 @@ function getBaseCommand(toolType, domain) {
 
 function getCommandWithSavedParams(toolType, domain) {
     const baseCommand = getBaseCommand(toolType, domain);
-    const savedParams = selectedToolParams[toolType] || [];
+    // localStorage dan saqlangan parametrlarni olish
+    const savedParams = getToolParamsFromStorage(domain, toolType);
     return savedParams.length > 0 ? `${baseCommand} ${savedParams.join(' ')}` : baseCommand;
 }
 
@@ -609,8 +652,8 @@ function updateToolCommand(toolType, domain) {
     
     const commandDiv = toolItem.querySelector('.tool-preview-command');
     
-    // Saqlangan parametrlarni ishlatish
-    const savedParams = selectedToolParams[toolType] || [];
+    // localStorage dan saqlangan parametrlarni olish
+    const savedParams = getToolParamsFromStorage(domain, toolType);
     const baseCommand = getBaseCommand(toolType, domain);
     const finalCommand = savedParams.length > 0 ? `${baseCommand} ${savedParams.join(' ')}` : baseCommand;
     
@@ -629,6 +672,9 @@ function updateToolCommandInPopup(toolType, domain) {
         
         // Tanlangan parametrlarni global o'zgaruvchiga saqlash
         selectedToolParams[toolType] = Array.from(checkboxes).map(cb => cb.value);
+        
+        // Parametrlarni localStorage ga ham saqlash
+        saveToolParamsToStorage(domain, toolType, selectedToolParams[toolType]);
     }
     
     // Also update the main tool command
@@ -678,6 +724,19 @@ function saveEditedDomain(index, originalDomain) {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
+            // localStorage dan eski domain parametrlarini yangi domain ga ko'chirish
+            const tools = ['sqlmap', 'nmap', 'xsstrike', 'gobuster'];
+            tools.forEach(toolType => {
+                const oldKey = `tool_params_${originalDomain}_${toolType}`;
+                const newKey = `tool_params_${newDomain}_${toolType}`;
+                const oldParams = localStorage.getItem(oldKey);
+                if (oldParams) {
+                    localStorage.setItem(newKey, oldParams);
+                    localStorage.removeItem(oldKey);
+                    console.log(`Moved localStorage from ${oldKey} to ${newKey}`);
+                }
+            });
+            
             // Update the domain in the array
             domains[index] = newDomain;
             
@@ -769,16 +828,24 @@ function confirmDeleteDomain(index) {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-    // Remove domain from array
-        domains.splice(index, 1);
-    
-    // Close modal
-    closeCustomModal();
-    
-    // Re-render domains list
-        renderDomains();
-        
-    // Show success notification
+            // Remove domain from array
+            domains.splice(index, 1);
+            
+            // localStorage dan domain parametrlarini tozalash
+            const tools = ['sqlmap', 'nmap', 'xsstrike', 'gobuster'];
+            tools.forEach(toolType => {
+                const key = `tool_params_${domain}_${toolType}`;
+                localStorage.removeItem(key);
+                console.log(`Cleared localStorage for ${key}`);
+            });
+            
+            // Close modal
+            closeCustomModal();
+            
+            // Re-render domains list
+            renderDomains();
+            
+            // Show success notification
             showNotification(data.message, 'success');
             
             // If no domains left, show input section again
@@ -934,37 +1001,47 @@ function confirmResetDomains() {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-    // Ha - barcha domainlarni o'chir
-    domains = [];
-    document.getElementById('domainsInput').value = '';
-    
-    // Show input section again
-    const inputSection = document.querySelector('.input-section');
-    inputSection.style.display = 'block';
-    
-    // Hide domains section
-    const domainsSection = document.getElementById('domainsSection');
-    domainsSection.style.display = 'none';
-    
-    // Reset all elements to their original state
-    inputSection.className = 'input-section card';
-    domainsSection.className = 'domains-section card';
-    
-    // Reset all domain items
-    const domainItems = document.querySelectorAll('.domain-item');
-    domainItems.forEach(item => {
-        item.className = 'domain-item fade-in';
-    });
-    
-    // Reset all buttons - preserve their original classes
-    const allButtons = document.querySelectorAll('.btn');
-    allButtons.forEach(btn => {
-        // Don't change button classes - just remove any inline styles
-        btn.removeAttribute('style');
-    });
-    
+            // Ha - barcha domainlarni o'chir
+            domains = [];
+            document.getElementById('domainsInput').value = '';
+            
+            // localStorage dan barcha domain parametrlarini tozalash
+            const tools = ['sqlmap', 'nmap', 'xsstrike', 'gobuster'];
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key && key.startsWith('tool_params_')) {
+                    localStorage.removeItem(key);
+                    console.log(`Cleared localStorage for ${key}`);
+                }
+            }
+            
+            // Show input section again
+            const inputSection = document.querySelector('.input-section');
+            inputSection.style.display = 'block';
+            
+            // Hide domains section
+            const domainsSection = document.getElementById('domainsSection');
+            domainsSection.style.display = 'none';
+            
+            // Reset all elements to their original state
+            inputSection.className = 'input-section card';
+            domainsSection.className = 'domains-section card';
+            
+            // Reset all domain items
+            const domainItems = document.querySelectorAll('.domain-item');
+            domainItems.forEach(item => {
+                item.className = 'domain-item fade-in';
+            });
+            
+            // Reset all buttons - preserve their original classes
+            const allButtons = document.querySelectorAll('.btn');
+            allButtons.forEach(btn => {
+                // Don't change button classes - just remove any inline styles
+                btn.removeAttribute('style');
+            });
+            
             showNotification(data.message, 'success');
-    console.log('Reset completed successfully'); // Debug log
+            console.log('Reset completed successfully'); // Debug log
             
         } else {
             showNotification('Xatolik: ' + data.error, 'error');
@@ -979,8 +1056,8 @@ function confirmResetDomains() {
         resetButton.textContent = originalText;
         resetButton.disabled = false;
     
-    // Close modal
-    closeResetModal();
+        // Close modal
+        closeResetModal();
     });
 }
 
@@ -1585,6 +1662,11 @@ function saveDefaultToolCommands(domain) {
         const baseCommand = getBaseCommand(toolType, domain);
         allToolCommands.push({ [toolType]: baseCommand });
         console.log(`Prepared command for ${toolType}: ${baseCommand}`);
+        
+        // localStorage dan eski parametrlarni tozalash (default buyruqlar uchun)
+        const key = `tool_params_${domain}_${toolType}`;
+        localStorage.removeItem(key);
+        console.log(`Cleared localStorage for ${key}`);
     });
     
     console.log(`All tool commands prepared:`, allToolCommands);
@@ -1657,7 +1739,8 @@ function saveDefaultToolCommands(domain) {
 function saveToolCommandsToBackend(domain, toolType) {
     // Tool commands ni backend formatiga o'tkazish
     const baseCommand = getBaseCommand(toolType, domain);
-    const selectedParams = selectedToolParams[toolType] || [];
+    // localStorage dan saqlangan parametrlarni olish
+    const selectedParams = getToolParamsFromStorage(domain, toolType);
     const finalCommand = selectedParams.length > 0 ? `${baseCommand} ${selectedParams.join(' ')}` : baseCommand;
     
     // Avval DomainToolConfiguration ni yangilash
