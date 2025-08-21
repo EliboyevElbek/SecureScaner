@@ -883,7 +883,9 @@ def save_domain_tool_config(request):
                 if not config_created:
                     # Mavjud konfiguratsiyani yangilash
                     tool_config.base_command = base_command
-                    tool_config.update_parameters(selected_parameters)
+                    tool_config.selected_parameters = selected_parameters
+                    tool_config.final_command = f"{base_command} {' '.join(selected_parameters)}"
+                    tool_config.save()
                 
                 # KeshDomain tool_commands ni ham yangilash
                 final_command = f"{base_command} {' '.join(selected_parameters)}"
