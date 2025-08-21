@@ -526,6 +526,8 @@ def save_domains(request):
             data = json.loads(request.body)
             domains = data.get('domains', [])
             
+            print(f"save_domains called with domains: {domains}")
+            
             if not domains:
                 return JsonResponse({'error': 'Domainlar kiritilmagan'}, status=400)
             
@@ -549,6 +551,8 @@ def save_domains(request):
                         domain_name=domain
                     )
                     
+                    print(f"Domain {domain}: created={created}, tool_commands={kesh_domain.tool_commands}")
+                    
                     if created:
                         saved_domains.append(domain)
                     else:
@@ -556,7 +560,10 @@ def save_domains(request):
                         saved_domains.append(f'{domain} (mavjud)')
                         
                 except Exception as e:
+                    print(f"Error saving domain {domain}: {str(e)}")
                     errors.append(f'{domain} - xatolik: {str(e)}')
+            
+            print(f"Save results: saved={saved_domains}, errors={errors}")
             
             return JsonResponse({
                 'success': True,
@@ -568,8 +575,10 @@ def save_domains(request):
             })
             
         except json.JSONDecodeError:
+            print(f"JSON decode error in save_domains: {request.body}")
             return JsonResponse({'error': 'Noto\'g\'ri JSON format'}, status=400)
         except Exception as e:
+            print(f"Error in save_domains: {str(e)}")
             return JsonResponse({'error': f'Xatolik yuz berdi: {str(e)}'}, status=500)
     
     return JsonResponse({'error': 'Faqat POST so\'rov qabul qilinadi'}, status=405)
@@ -778,31 +787,47 @@ def update_tool_commands(request):
             domain_name = data.get('domain_name', '').strip()
             tool_commands = data.get('tool_commands', [])
             
+            print(f"update_tool_commands called for domain: {domain_name}")
+            print(f"Tool commands received: {tool_commands}")
+            
             if not domain_name:
                 return JsonResponse({'error': 'Domain nomi kiritilmagan'}, status=400)
             
             try:
                 # Domain ni bazadan topish
                 kesh_domain = KeshDomain.objects.get(domain_name=domain_name)
+                print(f"Found domain: {kesh_domain.domain_name}")
+                print(f"Current tool_commands: {kesh_domain.tool_commands}")
                 
-                # Tool buyruqlarini yangilash
-                kesh_domain.tool_commands = tool_commands
-                kesh_domain.save()
+                # Tool buyruqlarini yangilash - mavjud buyruqlar bilan birlashtirish
+                if tool_commands:
+                    print(f"Merging tool commands...")
+                    kesh_domain.merge_tool_commands(tool_commands)
+                else:
+                    # Agar tool_commands bo'sh bo'lsa, to'g'ridan to'g'ri saqlash
+                    print(f"Setting empty tool commands...")
+                    kesh_domain.tool_commands = tool_commands
+                    kesh_domain.save()
+                
+                print(f"Final tool_commands: {kesh_domain.tool_commands}")
                 
                 return JsonResponse({
                     'success': True,
                     'message': f'Domain {domain_name} uchun tool buyruqlari yangilandi!',
-                    'tool_commands': tool_commands
+                    'tool_commands': kesh_domain.tool_commands
                 })
             
             except KeshDomain.DoesNotExist:
+                print(f"Domain {domain_name} not found")
                 return JsonResponse({
                     'error': f'Domain {domain_name} bazada topilmadi'
                 }, status=404)
             
         except json.JSONDecodeError:
+            print(f"JSON decode error: {request.body}")
             return JsonResponse({'error': 'Noto\'g\'ri JSON format'}, status=400)
         except Exception as e:
+            print(f"Error in update_tool_commands: {str(e)}")
             return JsonResponse({'error': f'Xatolik yuz berdi: {str(e)}'}, status=500)
     
     return JsonResponse({'error': 'Faqat POST so\'rov qabul qilinadi'}, status=405)
@@ -889,7 +914,7 @@ def save_domain_tool_config(request):
                 
                 # KeshDomain tool_commands ni ham yangilash
                 final_command = f"{base_command} {' '.join(selected_parameters)}"
-                kesh_domain.update_tool_command(tool_type, final_command)
+                kesh_domain.merge_tool_commands([{tool_type: final_command}])
                 
                 return JsonResponse({
                     'success': True,

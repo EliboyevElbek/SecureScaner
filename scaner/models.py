@@ -90,6 +90,28 @@ class KeshDomain(models.Model):
         # Yangi buyruq qo'shish
         self.tool_commands.append({tool_type: command})
         self.save()
+    
+    def update_all_tool_commands(self, new_tool_commands):
+        """Barcha tool buyruqlarini bir vaqtda yangilash"""
+        self.tool_commands = new_tool_commands
+        self.save()
+    
+    def merge_tool_commands(self, new_tool_commands):
+        """Yangi tool buyruqlarini mavjudlar bilan birlashtirish"""
+        # Mavjud buyruqlarni dictionary ga o'tkazish
+        existing_commands = {}
+        for command_item in self.tool_commands:
+            for tool_type, command in command_item.items():
+                existing_commands[tool_type] = command
+        
+        # Yangi buyruqlarni qo'shish yoki yangilash
+        for command_item in new_tool_commands:
+            for tool_type, command in command_item.items():
+                existing_commands[tool_type] = command
+        
+        # Dictionary ni qayta list ga o'tkazish
+        self.tool_commands = [{tool_type: command} for tool_type, command in existing_commands.items()]
+        self.save()
 
 class DomainToolConfiguration(models.Model):
     """Domain va tool konfiguratsiyasi"""

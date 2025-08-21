@@ -1573,13 +1573,57 @@ function showCustomConfirm(title, message, onConfirm, onCancel) {
 } 
 
 function saveDefaultToolCommands(domain) {
+    console.log(`saveDefaultToolCommands called for domain: ${domain}`);
+    
     // Har bir tool uchun default buyruqlarni bazaga saqlash
     const tools = ['sqlmap', 'nmap', 'xsstrike', 'gobuster'];
     
+    // Barcha tool buyruqlarini bir vaqtda saqlash uchun array yaratish
+    const allToolCommands = [];
+    
     tools.forEach(toolType => {
         const baseCommand = getBaseCommand(toolType, domain);
+        allToolCommands.push({ [toolType]: baseCommand });
+        console.log(`Prepared command for ${toolType}: ${baseCommand}`);
+    });
+    
+    console.log(`All tool commands prepared:`, allToolCommands);
+    
+    // KeshDomain.tool_commands maydoniga to'liq buyruqlarni saqlash
+    console.log(`Sending tool commands to backend for domain: ${domain}`);
+    fetch('/scaner/update-tool-commands/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCSRFToken()
+        },
+        body: JSON.stringify({
+            domain_name: domain,
+            tool_commands: allToolCommands
+        })
+    })
+    .then(response => {
+        console.log(`Backend response status: ${response.status}`);
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            console.log(`${domain} uchun barcha tool buyruqlari saqlandi:`, allToolCommands);
+            console.log(`Backend response:`, data);
+        } else {
+            console.error(`${domain} uchun tool buyruqlari saqlash xatosi:`, data.error);
+        }
+    })
+    .catch(error => {
+        console.error(`${domain} uchun tool buyruqlari saqlash xatosi:`, error);
+    });
+    
+    // Har bir tool uchun DomainToolConfiguration ham saqlash (backup uchun)
+    console.log(`Saving individual tool configurations for domain: ${domain}`);
+    tools.forEach(toolType => {
+        const baseCommand = getBaseCommand(toolType, domain);
+        console.log(`Saving config for ${toolType}: ${baseCommand}`);
         
-        // Default buyruqni bazaga saqlash
         fetch('/scaner/save-domain-tool-config/', {
             method: 'POST',
             headers: {
@@ -1593,16 +1637,19 @@ function saveDefaultToolCommands(domain) {
                 selected_parameters: []
             })
         })
-        .then(response => response.json())
+        .then(response => {
+            console.log(`Config save response status for ${toolType}: ${response.status}`);
+            return response.json();
+        })
         .then(data => {
             if (data.success) {
-                console.log(`${domain} uchun ${toolType} default buyrug'i saqlandi`);
+                console.log(`${domain} uchun ${toolType} konfiguratsiyasi saqlandi`);
             } else {
-                console.error(`${domain} uchun ${toolType} saqlash xatosi:`, data.error);
+                console.error(`${domain} uchun ${toolType} konfiguratsiyasi saqlash xatosi:`, data.error);
             }
         })
         .catch(error => {
-            console.error(`${domain} uchun ${toolType} saqlash xatosi:`, error);
+            console.error(`${domain} uchun ${toolType} konfiguratsiyasi saqlash xatosi:`, error);
         });
     });
 }
@@ -1611,8 +1658,9 @@ function saveToolCommandsToBackend(domain, toolType) {
     // Tool commands ni backend formatiga o'tkazish
     const baseCommand = getBaseCommand(toolType, domain);
     const selectedParams = selectedToolParams[toolType] || [];
+    const finalCommand = selectedParams.length > 0 ? `${baseCommand} ${selectedParams.join(' ')}` : baseCommand;
     
-    // Backend ga yuborish
+    // Avval DomainToolConfiguration ni yangilash
     fetch('/scaner/save-domain-tool-config/', {
         method: 'POST',
         headers: {
@@ -1625,6 +1673,27 @@ function saveToolCommandsToBackend(domain, toolType) {
             base_command: baseCommand,
             selected_parameters: selectedParams
         })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            console.log('Tool konfiguratsiyasi saqlandi:', data.message);
+            
+            // Keyin KeshDomain.tool_commands ni ham yangilash
+            return fetch('/scaner/update-tool-commands/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCSRFToken()
+                },
+                body: JSON.stringify({
+                    domain_name: domain,
+                    tool_commands: [{ [toolType]: finalCommand }]
+                })
+            });
+        } else {
+            throw new Error(data.error);
+        }
     })
     .then(response => response.json())
     .then(data => {

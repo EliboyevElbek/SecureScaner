@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tool Commands Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-section { margin: 20px 0; padding: 20px; border: 1px solid #ccc; }
+        .success { color: green; }
+        .error { color: red; }
+        .info { color: blue; }
+        button { padding: 10px; margin: 5px; }
+        input { padding: 8px; margin: 5px; width: 300px; }
+        .result { margin: 10px 0; padding: 10px; background: #f5f5f5; }
+    </style>
+</head>
+<body>
+    <h1>Tool Commands Test Page</h1>
+    
+    <div class="test-section">
+        <h2>Test Domain Addition</h2>
+        <input type="text" id="testDomain" placeholder="Enter domain (e.g., example.com)" value="test-domain.com">
+        <button onclick="testDomainAddition()">Test Domain Addition</button>
+        <div id="domainResult" class="result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Test Tool Commands Retrieval</h2>
+        <input type="text" id="retrieveDomain" placeholder="Enter domain to retrieve tools" value="test-domain.com">
+        <button onclick="testToolRetrieval()">Test Tool Retrieval</button>
+        <div id="toolResult" class="result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Test Tool Command Update</h2>
+        <input type="text" id="updateDomain" placeholder="Enter domain to update" value="test-domain.com">
+        <select id="toolType">
+            <option value="sqlmap">SQLMap</option>
+            <option value="nmap">Nmap</option>
+            <option value="xsstrike">XSStrike</option>
+            <option value="gobuster">Gobuster</option>
+        </select>
+        <input type="text" id="newCommand" placeholder="Enter new command" value="sqlmap -u https://test-domain.com --dbs">
+        <button onclick="testToolUpdate()">Test Tool Update</button>
+        <div id="updateResult" class="result"></div>
+    </div>
+
+    <script>
+        function getCSRFToken() {
+            // For testing purposes, we'll use a dummy token
+            return 'dummy-token';
+        }
+
+        function testDomainAddition() {
+            const domain = document.getElementById('testDomain').value;
+            const resultDiv = document.getElementById('domainResult');
+            
+            resultDiv.innerHTML = '<span class="info">Testing domain addition...</span>';
+            
+            // First save the domain
+            fetch('/scaner/save-domains/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCSRFToken()
+                },
+                body: JSON.stringify({
+                    domains: [domain]
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    resultDiv.innerHTML = `<span class="success">Domain saved successfully!</span><br>`;
+                    resultDiv.innerHTML += `<span class="info">Response: ${JSON.stringify(data, null, 2)}</span>`;
+                    
+                    // Now test tool commands
+                    setTimeout(() => {
+                        testToolRetrieval();
+                    }, 1000);
+                } else {
+                    resultDiv.innerHTML = `<span class="error">Domain save failed: ${data.error}</span>`;
+                }
+            })
+            .catch(error => {
+                resultDiv.innerHTML = `<span class="error">Error: ${error.message}</span>`;
+            });
+        }
+
+        function testToolRetrieval() {
+            const domain = document.getElementById('retrieveDomain').value;
+            const resultDiv = document.getElementById('toolResult');
+            
+            resultDiv.innerHTML = '<span class="info">Testing tool retrieval...</span>';
+            
+            fetch(`/scaner/get-domain-tools-preview/?domain_name=${encodeURIComponent(domain)}`, {
+                method: 'GET',
+                headers: {
+                    'X-CSRFToken': getCSRFToken()
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    resultDiv.innerHTML = `<span class="success">Tools retrieved successfully!</span><br>`;
+                    resultDiv.innerHTML += `<span class="info">Domain: ${data.domain}</span><br>`;
+                    resultDiv.innerHTML += `<span class="info">Saved Commands: ${JSON.stringify(data.saved_commands, null, 2)}</span><br>`;
+                    resultDiv.innerHTML += `<span class="info">Tools Preview: ${JSON.stringify(data.tools_preview, null, 2)}</span>`;
+                } else {
+                    resultDiv.innerHTML = `<span class="error">Tool retrieval failed: ${data.error}</span>`;
+                }
+            })
+            .catch(error => {
+                resultDiv.innerHTML = `<span class="error">Error: ${error.message}</span>`;
+            });
+        }
+
+        function testToolUpdate() {
+            const domain = document.getElementById('updateDomain').value;
+            const toolType = document.getElementById('toolType').value;
+            const newCommand = document.getElementById('newCommand').value;
+            const resultDiv = document.getElementById('updateResult');
+            
+            resultDiv.innerHTML = '<span class="info">Testing tool update...</span>';
+            
+            fetch('/scaner/update-tool-commands/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCSRFToken()
+                },
+                body: JSON.stringify({
+                    domain_name: domain,
+                    tool_commands: [{ [toolType]: newCommand }]
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    resultDiv.innerHTML = `<span class="success">Tool updated successfully!</span><br>`;
+                    resultDiv.innerHTML += `<span class="info">Response: ${JSON.stringify(data, null, 2)}</span>`;
+                    
+                    // Now retrieve the updated tools
+                    setTimeout(() => {
+                        testToolRetrieval();
+                    }, 1000);
+                } else {
+                    resultDiv.innerHTML = `<span class="error">Tool update failed: ${data.error}</span>`;
+                }
+            })
+            .catch(error => {
+                resultDiv.innerHTML = `<span class="error">Error: ${error.message}</span>`;
+            });
+        }
+    </script>
+</body>
+</html>
