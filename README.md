@@ -143,3 +143,4 @@ Savollar va takliflar uchun issue yarating yoki pull request yuboring.
 ---
 
 **Eslatma**: Bu dastur faqat o'quv va test maqsadlarida ishlatilishi kerak. Real tizimlarda foydalanishdan oldin tegishli ruxsatlarni oling.
+

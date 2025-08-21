@@ -934,7 +934,8 @@ def get_domain_tools_preview(request):
                 return JsonResponse({
                     'success': True,
                     'domain': domain_name,
-                    'tools_preview': tools_preview
+                    'tools_preview': tools_preview,
+                    'saved_commands': kesh_domain.tool_commands
                 })
             
             except KeshDomain.DoesNotExist:

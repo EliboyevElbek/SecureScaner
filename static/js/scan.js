@@ -296,6 +296,7 @@ function loadToolsPreview(domain) {
     .then(data => {
         if (data.success && data.tools_preview) {
             // Bazadan kelgan tool buyruqlarini ko'rsatish
+            console.log('Backend response:', data);
             renderToolsPreviewFromDatabase(data.tools_preview, domain, data.saved_commands);
         } else {
             // Fallback - eski usul bilan tool'larni yuklash
@@ -332,15 +333,22 @@ function renderToolsPreviewFromDatabase(toolsPreview, domain, savedCommands) {
     const toolsPreviewList = document.getElementById('toolsPreviewList');
     if (!toolsPreviewList) return;
     
+    console.log('Tools Preview:', toolsPreview);
+    console.log('Saved Commands:', savedCommands);
+    console.log('Domain:', domain);
+    
     const toolsHtml = toolsPreview.map(tool => {
         let command = '';
         
         // Bazadan kelgan tool buyruqlarini tekshirish
         if (savedCommands && Array.isArray(savedCommands)) {
+            console.log(`Looking for ${tool.tool_type} in savedCommands:`, savedCommands);
             for (const commandItem of savedCommands) {
+                console.log(`Checking commandItem:`, commandItem);
                 if (commandItem[tool.tool_type]) {
                     // Bazadan kelgan to'liq buyruqni olish
                     command = commandItem[tool.tool_type];
+                    console.log(`Found command for ${tool.tool_type}:`, command);
                     break;
                 }
             }
@@ -364,6 +372,7 @@ function renderToolsPreviewFromDatabase(toolsPreview, domain, savedCommands) {
                 default:
                     command = `${tool.name} ${domain}`;
             }
+            console.log(`Using default command for ${tool.tool_type}:`, command);
         }
         
         return `
