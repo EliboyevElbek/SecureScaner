@@ -337,8 +337,6 @@ def is_valid_domain(domain):
     domain_pattern = r'^[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?)*$'
     return bool(re.match(domain_pattern, domain))
 
-
-
 def perform_domain_scan(domain):
     """Domen tahlilini amalga oshirish"""
     scan = None
@@ -548,13 +546,7 @@ def save_domains(request):
                 try:
                     # Domain mavjudligini tekshirish
                     kesh_domain, created = KeshDomain.objects.get_or_create(
-                        domain_name=domain,
-                        defaults={
-                            'nmap': f'nmap {domain}',
-                            'sqlmap': f'sqlmap -u https://{domain}',
-                            'xsstrike': f'xsstrike -u https://{domain}',
-                            'gobuster': f'gobuster dir -u https://{domain} -w common.txt'
-                        }
+                        domain_name=domain
                     )
                     
                     if created:
@@ -663,13 +655,6 @@ def update_domain(request):
                 
                 # Domain nomini yangilash
                 kesh_domain.domain_name = new_domain
-                
-                # Tool buyruqlarini yangilash - domain nomini yangilash
-                kesh_domain.nmap = f'nmap {new_domain}'
-                kesh_domain.sqlmap = f'sqlmap -u https://{new_domain}'
-                kesh_domain.xsstrike = f'xsstrike -u https://{new_domain}'
-                kesh_domain.gobuster = f'gobuster dir -u https://{new_domain} -w common.txt'
-                
                 kesh_domain.save()
                 
                 return JsonResponse({
@@ -767,16 +752,13 @@ def get_tools(request):
     return JsonResponse({'error': 'Faqat GET so\'rov qabul qilinadi'}, status=405)
 
 @csrf_exempt
-def save_tool_commands(request):
-    """Tool buyruqlarini saqlash"""
+def update_tool_commands(request):
+    """KeshDomain bazasida tool buyruqlarini yangilash"""
     if request.method == 'POST':
         try:
             data = json.loads(request.body)
             domain_name = data.get('domain_name', '').strip()
-            nmap = data.get('nmap', '').strip()
-            sqlmap = data.get('sqlmap', '').strip()
-            xsstrike = data.get('xsstrike', '').strip()
-            gobuster = data.get('gobuster', '').strip()
+            tool_commands = data.get('tool_commands', [])
             
             if not domain_name:
                 return JsonResponse({'error': 'Domain nomi kiritilmagan'}, status=400)
@@ -785,24 +767,16 @@ def save_tool_commands(request):
                 # Domain ni bazadan topish
                 kesh_domain = KeshDomain.objects.get(domain_name=domain_name)
                 
-                # Tool buyruqlarini yangilash - domain nomini avtomatik qo'shish
-                kesh_domain.nmap = nmap if domain_name in nmap else f'nmap {domain_name}'
-                kesh_domain.sqlmap = sqlmap if domain_name in sqlmap else f'sqlmap -u https://{domain_name}'
-                kesh_domain.xsstrike = xsstrike if domain_name in xsstrike else f'xsstrike -u https://{domain_name}'
-                kesh_domain.gobuster = gobuster if domain_name in gobuster else f'gobuster dir -u https://{domain_name} -w common.txt'
+                # Tool buyruqlarini yangilash
+                kesh_domain.tool_commands = tool_commands
                 kesh_domain.save()
                 
                 return JsonResponse({
                     'success': True,
-                    'message': f'Domain {domain_name} uchun tool buyruqlari muvaffaqiyatli saqlandi!',
-                    'saved_commands': {
-                        'nmap': nmap,
-                        'sqlmap': sqlmap,
-                        'xsstrike': xsstrike,
-                        'gobuster': gobuster
-                    }
+                    'message': f'Domain {domain_name} uchun tool buyruqlari yangilandi!',
+                    'tool_commands': tool_commands
                 })
-                
+            
             except KeshDomain.DoesNotExist:
                 return JsonResponse({
                     'error': f'Domain {domain_name} bazada topilmadi'

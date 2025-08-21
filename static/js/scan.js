@@ -485,71 +485,6 @@ function closeToolParams() {
     }
 }
 
-function updateToolCommandsForNewDomain(oldDomain, newDomain) {
-    // Update tool commands in global variable
-    if (selectedToolParams) {
-        // Update domain in all tool commands
-        Object.keys(selectedToolParams).forEach(toolType => {
-            if (selectedToolParams[toolType] && selectedToolParams[toolType].length > 0) {
-                // Update domain in tool commands
-                selectedToolParams[toolType] = selectedToolParams[toolType].map(param => {
-                    // Replace old domain with new domain in parameter values
-                    return param.replace(oldDomain, newDomain);
-                });
-            }
-        });
-        
-        // Save updated tool commands to backend
-        saveToolCommandsToBackend(newDomain);
-    }
-}
-
-function saveToolCommandsToBackend(domain) {
-    // Prepare tool commands data
-    const toolCommands = [];
-    
-    if (selectedToolParams) {
-        Object.keys(selectedToolParams).forEach(toolType => {
-            if (selectedToolParams[toolType] && selectedToolParams[toolType].length > 0) {
-                // Get base command for this tool type
-                const baseCommand = getBaseCommand(toolType, domain);
-                const selectedParams = selectedToolParams[toolType].join(' ');
-                const finalCommand = selectedParams ? `${baseCommand} ${selectedParams}` : baseCommand;
-                
-                toolCommands.push({[toolType]: finalCommand});
-            } else {
-                // Default command if no parameters selected
-                const baseCommand = getBaseCommand(toolType, domain);
-                toolCommands.push({[toolType]: baseCommand});
-            }
-        });
-    }
-    
-    // Send to backend
-    fetch('/scaner/save-tool-commands/', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': getCSRFToken()
-        },
-        body: JSON.stringify({
-            domain_name: domain,
-            tool_commands: toolCommands
-        })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            console.log('Tool commands saved successfully:', data);
-        } else {
-            console.error('Error saving tool commands:', data.error);
-        }
-    })
-    .catch(error => {
-        console.error('Error saving tool commands:', error);
-    });
-}
-
 function getBaseCommand(toolType, domain) {
     switch (toolType) {
         case 'nmap':
@@ -602,7 +537,7 @@ function updateToolCommandInPopup(toolType, domain) {
     // Also update the main tool command
     updateToolCommand(toolType, domain);
     
-    // Save tool commands to backend
+    // Backend ga tool commands ni saqlash
     saveToolCommandsToBackend(domain);
 }
 
@@ -648,9 +583,6 @@ function saveEditedDomain(index, originalDomain) {
         if (data.success) {
             // Update the domain in the array
             domains[index] = newDomain;
-            
-            // Update tool commands for the new domain
-            updateToolCommandsForNewDomain(originalDomain, newDomain);
             
             // Close modal
             closeEditModal();
@@ -1541,4 +1473,41 @@ function showCustomConfirm(title, message, onConfirm, onCancel) {
         style.id = 'custom-confirm-styles';
         document.head.appendChild(style);
     }
+} 
+
+function saveToolCommandsToBackend(domain) {
+    // Tool commands ni backend formatiga o'tkazish
+    const toolCommands = [];
+    
+    for (const [toolType, params] of Object.entries(selectedToolParams)) {
+        if (params && params.length > 0) {
+            const baseCommand = getBaseCommand(toolType, domain);
+            const finalCommand = `${baseCommand} ${params.join(' ')}`;
+            toolCommands.push({ [toolType]: finalCommand });
+        }
+    }
+    
+    // Backend ga yuborish
+    fetch('/scaner/update-tool-commands/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCSRFToken()
+        },
+        body: JSON.stringify({
+            domain_name: domain,
+            tool_commands: toolCommands
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            console.log('Tool commands saqlandi:', data.message);
+        } else {
+            console.error('Tool commands saqlash xatosi:', data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Tool commands saqlash xatosi:', error);
+    });
 } 

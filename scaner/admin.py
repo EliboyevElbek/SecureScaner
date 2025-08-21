@@ -5,7 +5,7 @@ from .models import DomainScan, Tool, ToolParameter, ScanSession, ToolExecution,
 
 @admin.register(KeshDomain)
 class KeshDomainAdmin(admin.ModelAdmin):
-    list_display = ['domain_name', 'nmap', 'sqlmap', 'xsstrike', 'gobuster']
+    list_display = ['domain_name', 'tool_commands']
     search_fields = ['domain_name']
     ordering = ['domain_name']
     
@@ -14,8 +14,8 @@ class KeshDomainAdmin(admin.ModelAdmin):
             'fields': ('domain_name',)
         }),
         ('Tool buyruqlari', {
-            'fields': ('nmap', 'sqlmap', 'xsstrike', 'gobuster'),
-            'description': 'Har bir tool uchun standart buyruqlar. {domain} o\'rniga domain nomi kiritiladi.'
+            'fields': ('tool_commands',),
+            'description': 'Tool va buyruqlar ro\'yxati. Namuna: [{"sqlmap": "sqlmap -u https://example.com"}, {"nmap": "nmap example.com"}]'
         }),
     )
 
