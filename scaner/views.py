@@ -655,7 +655,25 @@ def update_domain(request):
                 
                 # Domain nomini yangilash
                 kesh_domain.domain_name = new_domain
+                
+                # KeshDomain.tool_commands maydondagi domain nomlarini yangilash
+                if kesh_domain.tool_commands:
+                    for command_item in kesh_domain.tool_commands:
+                        for tool_type, command in command_item.items():
+                            if command and old_domain in command:
+                                command_item[tool_type] = command.replace(old_domain, new_domain)
+                
                 kesh_domain.save()
+                
+                # DomainToolConfiguration jadvalidagi tool buyruqlarini ham yangilash
+                tool_configs = DomainToolConfiguration.objects.filter(domain=kesh_domain)
+                for config in tool_configs:
+                    # Eski domain nomini yangi domain nomi bilan almashtirish
+                    if config.final_command:
+                        config.final_command = config.final_command.replace(old_domain, new_domain)
+                    if config.base_command:
+                        config.base_command = config.base_command.replace(old_domain, new_domain)
+                    config.save()
                 
                 return JsonResponse({
                     'success': True,
