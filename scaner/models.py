@@ -54,17 +54,68 @@ class DomainScan(models.Model):
 class KeshDomain(models.Model):
     domain_name = models.CharField(max_length=255, verbose_name="Domain nomi", unique=True)
     tool_commands = models.JSONField(default=list, verbose_name="Tool buyruqlari", help_text="Tool va buyruqlar ro'yxati")
+    created_at = models.DateTimeField(default=timezone.now, verbose_name="Yaratilgan sana")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="Yangilangan sana")
+    is_active = models.BooleanField(default=True, verbose_name="Faol")
     
     class Meta:
         verbose_name = "Kesh Domain"
         verbose_name_plural = "Kesh Domainlar"
-        ordering = ['domain_name']
+        ordering = ['-updated_at']
         indexes = [
             models.Index(fields=['domain_name']),
+            models.Index(fields=['is_active']),
+            models.Index(fields=['updated_at']),
         ]
     
     def __str__(self):
         return self.domain_name
+    
+    def get_tool_command(self, tool_type):
+        """Ma'lum tool uchun buyruqni olish"""
+        for command in self.tool_commands:
+            if tool_type in command:
+                return command[tool_type]
+        return None
+    
+    def update_tool_command(self, tool_type, command):
+        """Tool buyruqini yangilash yoki qo'shish"""
+        # Mavjud buyruqni topish
+        for i, command_item in enumerate(self.tool_commands):
+            if tool_type in command_item:
+                self.tool_commands[i] = {tool_type: command}
+                self.save()
+                return
+        
+        # Yangi buyruq qo'shish
+        self.tool_commands.append({tool_type: command})
+        self.save()
+
+class DomainToolConfiguration(models.Model):
+    """Domain va tool konfiguratsiyasi"""
+    domain = models.ForeignKey(KeshDomain, on_delete=models.CASCADE, related_name='tool_configs', verbose_name="Domain")
+    tool_type = models.CharField(max_length=50, verbose_name="Tool turi")
+    base_command = models.TextField(verbose_name="Asosiy buyruq")
+    selected_parameters = models.JSONField(default=list, verbose_name="Tanlangan parametrlar")
+    final_command = models.TextField(verbose_name="Yakuniy buyruq")
+    is_active = models.BooleanField(default=True, verbose_name="Faol")
+    created_at = models.DateTimeField(default=timezone.now, verbose_name="Yaratilgan sana")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="Yangilangan sana")
+    
+    class Meta:
+        verbose_name = "Domain Tool Konfiguratsiyasi"
+        verbose_name_plural = "Domain Tool Konfiguratsiyalari"
+        unique_together = ['domain', 'tool_type']
+        ordering = ['-updated_at']
+    
+    def __str__(self):
+        return f"{self.domain.domain_name} - {self.tool_type}"
+    
+    def update_parameters(self, parameters):
+        """Parametrlarni yangilash va yakuniy buyruqni hisoblash"""
+        self.selected_parameters = parameters
+        self.final_command = f"{self.base_command} {' '.join(parameters)}"
+        self.save()
 
 class Tool(models.Model):
     TOOL_TYPES = [

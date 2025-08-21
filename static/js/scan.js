@@ -275,8 +275,8 @@ function loadToolsPreview(domain) {
         </div>
     `;
     
-    // Fetch tools from backend
-    fetch('/scaner/get-tools/', {
+    // Fetch domain tools preview from backend
+    fetch(`/scaner/get-domain-tools-preview/?domain_name=${encodeURIComponent(domain)}`, {
         method: 'GET',
         headers: {
             'X-CSRFToken': getCSRFToken()
@@ -284,34 +284,62 @@ function loadToolsPreview(domain) {
     })
     .then(response => response.json())
     .then(data => {
-        if (data.success && data.tools) {
-            // Tools data ni global o'zgaruvchiga saqlash
-            if (data.tools_data) {
-                window.toolsData = data.tools_data;
-            }
-            renderToolsPreview(data.tools, domain);
+        if (data.success && data.tools_preview) {
+            // Saqlangan parametrlarni global o'zgaruvchiga yuklash
+            loadSavedToolParameters(data.tools_preview);
+            renderToolsPreview(data.tools_preview, domain);
         } else {
-            toolsPreviewList.innerHTML = `
-                <div class="tool-preview-item error">
-                    <div class="tool-preview-info">
-                        <div class="tool-preview-name">Xatolik</div>
-                        <div class="tool-preview-command">Tool'lar yuklanmadi</div>
-                    </div>
-                </div>
-            `;
+            // Fallback - eski usul bilan tool'larni yuklash
+            fetch('/scaner/get-tools/', {
+                method: 'GET',
+                headers: {
+                    'X-CSRFToken': getCSRFToken()
+                }
+            })
+            .then(response => response.json())
+            .then(toolsData => {
+                if (toolsData.success && toolsData.tools) {
+                    if (toolsData.tools_data) {
+                        window.toolsData = toolsData.tools_data;
+                    }
+                    renderToolsPreview(toolsData.tools, domain);
+                } else {
+                    showToolsError('Tool\'lar yuklanmadi');
+                }
+            })
+            .catch(error => {
+                console.error('Tools yuklash xatosi:', error);
+                showToolsError(error.message);
+            });
         }
     })
     .catch(error => {
-        console.error('Tools yuklash xatosi:', error);
-        toolsPreviewList.innerHTML = `
-            <div class="tool-preview-item error">
-                <div class="tool-preview-info">
-                    <div class="tool-preview-name">Xatolik</div>
-                    <div class="tool-preview-command">${error.message}</div>
-                </div>
-            </div>
-        `;
+        console.error('Domain tools preview xatosi:', error);
+        showToolsError(error.message);
     });
+}
+
+function loadSavedToolParameters(toolsPreview) {
+    // Har bir tool uchun saqlangan parametrlarni yuklash
+    toolsPreview.forEach(tool => {
+        if (tool.saved_parameters && tool.saved_parameters.length > 0) {
+            selectedToolParams[tool.tool_type] = tool.saved_parameters;
+        }
+    });
+}
+
+function showToolsError(message) {
+    const toolsPreviewList = document.getElementById('toolsPreviewList');
+    if (!toolsPreviewList) return;
+    
+    toolsPreviewList.innerHTML = `
+        <div class="tool-preview-item error">
+            <div class="tool-preview-info">
+                <div class="tool-preview-name">Xatolik</div>
+                <div class="tool-preview-command">${message}</div>
+            </div>
+        </div>
+    `;
 }
 
 function renderToolsPreview(tools, domain) {
@@ -322,21 +350,25 @@ function renderToolsPreview(tools, domain) {
         let command = '';
         
         // Tool turiga qarab command ni belgilash
-        switch (tool.tool_type) {
-            case 'nmap':
-                command = `nmap ${domain}`;
-                break;
-            case 'sqlmap':
-                command = `sqlmap -u https://${domain}`;
-                break;
-            case 'xsstrike':
-                command = `xsstrike -u https://${domain}`;
-                break;
-            case 'gobuster':
-                command = `gobuster dir -u https://${domain} -w wordlist.txt`;
-                break;
-            default:
-                command = `${tool.name} ${domain}`;
+        if (tool.base_command) {
+            command = tool.base_command;
+        } else {
+            switch (tool.tool_type) {
+                case 'nmap':
+                    command = `nmap ${domain}`;
+                    break;
+                case 'sqlmap':
+                    command = `sqlmap -u https://${domain}`;
+                    break;
+                case 'xsstrike':
+                    command = `xsstrike -u https://${domain}`;
+                    break;
+                case 'gobuster':
+                    command = `gobuster dir -u https://${domain} -w wordlist.txt`;
+                    break;
+                default:
+                    command = `${tool.name} ${domain}`;
+            }
         }
         
         // Saqlangan parametrlarni olish
@@ -538,7 +570,7 @@ function updateToolCommandInPopup(toolType, domain) {
     updateToolCommand(toolType, domain);
     
     // Backend ga tool commands ni saqlash
-    saveToolCommandsToBackend(domain);
+    saveToolCommandsToBackend(domain, toolType);
 }
 
 function saveEditedDomain(index, originalDomain) {
@@ -1475,20 +1507,13 @@ function showCustomConfirm(title, message, onConfirm, onCancel) {
     }
 } 
 
-function saveToolCommandsToBackend(domain) {
+function saveToolCommandsToBackend(domain, toolType) {
     // Tool commands ni backend formatiga o'tkazish
-    const toolCommands = [];
-    
-    for (const [toolType, params] of Object.entries(selectedToolParams)) {
-        if (params && params.length > 0) {
-            const baseCommand = getBaseCommand(toolType, domain);
-            const finalCommand = `${baseCommand} ${params.join(' ')}`;
-            toolCommands.push({ [toolType]: finalCommand });
-        }
-    }
+    const baseCommand = getBaseCommand(toolType, domain);
+    const selectedParams = selectedToolParams[toolType] || [];
     
     // Backend ga yuborish
-    fetch('/scaner/update-tool-commands/', {
+    fetch('/scaner/save-domain-tool-config/', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -1496,18 +1521,23 @@ function saveToolCommandsToBackend(domain) {
         },
         body: JSON.stringify({
             domain_name: domain,
-            tool_commands: toolCommands
+            tool_type: toolType,
+            base_command: baseCommand,
+            selected_parameters: selectedParams
         })
     })
     .then(response => response.json())
     .then(data => {
         if (data.success) {
             console.log('Tool commands saqlandi:', data.message);
+            showNotification(`${toolType} parametrlari saqlandi!`, 'success');
         } else {
             console.error('Tool commands saqlash xatosi:', data.error);
+            showNotification('Parametrlar saqlanmadi: ' + data.error, 'error');
         }
     })
     .catch(error => {
         console.error('Tool commands saqlash xatosi:', error);
+        showNotification('Parametrlar saqlanmadi: ' + error.message, 'error');
     });
 } 

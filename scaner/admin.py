@@ -1,23 +1,33 @@
 from django.contrib import admin
-from .models import DomainScan, Tool, ToolParameter, ScanSession, ToolExecution, KeshDomain
+from .models import DomainScan, Tool, ToolParameter, ScanSession, ToolExecution, KeshDomain, DomainToolConfiguration
 
 # Register your models here.
 
 @admin.register(KeshDomain)
 class KeshDomainAdmin(admin.ModelAdmin):
-    list_display = ['domain_name', 'tool_commands']
+    list_display = ['domain_name', 'tool_commands_count', 'is_active', 'created_at', 'updated_at']
+    list_filter = ['is_active', 'created_at', 'updated_at']
     search_fields = ['domain_name']
-    ordering = ['domain_name']
+    ordering = ['-updated_at']
+    readonly_fields = ['created_at', 'updated_at']
     
     fieldsets = (
         ('Asosiy ma\'lumotlar', {
-            'fields': ('domain_name',)
+            'fields': ('domain_name', 'is_active')
         }),
         ('Tool buyruqlari', {
             'fields': ('tool_commands',),
-            'description': 'Tool va buyruqlar ro\'yxati. Namuna: [{"sqlmap": "sqlmap -u https://example.com"}, {"nmap": "nmap example.com"}]'
+            'description': 'Tool va buyruqlar ro\'yxati. Namuna: [{"sqlmap": "sqlmap -u https://example.com --dbs"}, {"nmap": "nmap example.com -sS"}]'
+        }),
+        ('Vaqt ma\'lumotlari', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
         }),
     )
+    
+    def tool_commands_count(self, obj):
+        return len(obj.tool_commands) if obj.tool_commands else 0
+    tool_commands_count.short_description = "Tool buyruqlari soni"
 
 @admin.register(DomainScan)
 class DomainScanAdmin(admin.ModelAdmin):
@@ -138,3 +148,28 @@ class ToolExecutionAdmin(admin.ModelAdmin):
     def get_duration(self, obj):
         return obj.get_duration()
     get_duration.short_description = "Davomiyligi"
+
+@admin.register(DomainToolConfiguration)
+class DomainToolConfigurationAdmin(admin.ModelAdmin):
+    list_display = ['domain', 'tool_type', 'base_command', 'parameters_count', 'is_active', 'updated_at']
+    list_filter = ['tool_type', 'is_active', 'created_at', 'updated_at']
+    search_fields = ['domain__domain_name', 'tool_type']
+    ordering = ['-updated_at']
+    readonly_fields = ['created_at', 'updated_at']
+    
+    fieldsets = (
+        ('Asosiy ma\'lumotlar', {
+            'fields': ('domain', 'tool_type', 'is_active')
+        }),
+        ('Buyruq ma\'lumotlari', {
+            'fields': ('base_command', 'selected_parameters', 'final_command')
+        }),
+        ('Vaqt ma\'lumotlari', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    def parameters_count(self, obj):
+        return len(obj.selected_parameters) if obj.selected_parameters else 0
+    parameters_count.short_description = "Parametrlar soni"
