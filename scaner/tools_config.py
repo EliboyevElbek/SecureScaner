@@ -22,7 +22,7 @@ TOOLS_DATA = {
                 'key': '-p',
                 'description': 'Maxsus portlarni skanerlash',
                 'placeholder': 'Masalan: 80,443,8080 yoki 1-1000',
-                'default': '80,443,8080',
+                'default': '',
                 'type': 'text',
                 'required': False
             },
@@ -30,7 +30,7 @@ TOOLS_DATA = {
                 'key': '--script',
                 'description': 'NSE skript nomi yoki kategoriyasi',
                 'placeholder': 'Masalan: vuln, auth, default',
-                'default': 'vuln',
+                'default': '',
                 'type': 'text',
                 'required': False
             },
@@ -38,7 +38,7 @@ TOOLS_DATA = {
                 'key': '--host-timeout',
                 'description': 'Host uchun maksimal vaqt (millisekundlarda)',
                 'placeholder': 'Masalan: 30000',
-                'default': '30000',
+                'default': '',
                 'type': 'number',
                 'required': False
             }

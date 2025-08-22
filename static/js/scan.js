@@ -10,6 +10,12 @@ function saveToolParamsToStorage(domain, toolType, params) {
     console.log(`Parametrlar saqlandi: ${key} = ${JSON.stringify(params)}`);
 }
 
+function saveToolInputsToStorage(domain, toolType, inputs) {
+    const key = `tool_inputs_${domain}_${toolType}`;
+    localStorage.setItem(key, JSON.stringify(inputs));
+    console.log(`Input'lar saqlandi: ${key} = ${JSON.stringify(inputs)}`);
+}
+
 function getToolParamsFromStorage(domain, toolType) {
     const key = `tool_params_${domain}_${toolType}`;
     const saved = localStorage.getItem(key);
@@ -18,13 +24,27 @@ function getToolParamsFromStorage(domain, toolType) {
     return params;
 }
 
+function getToolInputsFromStorage(domain, toolType) {
+    const key = `tool_inputs_${domain}_${toolType}`;
+    const saved = localStorage.getItem(key);
+    const inputs = saved ? JSON.parse(saved) : {};
+    console.log(`Input'lar yuklandi: ${key} = ${JSON.stringify(inputs)}`);
+    return inputs;
+}
+
 function loadSavedToolParams(domain) {
     const tools = ['sqlmap', 'nmap', 'xsstrike', 'gobuster'];
     tools.forEach(toolType => {
         const savedParams = getToolParamsFromStorage(domain, toolType);
+        const savedInputs = getToolInputsFromStorage(domain, toolType);
+        
         if (savedParams.length > 0) {
             selectedToolParams[toolType] = savedParams;
             console.log(`${domain} uchun ${toolType} parametrlari yuklandi:`, savedParams);
+        }
+        
+        if (Object.keys(savedInputs).length > 0) {
+            console.log(`${domain} uchun ${toolType} input'lari yuklandi:`, savedInputs);
         }
     });
 }
@@ -537,15 +557,19 @@ function toggleToolParams(toolType, domain) {
         return;
     }
     
-    // Get tool parameters based on tool type
+    // Get tool parameters and inputs based on tool type
     const params = getToolParameters(toolType);
+    const inputs = getToolInputs(toolType);
     
     // Saqlangan parametrlarni localStorage dan olish
     const savedParams = getToolParamsFromStorage(domain, toolType);
+    const savedInputs = getToolInputsFromStorage(domain, toolType);
     
     // Create params dropdown
     const paramsDropdown = document.createElement('div');
     paramsDropdown.className = 'tool-params-dropdown';
+    paramsDropdown.dataset.toolType = toolType;
+    paramsDropdown.dataset.domain = domain;
     paramsDropdown.innerHTML = `
         <div class="tool-params-header">
             <h4>${getToolDisplayName(toolType)} parametrlari</h4>
@@ -556,25 +580,64 @@ function toggleToolParams(toolType, domain) {
             <div class="command-preview-text" id="commandPreview">${getCommandWithSavedParams(toolType, domain)}</div>
         </div>
         <div class="tool-params-content">
-            ${params.map(param => {
-                const isChecked = savedParams.includes(param.value);
-                return `
-                    <div class="tool-param-item">
-                        <label class="tool-param-checkbox">
-                            <input type="checkbox" 
-                                   value="${param.value}" 
-                                   data-param="${param.name}"
-                                   ${isChecked ? 'checked' : ''}
-                                   onchange="updateToolCommandInPopup('${toolType}', '${domain}')">
-                            <span class="checkmark"></span>
-                            <div class="param-info">
-                                <div class="param-name">${param.name}</div>
-                                <div class="param-description">${param.description}</div>
+            <!-- Checkbox parametrlar -->
+            <div class="params-section">
+                <h5 class="section-title">Bayroq parametrlar</h5>
+                ${params.map(param => {
+                    const isChecked = savedParams.includes(param.value);
+                    return `
+                        <div class="tool-param-item">
+                            <label class="tool-param-checkbox">
+                                <input type="checkbox" 
+                                       value="${param.value}" 
+                                       data-param="${param.name}"
+                                       ${isChecked ? 'checked' : ''}
+                                       onchange="updateToolCommandInPopup('${toolType}', '${domain}')">
+                                <span class="checkmark"></span>
+                                <div class="param-info">
+                                    <div class="param-name">${param.name}</div>
+                                    <div class="param-description">${param.description}</div>
+                                </div>
+                            </label>
+                        </div>
+                    `;
+                }).join('')}
+            </div>
+            
+            <!-- Input parametrlar -->
+            ${inputs.length > 0 ? `
+            <div class="inputs-section">
+                <h5 class="section-title">Kiritiladigan parametrlar</h5>
+                ${inputs.map(input => {
+                    const savedValue = savedInputs[input.key] || input.default || '';
+                    return `
+                        <div class="tool-input-item">
+                            <div class="input-header">
+                                <div class="input-key">${input.key}</div>
+                                <div class="input-description">${input.description}</div>
                             </div>
-                        </label>
-                    </div>
-                `;
-            }).join('')}
+                            ${input.type === 'number' ? `
+                                <input type="number" 
+                                       class="tool-input-field" 
+                                       placeholder="${input.placeholder}"
+                                       value="${savedValue}"
+                                       min="${input.min || ''}"
+                                       max="${input.max || ''}"
+                                       data-input-key="${input.key}"
+                                       onchange="updateToolCommandInPopup('${toolType}', '${domain}')">
+                            ` : `
+                                <input type="text" 
+                                       class="tool-input-field" 
+                                       placeholder="${input.placeholder}"
+                                       value="${savedValue}"
+                                       data-input-key="${input.key}"
+                                       onchange="updateToolCommandInPopup('${toolType}', '${domain}')">
+                            `}
+                        </div>
+                    `;
+                }).join('')}
+            </div>
+            ` : ''}
         </div>
     `;
     
@@ -605,7 +668,8 @@ function getToolParameters(toolType) {
         const params = window.toolsData[toolType].parameters.map(param => ({
             name: param.flag,
             value: param.flag,
-            description: param.description
+            description: param.description,
+            type: 'checkbox'
         }));
         console.log(`Mapped parameters for ${toolType}:`, params);
         return params;
@@ -614,27 +678,59 @@ function getToolParameters(toolType) {
     // Fallback - agar tools data mavjud bo'lmasa
     const fallbackParams = {
         'nmap': [
-            { name: '-sS', value: '-sS', description: 'TCP SYN scan (stealth)' },
-            { name: '-sV', value: '-sV', description: 'Version detection' },
-            { name: '-O', value: '-O', description: 'OS detection' }
+            { name: '-sS', value: '-sS', description: 'TCP SYN scan (stealth)', type: 'checkbox' },
+            { name: '-sV', value: '-sV', description: 'Version detection', type: 'checkbox' },
+            { name: '-O', value: '-O', description: 'OS detection', type: 'checkbox' }
         ],
         'sqlmap': [
-            { name: '--dbs', value: '--dbs', description: 'Enumerate databases' },
-            { name: '--tables', value: '--tables', description: 'Enumerate tables' },
-            { name: '--dump', value: '--dump', description: 'Dump database' }
+            { name: '--dbs', value: '--dbs', description: 'Enumerate databases', type: 'checkbox' },
+            { name: '--tables', value: '--tables', description: 'Enumerate tables', type: 'checkbox' },
+            { name: '--dump', value: '--dump', description: 'Dump database', type: 'checkbox' }
         ],
         'xsstrike': [
-            { name: '--crawl', value: '--crawl', description: 'Crawl website' },
-            { name: '--blind', value: '--blind', description: 'Blind XSS detection' }
+            { name: '--crawl', value: '--crawl', description: 'Crawl website', type: 'checkbox' },
+            { name: '--blind', value: '--blind', description: 'Blind XSS detection', type: 'checkbox' }
         ],
         'gobuster': [
-            { name: 'dir', value: 'dir', description: 'Directory enumeration' },
-            { name: '-x php', value: '-x php', description: 'File extensions' }
+            { name: 'dir', value: 'dir', description: 'Directory enumeration', type: 'checkbox' },
+            { name: '-x php', value: '-x php', description: 'File extensions', type: 'checkbox' }
         ]
     };
     
     console.log(`Using fallback parameters for ${toolType}:`, fallbackParams[toolType] || []);
     return fallbackParams[toolType] || [];
+}
+
+function getToolInputs(toolType) {
+    console.log(`getToolInputs called for ${toolType}`);
+    
+    // Global tools data dan input'larni olish
+    if (window.toolsData && window.toolsData[toolType] && window.toolsData[toolType].inputs) {
+        console.log(`Using full inputs for ${toolType}:`, window.toolsData[toolType].inputs);
+        return window.toolsData[toolType].inputs;
+    }
+    
+    // Fallback - agar tools data mavjud bo'lmasa
+    const fallbackInputs = {
+        'nmap': [
+            { key: '-p', description: 'Port range', placeholder: '80,443,8080', type: 'text', default: '80,443,8080' },
+            { key: '--script', description: 'NSE script', placeholder: 'vuln,auth', type: 'text', default: 'vuln' }
+        ],
+        'sqlmap': [
+            { key: '--level', description: 'Test level (1-5)', placeholder: '1-5', type: 'number', default: '1', min: 1, max: 5 },
+            { key: '--risk', description: 'Risk level (1-3)', placeholder: '1-3', type: 'number', default: '1', min: 1, max: 3 }
+        ],
+        'xsstrike': [
+            { key: '--threads', description: 'Number of threads', placeholder: '10', type: 'number', default: '10', min: 1, max: 50 }
+        ],
+        'gobuster': [
+            { key: '-t', description: 'Number of threads', placeholder: '10', type: 'number', default: '10', min: 1, max: 100 },
+            { key: '-x', description: 'File extensions', placeholder: 'php,html,txt', type: 'text', default: 'php,html,txt' }
+        ]
+    };
+    
+    console.log(`Using fallback inputs for ${toolType}:`, fallbackInputs[toolType] || []);
+    return fallbackInputs[toolType] || [];
 }
 
 function getToolDisplayName(toolType) {
@@ -651,6 +747,32 @@ function getToolDisplayName(toolType) {
 function closeToolParams() {
     const existingParams = document.querySelector('.tool-params-dropdown');
     if (existingParams) {
+        // Popup yopilishidan oldin input'larni ham saqlash
+        const toolType = existingParams.dataset.toolType;
+        const domain = existingParams.dataset.domain;
+        
+        if (toolType && domain) {
+            // Input'larni localStorage ga saqlash
+            const inputFields = existingParams.querySelectorAll('.tool-input-field');
+            const inputsToSave = {};
+            inputFields.forEach(input => {
+                const value = input.value.trim();
+                const key = input.dataset.inputKey;
+                if (value) {
+                    inputsToSave[key] = value;
+                }
+            });
+            saveToolInputsToStorage(domain, toolType, inputsToSave);
+            
+            // Checkbox parametrlarni ham saqlash
+            const checkboxes = existingParams.querySelectorAll('input[type="checkbox"]:checked');
+            const selectedParams = Array.from(checkboxes).map(cb => cb.value);
+            saveToolParamsToStorage(domain, toolType, selectedParams);
+            
+            // Backend ga saqlash
+            saveToolCommandsToBackend(domain, toolType);
+        }
+        
         existingParams.style.opacity = '0';
         existingParams.style.transform = 'translate(-50%, -50%) scale(0.8)';
         setTimeout(() => {
@@ -676,9 +798,35 @@ function getBaseCommand(toolType, domain) {
 
 function getCommandWithSavedParams(toolType, domain) {
     const baseCommand = getBaseCommand(toolType, domain);
-    // localStorage dan saqlangan parametrlarni olish
+    
+    // localStorage dan saqlangan checkbox parametrlarni olish
     const savedParams = getToolParamsFromStorage(domain, toolType);
-    return savedParams.length > 0 ? `${baseCommand} ${savedParams.join(' ')}` : baseCommand;
+    
+    // localStorage dan saqlangan input parametrlarni olish
+    const savedInputs = getToolInputsFromStorage(domain, toolType);
+    
+    // Yakuniy buyruqni yaratish
+    let finalCommand = baseCommand;
+    
+    // Checkbox parametrlarni qo'shish
+    if (savedParams.length > 0) {
+        finalCommand += ` ${savedParams.join(' ')}`;
+    }
+    
+    // Input parametrlarni qo'shish
+    const inputParams = [];
+    Object.keys(savedInputs).forEach(key => {
+        const value = savedInputs[key];
+        if (value && value.trim()) {
+            inputParams.push(`${key} ${value.trim()}`);
+        }
+    });
+    
+    if (inputParams.length > 0) {
+        finalCommand += ` ${inputParams.join(' ')}`;
+    }
+    
+    return finalCommand;
 }
 
 function updateToolCommand(toolType, domain) {
@@ -687,10 +835,8 @@ function updateToolCommand(toolType, domain) {
     
     const commandDiv = toolItem.querySelector('.tool-preview-command');
     
-    // localStorage dan saqlangan parametrlarni olish
-    const savedParams = getToolParamsFromStorage(domain, toolType);
-    const baseCommand = getBaseCommand(toolType, domain);
-    const finalCommand = savedParams.length > 0 ? `${baseCommand} ${savedParams.join(' ')}` : baseCommand;
+    // getCommandWithSavedParams funksiyasini ishlatish (input'larni ham hisobga oladi)
+    const finalCommand = getCommandWithSavedParams(toolType, domain);
     
     commandDiv.textContent = finalCommand;
 }
@@ -700,13 +846,46 @@ function updateToolCommandInPopup(toolType, domain) {
     const commandPreview = document.getElementById('commandPreview');
     if (commandPreview) {
         const baseCommand = getBaseCommand(toolType, domain);
+        
+        // Checkbox parametrlarni olish
         const checkboxes = document.querySelectorAll('.tool-params-dropdown input[type="checkbox"]:checked');
         const selectedParams = Array.from(checkboxes).map(cb => cb.value).join(' ');
-        const finalCommand = selectedParams ? `${baseCommand} ${selectedParams}` : baseCommand;
+        
+        // Input parametrlarni olish
+        const inputFields = document.querySelectorAll('.tool-params-dropdown .tool-input-field');
+        const inputParams = [];
+        inputFields.forEach(input => {
+            const value = input.value.trim();
+            const key = input.dataset.inputKey;
+            if (value) {
+                inputParams.push(`${key} ${value}`);
+            }
+        });
+        
+        // Yakuniy buyruqni yaratish
+        let finalCommand = baseCommand;
+        if (selectedParams) {
+            finalCommand += ` ${selectedParams}`;
+        }
+        if (inputParams.length > 0) {
+            finalCommand += ` ${inputParams.join(' ')}`;
+        }
+        
         commandPreview.textContent = finalCommand;
         
         // Tanlangan parametrlarni global o'zgaruvchiga saqlash
         selectedToolParams[toolType] = Array.from(checkboxes).map(cb => cb.value);
+        
+        // Input'larni localStorage ga saqlash
+        const inputsToSave = {};
+        inputFields.forEach(input => {
+            const value = input.value.trim();
+            const key = input.dataset.inputKey;
+            if (value) {
+                inputsToSave[key] = value;
+            }
+        });
+        saveToolInputsToStorage(domain, toolType, inputsToSave);
         
         // Parametrlarni localStorage ga ham saqlash
         saveToolParamsToStorage(domain, toolType, selectedToolParams[toolType]);
@@ -1774,11 +1953,14 @@ function saveDefaultToolCommands(domain) {
 }
 
 function saveToolCommandsToBackend(domain, toolType) {
-    // Tool commands ni backend formatiga o'tkazish
-    const baseCommand = getBaseCommand(toolType, domain);
-    // localStorage dan saqlangan parametrlarni olish
+    // Tool commands ni backend formatiga o'tkazish - input'larni ham hisobga olgan holda
+    const finalCommand = getCommandWithSavedParams(toolType, domain);
+    
+    // localStorage dan saqlangan checkbox parametrlarni olish
     const selectedParams = getToolParamsFromStorage(domain, toolType);
-    const finalCommand = selectedParams.length > 0 ? `${baseCommand} ${selectedParams.join(' ')}` : baseCommand;
+    
+    // localStorage dan saqlangan input parametrlarni olish
+    const selectedInputs = getToolInputsFromStorage(domain, toolType);
     
     // Avval DomainToolConfiguration ni yangilash
     fetch('/scaner/save-domain-tool-config/', {
@@ -1790,8 +1972,9 @@ function saveToolCommandsToBackend(domain, toolType) {
         body: JSON.stringify({
             domain_name: domain,
             tool_type: toolType,
-            base_command: baseCommand,
-            selected_parameters: selectedParams
+            base_command: getBaseCommand(toolType, domain),
+            selected_parameters: selectedParams,
+            selected_inputs: selectedInputs  // Input'larni ham yuborish
         })
     })
     .then(response => response.json())
