@@ -474,7 +474,7 @@ def get_ssl_info(domain):
         # SSL xatolik bo'lsa HTTP bilan tekshirish
         try:
             response = requests.get(f"http://{domain}", timeout=10, allow_redirects=True)
-        return {
+            return {
                 'ssl_enabled': False,
                 'ssl_version': 'HTTP ishlatiladi',
                 'certificate_valid': False,
@@ -486,7 +486,7 @@ def get_ssl_info(domain):
                 'ssl_version': 'SSL xatolik + HTTP ham xatolik',
                 'certificate_valid': False,
                 'protocol': 'Xatolik'
-        }
+            }
     except requests.exceptions.ConnectionError:
         # HTTPS ulanish xatolik bo'lsa HTTP bilan tekshirish
         try:
@@ -498,12 +498,12 @@ def get_ssl_info(domain):
                 'protocol': 'HTTP'
             }
         except Exception as e:
-        return {
-            'ssl_enabled': False,
-            'ssl_version': 'Ulanish xatolik',
+            return {
+                'ssl_enabled': False,
+                'ssl_version': 'Ulanish xatolik',
                 'certificate_valid': False,
                 'protocol': 'Xatolik'
-        }
+            }
     except requests.exceptions.Timeout:
         # HTTPS vaqt tugasa HTTP bilan tekshirish
         try:
@@ -515,18 +515,18 @@ def get_ssl_info(domain):
                 'protocol': 'HTTP'
             }
         except Exception as e:
-        return {
-            'ssl_enabled': False,
-            'ssl_version': 'Vaqt tugadi',
+            return {
+                'ssl_enabled': False,
+                'ssl_version': 'Vaqt tugadi',
                 'certificate_valid': False,
                 'protocol': 'Xatolik'
-        }
+            }
     except Exception as e:
         # Boshqa xatolik bo'lsa HTTP bilan tekshirish
         try:
             response = requests.get(f"http://{domain}", timeout=10, allow_redirects=True)
-        return {
-            'ssl_enabled': False,
+            return {
+                'ssl_enabled': False,
                 'ssl_version': 'HTTP ishlatiladi',
                 'certificate_valid': False,
                 'protocol': 'HTTP'
@@ -537,7 +537,7 @@ def get_ssl_info(domain):
                 'ssl_version': f'Xatolik: {str(e)}',
                 'certificate_valid': False,
                 'protocol': 'Xatolik'
-        }
+            }
 
 def get_security_headers(domain):
     """Xavfsizlik sarlavhalarini olish"""

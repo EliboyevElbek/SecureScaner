@@ -31,14 +31,6 @@
             </div>
         </div>
     </div>
-    <div class="stats-single">
-        <div class="stat-card">
-            <div class="stat-content">
-                <div class="stat-number">{{ old_count }}</div>
-                <div class="stat-label">Eski Tahlillar</div>
-            </div>
-        </div>
-    </div>
 </div>
 
 <!-- Scan History Container -->
@@ -52,7 +44,10 @@
     <!-- Yangi tahlillar (24 soat ichida) -->
     {% if new_scans %}
     <div class="new-scans-section">
-        <h3 class="section-title new-title">🆕 Bugungi yangi tahlillar ({{ new_count }})</h3>
+        <h3 class="section-title new-title">
+            <span class="title-text">🆕 Bugungi yangi tahlillar</span>
+            <span class="title-count">{{ new_count }}</span>
+        </h3>
         <div class="history-grid new-scans-grid">
             {% for scan in new_scans %}
             <div class="scan-item new-scan-item">
@@ -89,7 +84,10 @@
     <!-- Eski tahlillar (24 soatdan oldin) -->
     {% if old_scans %}
     <div class="old-scans-section">
-        <h3 class="section-title old-title">📚 Barcha tahlillar ({{ old_count }})</h3>
+        <h3 class="section-title old-title">
+            <span class="title-text">📚 Barcha tahlillar</span>
+            <span class="title-count">{{ old_count }}</span>
+        </h3>
         <div class="history-grid old-scans-grid">
             {% for scan in old_scans %}
             <div class="scan-item old-scan-item">
