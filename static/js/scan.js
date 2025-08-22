@@ -29,6 +29,28 @@ function loadSavedToolParams(domain) {
     });
 }
 
+function loadToolsData() {
+    // Backend dan tool parametrlarini yuklash
+    fetch('/scaner/get-tools/', {
+        method: 'GET',
+        headers: {
+            'X-CSRFToken': getCSRFToken()
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success && data.tools_data) {
+            window.toolsData = data.tools_data;
+            console.log('Tools data yuklandi:', window.toolsData);
+        } else {
+            console.log('Tools data yuklanmadi');
+        }
+    })
+    .catch(error => {
+        console.error('Tools data yuklashda xatolik:', error);
+    });
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     console.log('Scan page loaded');
     
@@ -37,6 +59,9 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Check for edited domains when page loads
     checkForEditedDomains();
+    
+    // Load tools data from backend
+    loadToolsData();
 });
 
 function prepareDomains() {
@@ -340,6 +365,9 @@ function loadToolsPreview(domain) {
                 if (toolsData.success && toolsData.tools) {
                     if (toolsData.tools_data) {
                         window.toolsData = toolsData.tools_data;
+                        console.log('Tools data yuklandi:', window.toolsData);
+                    } else {
+                        console.log('Tools data mavjud emas');
                     }
                     renderToolsPreview(toolsData.tools, domain);
                 } else {
@@ -568,37 +596,49 @@ function toggleToolParams(toolType, domain) {
 }
 
 function getToolParameters(toolType) {
-    // Global tools data ni ishlatish
-    if (window.toolsData && window.toolsData[toolType]) {
-        return window.toolsData[toolType].parameters.map(param => ({
+    console.log(`getToolParameters called for ${toolType}`);
+    console.log('window.toolsData:', window.toolsData);
+    
+    // Global tools data ni ishlatish - views.py dagi to'liq parametrlar
+    if (window.toolsData && window.toolsData[toolType] && window.toolsData[toolType].parameters) {
+        console.log(`Using full parameters for ${toolType}:`, window.toolsData[toolType].parameters);
+        const params = window.toolsData[toolType].parameters.map(param => ({
             name: param.flag,
             value: param.flag,
-            description: param.description
+            description: param.description,
+            type: param.parameter_type,
+            placeholder: param.placeholder,
+            default_value: param.default_value,
+            is_required: param.is_required,
+            options: param.options || []
         }));
+        console.log(`Mapped parameters for ${toolType}:`, params);
+        return params;
     }
     
     // Fallback - agar tools data mavjud bo'lmasa
     const fallbackParams = {
         'nmap': [
-            { name: '-sS', value: '-sS', description: 'TCP SYN scan (stealth)' },
-            { name: '-sV', value: '-sV', description: 'Version detection' },
-            { name: '-O', value: '-O', description: 'OS detection' }
+            { name: '-sS', value: '-sS', description: 'TCP SYN scan (stealth)', type: 'flag' },
+            { name: '-sV', value: '-sV', description: 'Version detection', type: 'flag' },
+            { name: '-O', value: '-O', description: 'OS detection', type: 'flag' }
         ],
         'sqlmap': [
-            { name: '--dbs', value: '--dbs', description: 'Enumerate databases' },
-            { name: '--tables', value: '--tables', description: 'Enumerate tables' },
-            { name: '--dump', value: '--dump', description: 'Dump database' }
+            { name: '--dbs', value: '--dbs', description: 'Enumerate databases', type: 'flag' },
+            { name: '--tables', value: '--tables', description: 'Enumerate tables', type: 'flag' },
+            { name: '--dump', value: '--dump', description: 'Dump database', type: 'flag' }
         ],
         'xsstrike': [
-            { name: '--crawl', value: '--crawl', description: 'Crawl website' },
-            { name: '--blind', value: '--blind', description: 'Blind XSS detection' }
+            { name: '--crawl', value: '--crawl', description: 'Crawl website', type: 'flag' },
+            { name: '--blind', value: '--blind', description: 'Blind XSS detection', type: 'flag' }
         ],
         'gobuster': [
-            { name: 'dir', value: 'dir', description: 'Directory enumeration' },
-            { name: '-x php', value: '-x php', description: 'File extensions' }
+            { name: 'dir', value: 'dir', description: 'Directory enumeration', type: 'flag' },
+            { name: '-x php', value: '-x php', description: 'File extensions', type: 'flag' }
         ]
     };
     
+    console.log(`Using fallback parameters for ${toolType}:`, fallbackParams[toolType] || []);
     return fallbackParams[toolType] || [];
 }
 
