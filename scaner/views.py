@@ -126,6 +126,7 @@ def scan_history(request):
         today = datetime.now().date()
         
         # Bugungi yangi tahlillarni olish (24 soat ichida)
+        # Yangi tahlillarda yangi domainlar ko'rinadi
         yesterday = today - timedelta(days=1)
         new_scans = DomainScan.objects.filter(
             scan_date__gte=yesterday,
@@ -133,6 +134,7 @@ def scan_history(request):
         ).order_by('-scan_date')
         
         # Eski tahlillarni olish (24 soatdan oldin)
+        # Eski tahlillarda avvalgi tahlillar ko'rinadi
         old_scans = DomainScan.objects.filter(
             scan_date__lt=yesterday,
             status='completed'

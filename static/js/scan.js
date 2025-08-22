@@ -919,6 +919,7 @@ function startScan() {
             // Tahlil tugagandan so'ng history sahifasiga o'tish
             setTimeout(() => {
                 // History sahifasiga o'tish va yangi tahlillarni eski tahlillarga qo'shish
+                // Yangi tahlillarda yangi domainlar ko'rinadi, eski tahlillarda esa avvalgi tahlillar
                 window.location.href = '/scaner/history/';
             }, 2000);
         } else {
