@@ -793,7 +793,7 @@ def get_tools(request):
                     'parameters': tool_info.get('parameters', []),
                     'inputs': tool_info.get('inputs', []),
                     'examples': tool_info.get('examples', [])
-                }
+            }
             
             return JsonResponse({
                 'success': True,

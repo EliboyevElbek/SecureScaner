@@ -2080,7 +2080,7 @@ function saveToolCommandsToBackend(domain, toolType) {
     .then(data => {
         if (data.success) {
             console.log('Tool commands saqlandi:', data.message);
-            showNotification(`${toolType} parametrlari saqlandi!`, 'success');
+            // showNotification o'chirildi - checkbox/input o'zgarishida xabar chiqmasin
         } else {
             console.error('Tool commands saqlash xatosi:', data.error);
             showNotification('Parametrlar saqlanmadi: ' + data.error, 'error');
