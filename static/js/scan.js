@@ -633,7 +633,20 @@ function toggleToolParams(toolType, domain) {
                                 <div class="input-key">${input.key}</div>
                                 <div class="input-description">${input.description}</div>
                             </div>
-                            ${input.type === 'number' ? `
+                            ${input.type === 'range' ? `
+                                <div class="range-input-container">
+                                    <input type="range" 
+                                           class="tool-input-field range-input" 
+                                           value="${savedValue}"
+                                           min="${input.min || 0}"
+                                           max="${input.max || 100}"
+                                           step="${input.step || 1}"
+                                           data-input-key="${input.key}"
+                                           oninput="updateRangeValue(this, '${toolType}', '${domain}')"
+                                           onchange="updateToolCommandInPopup('${toolType}', '${domain}')">
+                                    <div class="range-value-display">${savedValue}</div>
+                                </div>
+                            ` : input.type === 'number' ? `
                                 <input type="number" 
                                        class="tool-input-field" 
                                        placeholder="${input.placeholder}"
@@ -641,6 +654,7 @@ function toggleToolParams(toolType, domain) {
                                        min="${input.min || ''}"
                                        max="${input.max || ''}"
                                        data-input-key="${input.key}"
+                                       oninput="validateInputField(this)"
                                        onchange="updateToolCommandInPopup('${toolType}', '${domain}')">
                             ` : `
                                 <input type="text" 
@@ -648,6 +662,7 @@ function toggleToolParams(toolType, domain) {
                                        placeholder="${input.placeholder}"
                                        value="${savedValue}"
                                        data-input-key="${input.key}"
+                                       oninput="validateInputField(this)"
                                        onchange="updateToolCommandInPopup('${toolType}', '${domain}')">
                             `}
                         </div>
@@ -2075,6 +2090,116 @@ function saveToolCommandsToBackend(domain, toolType) {
         console.error('Tool commands saqlash xatosi:', error);
         showNotification('Parametrlar saqlanmadi: ' + error.message, 'error');
     });
+} 
+
+// Range input va validation funksiyalari
+function updateRangeValue(rangeInput, toolType, domain) {
+    const value = rangeInput.value;
+    const displayElement = rangeInput.parentElement.querySelector('.range-value-display');
+    if (displayElement) {
+        displayElement.textContent = value;
+    }
+    
+    // Real-time validation
+    validateRangeInput(rangeInput);
+    
+    // localStorage ga saqlash
+    const inputKey = rangeInput.dataset.inputKey;
+    const savedInputs = getToolInputsFromStorage(domain, toolType);
+    savedInputs[inputKey] = value;
+    saveToolInputsToStorage(domain, toolType, savedInputs);
+}
+
+function validateRangeInput(rangeInput) {
+    const value = parseInt(rangeInput.value);
+    const min = parseInt(rangeInput.min);
+    const max = parseInt(rangeInput.max);
+    
+    if (value < min || value > max) {
+        rangeInput.classList.add('invalid');
+        showFieldError(rangeInput, `Qiymat ${min}-${max} orasida bo'lishi kerak`);
+    } else {
+        rangeInput.classList.remove('invalid');
+        hideFieldError(rangeInput);
+    }
+}
+
+function validateInputField(input) {
+    const value = input.value.trim();
+    const type = input.type;
+    const min = input.min;
+    const max = input.max;
+    const required = input.hasAttribute('required');
+    
+    // Required validation
+    if (required && !value) {
+        input.classList.add('invalid');
+        showFieldError(input, 'Bu maydon majburiy');
+        return false;
+    }
+    
+    // Type-specific validation
+    if (type === 'number' && value) {
+        const numValue = parseFloat(value);
+        if (isNaN(numValue)) {
+            input.classList.add('invalid');
+            showFieldError(input, 'Raqam kiriting');
+            return false;
+        }
+        if (min && numValue < parseFloat(min)) {
+            input.classList.add('invalid');
+            showFieldError(input, `Minimal qiymat: ${min}`);
+            return false;
+        }
+        if (max && numValue > parseFloat(max)) {
+            input.classList.add('invalid');
+            showFieldError(input, `Maksimal qiymat: ${max}`);
+            return false;
+        }
+    }
+    
+    // URL validation for text inputs (if placeholder suggests URL)
+    if (type === 'text' && value && input.placeholder.includes('http')) {
+        try {
+            new URL(value);
+        } catch {
+            input.classList.add('invalid');
+            showFieldError(input, 'Noto\'g\'ri URL format');
+            return false;
+        }
+    }
+    
+    // If all validations pass
+    input.classList.remove('invalid');
+    input.classList.add('valid');
+    hideFieldError(input);
+    return true;
+}
+
+function showFieldError(input, message) {
+    // Remove existing error
+    hideFieldError(input);
+    
+    // Create error element
+    const errorDiv = document.createElement('div');
+    errorDiv.className = 'field-error';
+    errorDiv.textContent = message;
+    errorDiv.style.cssText = `
+        color: #e74c3c;
+        font-size: 12px;
+        margin-top: 4px;
+        animation: fadeIn 0.3s ease-in;
+    `;
+    
+    // Insert after input
+    input.parentElement.appendChild(errorDiv);
+}
+
+function hideFieldError(input) {
+    const errorDiv = input.parentElement.querySelector('.field-error');
+    if (errorDiv) {
+        errorDiv.remove();
+    }
 } 
 
  

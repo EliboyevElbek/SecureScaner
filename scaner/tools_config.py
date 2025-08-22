@@ -67,32 +67,26 @@ TOOLS_DATA = {
         ],
         'inputs': [
             {
-                'key': '-u',
-                'description': 'Target URL (SQL injection nuqtasi)',
-                'placeholder': 'Masalan: http://example.com/page.php?id=1',
-                'default': '',
-                'type': 'url',
-                'required': True
-            },
-            {
                 'key': '--level',
                 'description': 'Test darajasi (1-5) - yuqori daraja ko\'proq test',
                 'placeholder': '1-5 orasida',
                 'default': '1',
-                'type': 'number',
+                'type': 'range',
                 'required': False,
                 'min': 1,
-                'max': 5
+                'max': 5,
+                'step': 1
             },
             {
                 'key': '--risk',
                 'description': 'Xavf darajasi (1-3) - yuqori xavf ko\'proq payload',
                 'placeholder': '1-3 orasida',
                 'default': '1',
-                'type': 'number',
+                'type': 'range',
                 'required': False,
                 'min': 1,
-                'max': 3
+                'max': 3,
+                'step': 1
             },
             {
                 'key': '-D',
@@ -128,9 +122,9 @@ TOOLS_DATA = {
             }
         ],
         'examples': [
-            'sqlmap -u "http://example.com/page.php?id=1" --dbs',
-            'sqlmap -u "http://example.com/page.php?id=1" --batch --random-agent',
-            'sqlmap -u "http://example.com/page.php?id=1" --tables -D database_name'
+            'sqlmap --dbs',
+            'sqlmap --batch --random-agent',
+            'sqlmap --tables -D database_name'
         ]
     },
     
@@ -149,14 +143,6 @@ TOOLS_DATA = {
             {'flag': '--crawl', 'description': 'Sahifalarni avtomatik ko\'rish va tekshirish'}
         ],
         'inputs': [
-            {
-                'key': '-u',
-                'description': 'Target URL yoki endpoint',
-                'placeholder': 'Masalan: http://example.com/page.php?q=test',
-                'default': '',
-                'type': 'url',
-                'required': True
-            },
             {
                 'key': '--params',
                 'description': 'Maxsus parametrlarni tekshirish',
@@ -193,9 +179,9 @@ TOOLS_DATA = {
             }
         ],
         'examples': [
-            'xsstrike -u "http://example.com/page.php?q=test"',
-            'xsstrike -u "http://example.com/page.php?q=test" --crawl',
-            'xsstrike -u "http://example.com/page.php?q=test" --blind'
+            'xsstrike --crawl',
+            'xsstrike --blind',
+            'xsstrike --json'
         ]
     },
     
@@ -214,14 +200,6 @@ TOOLS_DATA = {
             {'flag': '--random-agent', 'description': 'Tasodifiy User-Agent ishlatish'}
         ],
         'inputs': [
-            {
-                'key': '-u',
-                'description': 'Target URL yoki domain',
-                'placeholder': 'Masalan: http://example.com yoki example.com',
-                'default': '',
-                'type': 'url',
-                'required': True
-            },
             {
                 'key': '-w',
                 'description': 'So\'zlar ro\'yxati fayli (wordlist)',
@@ -266,9 +244,9 @@ TOOLS_DATA = {
             }
         ],
         'examples': [
-            'gobuster dir -u http://example.com -w /usr/share/wordlists/dirb/common.txt',
+            'gobuster dir -w /usr/share/wordlists/dirb/common.txt',
             'gobuster dns -d example.com -w /usr/share/wordlists/subdomains.txt',
-            'gobuster fuzz -u http://example.com/FUZZ -w wordlist.txt -x php,html,txt'
+            'gobuster fuzz -w wordlist.txt -x php,html,txt'
         ]
     }
 }
