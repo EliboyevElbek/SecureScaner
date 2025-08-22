@@ -90,6 +90,11 @@ def scan(request):
                     deleted_count = KeshDomain.objects.count()
                     KeshDomain.objects.all().delete()
                     print(f"Tahlil tugagandan so'ng {deleted_count} ta domain KeshDomain bazasidan o'chirildi")
+                    
+                    # Yangi tahlil qilingan domainlarni "Yangi tahlillar"da ko'rsatish uchun
+                    # Avvalgi barcha domainlarni "Barcha tahlillar"ga o'tkazish
+                    print(f"Yangi tahlil qilingan domainlar: {[r['domain'] for r in scan_results if r['status'] == 'completed']}")
+                    
                 except Exception as e:
                     print(f"KeshDomain o'chirishda xatolik: {e}")
                 
@@ -126,13 +131,29 @@ def scan_history(request):
             status='completed'
         ).order_by('-scan_date')
         
-        # Yangi tahlillarni olish (faqat eng so'nggi tahlil qilingan domain)
-        # Yangi tahlillarda yangi domainlar ko'rinadi
-        new_scans = all_scans[:1]  # Faqat 1 ta eng so'nggi
-        
-        # Eski tahlillarni olish (avvalgi barcha tahlillar)
-        # Eski tahlillarda avvalgi tahlillar ko'rinadi
-        old_scans = all_scans[1:51]  # 2-dan 51-gacha (1 ta yangi + 50 ta eski)
+        # Yangi tahlillarni olish (faqat eng so'nggi skan sessiyada kiritilgan domainlar)
+        # "Tahlil qilish" tugmasi bosilganda avvalgi yangi tahlillar "Barcha tahlillar"ga o'tadi
+        if all_scans.exists():
+            # Eng so'nggi tahlil qilingan domainni topish
+            latest_scan = all_scans.first()
+            latest_domain = latest_scan.domain_name
+            
+            # Faqat eng so'nggi tahlil qilingan domainni "yangi tahlillar"da ko'rsatish
+            # Bu esa har safar yangi domain kiritilganda avvalgi domainlar "Barcha tahlillar"ga o'tishini ta'minlaydi
+            new_scans = DomainScan.objects.filter(
+                domain_name=latest_domain,
+                status='completed'
+            ).order_by('-scan_date')[:1]
+            
+            # Eski tahlillarni olish (yangi tahlillarda ko'rsatilmagan domainlar)
+            old_scans = DomainScan.objects.filter(
+                status='completed'
+            ).exclude(
+                domain_name=latest_domain
+            ).order_by('-scan_date')[:50]
+        else:
+            new_scans = []
+            old_scans = []
         
         context = {
             'new_scans': new_scans,

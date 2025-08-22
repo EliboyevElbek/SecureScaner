@@ -1,69 +1,16 @@
 // Scan History Page JavaScript
 
-// Sahifa yuklanganda yangi tahlillarni eski tahlillarga qo'shish
+// Sahifa yuklanganda
 document.addEventListener('DOMContentLoaded', function() {
     console.log('Scan History page loaded');
     
-    // Sahifa yuklanganda yangi tahlillarni eski tahlillarga qo'shish
-    moveNewScansToOld();
+    // Sahifa yuklanganda hech narsa qilmaymiz
+    // Django view'da allaqachon to'g'ri logika yozilgan
+    // Yangi tahlillar va eski tahlillar to'g'ri ajratilgan
 });
 
-// Yangi tahlillarni eski tahlillarga qo'shish funksiyasi
-function moveNewScansToOld() {
-    const newScansSection = document.querySelector('.new-scans-section');
-    const oldScansSection = document.querySelector('.old-scans-section');
-    
-    if (!newScansSection || !oldScansSection) {
-        return;
-    }
-    
-    const newScans = newScansSection.querySelectorAll('.scan-item');
-    const oldScansGrid = oldScansSection.querySelector('.old-scans-grid');
-    
-    if (newScans.length > 0 && oldScansGrid) {
-        console.log(`${newScans.length} ta yangi tahlil eski tahlillarga qo'shilmoqda...`);
-        
-        // Har bir yangi tahlilni eski tahlillarga qo'shish
-        newScans.forEach(scanItem => {
-            // Yangi tahlil elementini eski tahlillarga ko'chirish
-            oldScansGrid.appendChild(scanItem.cloneNode(true));
-            
-            // Yangi tahlil elementini o'chirish
-            scanItem.remove();
-        });
-        
-        // Yangi tahlillar bo'limini yashirish
-        newScansSection.style.display = 'none';
-        
-        // Eski tahlillar sonini yangilash
-        updateOldScansCount();
-        
-        // Yangi tahlillar sonini 0 ga o'zgartirish
-        updateNewScansCount(0);
-        
-        console.log('Yangi tahlillar muvaffaqiyatli eski tahlillarga qo\'shildi');
-    }
-}
-
-// Eski tahlillar sonini yangilash
-function updateOldScansCount() {
-    const oldScansGrid = document.querySelector('.old-scans-grid');
-    if (oldScansGrid) {
-        const oldScansCount = oldScansGrid.querySelectorAll('.scan-item').length;
-        const oldTitle = document.querySelector('.old-title .title-count');
-        if (oldTitle) {
-            oldTitle.textContent = oldScansCount;
-        }
-    }
-}
-
-// Yangi tahlillar sonini yangilash
-function updateNewScansCount(count) {
-    const newTitle = document.querySelector('.new-title .title-count');
-    if (newTitle) {
-        newTitle.textContent = count;
-    }
-}
+// Bu funksiyalar endi kerak emas, chunki Django view'da allaqachon to'g'ri logika yozilgan
+// Yangi tahlillar va eski tahlillar soni Django template'da ko'rsatiladi
 
 async function viewScanDetails(scanId) {
     try {
