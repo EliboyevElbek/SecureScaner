@@ -298,98 +298,16 @@ def tools(request):
 
 def tool_detail(request, tool_name):
     """Har bir tool uchun batafsil sahifa"""
-    tools_data = {
-        'nmap': {
-            'name': 'Nmap',
-            'description': 'Tarmoq skanerlash va portlarni topish vositasi',
-            'category': 'Tarmoq Xavfsizligi',
-            'parameters': [
-                {'flag': '-sS', 'description': 'TCP SYN skanerlash - portlarni ochiq yoki yopiqligini aniqlash'},
-                {'flag': '-sU', 'description': 'UDP skanerlash - UDP portlarni tekshirish'},
-                {'flag': '-O', 'description': 'OS fingerprinting - operatsion tizimni aniqlash'},
-                {'flag': '-sV', 'description': 'Xizmat versiyasini aniqlash'},
-                {'flag': '-p', 'description': 'Maxsus portlarni skanerlash (masalan: -p 80,443,8080)'},
-                {'flag': '-A', 'description': 'Aggressive skanerlash - barcha xususiyatlarni faollashtirish'},
-                {'flag': '--script', 'description': 'NSE skriptlarini ishlatish'},
-                {'flag': '-T4', 'description': 'Tezlik - 4 darajada tez skanerlash'}
-            ],
-            'examples': [
-                'nmap -sS -p 80,443,8080 example.com',
-                'nmap -O -sV 192.168.1.1',
-                'nmap -A --script vuln target.com'
-            ]
-        },
-        'sqlmap': {
-            'name': 'SQLMap',
-            'description': 'SQL injection va ma\'lumotlar bazasini ekspluatatsiya qilish vositasi',
-            'category': 'Veb Xavfsizlik',
-            'parameters': [
-                {'flag': '--dbs', 'description': 'Mavjud ma\'lumotlar bazalarini ko\'rish'},
-                {'flag': '--batch', 'description': 'Savollarsiz ishlash - avtomatik javoblar'},
-                {'flag': '--random-agent', 'description': 'Tasodifiy User-Agent ishlatish'},
-                {'flag': '--tables', 'description': 'Ma\'lumotlar bazasidagi jadvallarni ko\'rish'},
-                {'flag': '--columns', 'description': 'Jadvaldagi ustunlarni ko\'rish'},
-                {'flag': '--dump', 'description': 'Ma\'lumotlarni olish va saqlash'},
-                {'flag': '--level', 'description': 'Test darajasi (1-5) - yuqori daraja ko\'proq test'},
-                {'flag': '--risk', 'description': 'Xavf darajasi (1-3) - yuqori xavf ko\'proq payload'}
-            ],
-            'examples': [
-                'sqlmap -u "http://example.com/page.php?id=1" --dbs',
-                'sqlmap -u "http://example.com/page.php?id=1" --batch --random-agent',
-                'sqlmap -u "http://example.com/page.php?id=1" --tables -D database_name'
-            ]
-        },
-        'xsstrike': {
-            'name': 'XSStrike',
-            'description': 'XSS (Cross-Site Scripting) aniqlash va ekspluatatsiya vositasi',
-            'category': 'Veb Xavfsizlik',
-            'parameters': [
-                {'flag': '--crawl', 'description': 'Sahifalarni avtomatik ko\'rish va tekshirish'},
-                {'flag': '--blind', 'description': 'Blind XSS testlarini o\'tkazish'},
-                {'flag': '--skip-dom', 'description': 'DOM XSS testlarini o\'tkazmaslik'},
-                {'flag': '--skip-payload', 'description': 'Payload testlarini o\'tkazmaslik'},
-                {'flag': '--params', 'description': 'Maxsus parametrlarni tekshirish'},
-                {'flag': '--headers', 'description': 'HTTP headerlarni tekshirish'},
-                {'flag': '--cookies', 'description': 'Cookie larni tekshirish'},
-                {'flag': '--json', 'description': 'JSON formatida natijalarni ko\'rsatish'}
-            ],
-            'examples': [
-                'xsstrike -u "http://example.com/page.php?q=test"',
-                'xsstrike -u "http://example.com/page.php?q=test" --crawl',
-                'xsstrike -u "http://example.com/page.php?q=test" --blind'
-            ]
-        },
-        'gobuster': {
-            'name': 'Gobuster',
-            'description': 'Papka va fayllarni topish vositasi',
-            'category': 'Razvedka',
-            'parameters': [
-                {'flag': 'dir', 'description': 'Papkalarni qidirish rejimi'},
-                {'flag': 'dns', 'description': 'DNS subdomain qidirish rejimi'},
-                {'flag': 'fuzz', 'description': 'Fayl nomlarini qidirish rejimi'},
-                {'flag': '-w', 'description': 'So\'zlar ro\'yxati fayli (wordlist)'},
-                {'flag': '-u', 'description': 'Target URL yoki domain'},
-                {'flag': '-t', 'description': 'Threadlar soni (parallel ishlash)'},
-                {'flag': '-x', 'description': 'Fayl kengaytmalarini qo\'shish'},
-                {'flag': '--status-codes', 'description': 'Qaysi HTTP kodlarni ko\'rsatish'}
-            ],
-            'examples': [
-                'gobuster dir -u http://example.com -w /usr/share/wordlists/dirb/common.txt',
-                'gobuster dns -d example.com -w /usr/share/wordlists/subdomains.txt',
-                'gobuster fuzz -u http://example.com/FUZZ -w wordlist.txt -x php,html,txt'
-            ]
-        }
-    }
+    from .tools_config import get_tool_data
     
     # Tool nomini kichik harflarga o'tkazish va mos kelishini tekshirish
     tool_name_lower = tool_name.lower()
+    tool_data = get_tool_data(tool_name_lower)
     
-    if tool_name_lower not in tools_data:
+    if not tool_data:
         # Agar tool topilmasa, 404 xatosi
         from django.http import Http404
         raise Http404("Tool topilmadi")
-    
-    tool_data = tools_data[tool_name_lower]
     
     context = {
         'tool': tool_data

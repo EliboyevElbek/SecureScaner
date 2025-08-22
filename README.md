@@ -1,146 +1,220 @@
-# SiteScaner - Professional Security Scanner
+# SiteScaner - Veb Xavfsizlik Tahlil Vositasi
 
-## Tavsif
-
-SiteScaner - bu domain va veb-saytlarni xavfsizlik nuqtai nazaridan tahlil qilish uchun professional dastur. U turli xil xavfsizlik tool'larini integratsiya qiladi va natijalarni saqlaydi.
+SiteScaner - bu veb saytlar va tarmoq xavfsizligini tahlil qilish uchun mo'ljallangan professional vosita. U turli xil xavfsizlik tool'larini birlashtirib, samarali va xavfsiz tahlil qilish imkonini beradi.
 
 ## Asosiy Xususiyatlar
 
-### 🔍 Domain Tahlil
-- Ko'p domainlarni bir vaqtda tahlil qilish
-- IP manzil, DNS, SSL va xavfsizlik sarlavhalarini tekshirish
-- Natijalarni ma'lumotlar bazasida saqlash
+### 🔍 **Domain Tahlili**
+- DNS yozuvlarini tekshirish
+- IP manzilni aniqlash
+- SSL sertifikat ma'lumotlari
+- Xavfsizlik sarlavhalarini tekshirish
 
-### 🛠️ Tool Integratsiyasi
-- **SQLMap** - SQL injection testlari
-- **Nmap** - Tarmoq va port skanerlash
-- **XSStrike** - XSS zaifliklarini aniqlash
+### 🛠️ **Integratsiya qilingan Tool'lar**
+- **Nmap** - Tarmoq skanerlash va portlarni topish
+- **SQLMap** - SQL injection va ma'lumotlar bazasi ekspluatatsiyasi
+- **XSStrike** - XSS (Cross-Site Scripting) aniqlash
 - **Gobuster** - Papka va fayllarni topish
 
-### 💾 Kesh va Saqlash
-- Domain va tool buyruqlarini saqlash
-- Checkbox orqali tool parametrlarini tanlash
-- O'zgarishlar o'chirilmaguncha saqlanib turishi
-- Professional admin panel
+### ⚙️ **Tool Parametrlari Boshqaruvi**
+- **Checkbox parametrlar** - Bayroq parametrlar (--help, --verbose)
+- **Input parametrlar** - Qiymat kiritish kerak bo'lgan parametrlar
+- **Dinamik buyruq yaratish** - Tanlangan parametrlar asosida
+- **Real-time validatsiya** - Parametr qiymatlarini tekshirish
 
-## O'rnatish
+## Yangi Tuzilma: tools_config.py
 
-### Talablar
+### 🎯 **Asosiy Maqsad**
+`tools_config.py` fayli har bir tool uchun batafsil konfiguratsiya ma'lumotlarini saqlaydi. Bu fayl quyidagi strukturani o'z ichiga oladi:
+
+```python
+TOOLS_DATA = {
+    'sqlmap': {
+        'name': 'SQLMap',
+        'description': 'SQL injection va ma\'lumotlar bazasini ekspluatatsiya qilish vositasi',
+        'category': 'Veb Xavfsizlik',
+        'parameters': [
+            {'flag': '--dbs', 'description': 'Mavjud ma\'lumotlar bazalarini ko\'rish'},
+            # ... boshqa parametrlar
+        ],
+        'inputs': [
+            {
+                'key': '--level',
+                'description': 'Test darajasi (1-5)',
+                'placeholder': '1-5 orasida',
+                'default': '1',
+                'type': 'number',
+                'required': False,
+                'min': 1,
+                'max': 5
+            },
+            # ... boshqa input'lar
+        ],
+        'examples': [
+            'sqlmap -u "http://example.com/page.php?id=1" --dbs',
+            # ... boshqa misollar
+        ]
+    }
+}
+```
+
+### 🔧 **Input Parametr Turlari**
+
+#### 1. **Number Type**
+```python
+{
+    'key': '--level',
+    'type': 'number',
+    'min': 1,
+    'max': 5,
+    'default': '1'
+}
+```
+
+#### 2. **URL Type**
+```python
+{
+    'key': '-u',
+    'type': 'url',
+    'required': True,
+    'placeholder': 'Masalan: http://example.com/page.php?id=1'
+}
+```
+
+#### 3. **Text Type**
+```python
+{
+    'key': '--dbms',
+    'type': 'text',
+    'placeholder': 'Masalan: mysql, postgresql, mssql'
+}
+```
+
+#### 4. **File Type**
+```python
+{
+    'key': '-w',
+    'type': 'file',
+    'placeholder': 'Masalan: /usr/share/wordlists/dirb/common.txt'
+}
+```
+
+### 📊 **Funksiyalar**
+
+- `get_tool_data(tool_name)` - Tool nomi bo'yicha ma'lumotlarni olish
+- `get_tool_parameters(tool_name)` - Tool parametrlarini olish
+- `get_tool_inputs(tool_name)` - Tool input'larini olish
+- `get_tool_examples(tool_name)` - Tool misollarini olish
+- `get_all_tools()` - Barcha tool'lar ro'yxatini olish
+
+## Frontend Xususiyatlari
+
+### 🎨 **Dinamik UI**
+- Har bir tool uchun alohida parametr ko'rinishi
+- Input field'lar turiga qarab avtomatik yaratish
+- Real-time validatsiya va xatolik xabarlari
+
+### 📝 **Buyruq Ko'rinishi**
+- Tanlangan parametrlar asosida avtomatik buyruq yaratish
+- Real-time yangilanish
+- Nusxalash imkoniyati
+
+### ✅ **Validatsiya**
+- Majburiy maydonlarni tekshirish
+- Type-specific validatsiya (number, URL)
+- Min/max qiymatlarini tekshirish
+- Xatolik xabarlarini ko'rsatish
+
+## O'rnatish va Ishlatish
+
+### 📋 **Talablar**
 - Python 3.8+
-- Django 4.0+
-- SQLite (default)
+- Django 3.2+
+- SQLite yoki PostgreSQL
 
-### O'rnatish qadamlari
-
-1. **Loyihani yuklab olish**
+### 🚀 **O'rnatish**
 ```bash
-git clone <repository-url>
+# Repository ni klonlash
+git clone https://github.com/username/SiteScaner.git
 cd SiteScaner
-```
 
-2. **Virtual environment yaratish**
-```bash
+# Virtual environment yaratish
 python -m venv venv
-venv\Scripts\activate  # Windows
 source venv/bin/activate  # Linux/Mac
-```
+venv\Scripts\activate     # Windows
 
-3. **Kerakli paketlarni o'rnatish**
-```bash
+# Kerakli paketlarni o'rnatish
 pip install -r requirements.txt
-```
 
-4. **Ma'lumotlar bazasini yaratish**
-```bash
-python manage.py makemigrations
+# Database ni yaratish
 python manage.py migrate
-```
 
-5. **Superuser yaratish**
-```bash
-python manage.py createsuperuser
-```
-
-6. **Server ni ishga tushirish**
-```bash
+# Server ni ishga tushirish
 python manage.py runserver
 ```
 
-## Foydalanish
+### 🌐 **Ishlatish**
+1. Brauzerda `http://localhost:8000` ga kirish
+2. "Tools" bo'limiga o'tish
+3. Kerakli tool'ni tanlash
+4. Parametrlarni sozlash
+5. Buyruqni nusxalash va ishlatish
 
-### 1. Domain Kiritish
-- `/scaner/` sahifasiga o'ting
-- Domain nomlarini kiriting (har qatorda bitta)
-- "Tayyorlash" tugmasini bosing
+## Loyiha Tuzilishi
 
-### 2. Tool Parametrlarini Tanlash
-- Har bir domain uchun "Tahrirlash" tugmasini bosing
-- Tool'lar ro'yxatida "parametrlari" tugmasini bosing
-- Kerakli parametrlarni checkbox orqali tanlang
-- Parametrlar avtomatik saqlanadi
+```
+SiteScaner/
+├── scaner/
+│   ├── tools_config.py      # 🆕 Tool konfiguratsiyalari
+│   ├── models.py            # Database modellari
+│   ├── views.py             # View funksiyalari
+│   └── ...
+├── templates/
+│   ├── tool_detail.html     # 🆕 Tool batafsil sahifasi
+│   └── ...
+├── static/
+│   ├── css/
+│   │   └── tool_detail.css  # 🆕 Tool detail styling
+│   └── js/
+│       └── tool_detail.js   # 🆕 Tool detail JavaScript
+└── tools/                    # Tool executable fayllari
+    ├── sqlmap/
+    ├── nmap/
+    ├── xsstrike/
+    └── gobuster/
+```
 
-### 3. Tahlilni Boshlash
-- "Tahlilni boshlash" tugmasini bosing
-- Natijalar `/scaner/history/` sahifasida ko'rsatiladi
+## Kelajakda Rejalashtirilgan Xususiyatlar
 
-## Ma'lumotlar Bazasi Strukturasi
+- [ ] **Yangi tool'lar qo'shish** - Oson integratsiya
+- [ ] **Parametr shablonlari** - Tez-tez ishlatiladigan kombinatsiyalar
+- [ ] **Natijalarni saqlash** - Tahlil natijalarini bazada saqlash
+- [ ] **API integratsiyasi** - Boshqa xizmatlar bilan bog'lash
+- [ ] **Plugin tizimi** - Uchinchi tomon tomonidan kengaytirish
 
-### KeshDomain
-- `domain_name` - Domain nomi
-- `tool_commands` - Tool buyruqlari (JSON)
-- `created_at` - Yaratilgan sana
-- `updated_at` - Yangilangan sana
-- `is_active` - Faol holati
+## Xavfsizlik Eslatmalari
 
-### DomainToolConfiguration
-- `domain` - Domain havolasi
-- `tool_type` - Tool turi
-- `base_command` - Asosiy buyruq
-- `selected_parameters` - Tanlangan parametrlar
-- `final_command` - Yakuniy buyruq
+⚠️ **Muhim**: Bu vosita faqat o'zingizning yoki ruxsat berilgan tizimlarda ishlatilishi kerak. Boshqa odamlarning tizimlarida ruxsatsiz ishlatish qonuniy emas.
 
-## API Endpoint'lar
+## Hissa Qo'shish
 
-### Domain Boshqaruvi
-- `POST /scaner/save-domains/` - Domainlarni saqlash
-- `POST /scaner/delete-domain/` - Domain o'chirish
-- `POST /scaner/update-domain/` - Domain tahrirlash
-- `POST /scaner/clear-all-domains/` - Barcha domainlarni o'chirish
-
-### Tool Konfiguratsiyasi
-- `GET /scaner/get-domain-tools-preview/` - Tool preview
-- `POST /scaner/save-domain-tool-config/` - Tool konfiguratsiyasini saqlash
-- `GET /scaner/get-domain-tool-config/` - Tool konfiguratsiyasini olish
-
-## Xavfsizlik
-
-- CSRF token himoyasi
-- Input validatsiyasi
-- SQL injection himoyasi
-- XSS himoyasi
-
-## Rivojlantirish
-
-### Yangi Tool Qo'shish
-1. `scaner/models.py` da Tool modeliga qo'shish
-2. `scaner/views.py` da tool logikasini qo'shish
-3. Frontend da tool parametrlarini ko'rsatish
-
-### Yangi Xususiyat Qo'shish
-1. Model yaratish
-2. View funksiyasini yozish
-3. URL pattern qo'shish
-4. Frontend interfeysini yaratish
-
-## Litsenziya
-
-Bu loyiha MIT litsenziyasi ostida tarqatiladi.
+Loyihaga hissa qo'shish uchun:
+1. Fork qiling
+2. Feature branch yarating
+3. O'zgarishlarni commit qiling
+4. Pull request yuboring
 
 ## Aloqa
 
-Savollar va takliflar uchun issue yarating yoki pull request yuboring.
+Savollar yoki takliflar uchun:
+- GitHub Issues: [Loyiha Issues](https://github.com/username/SiteScaner/issues)
+- Email: contact@example.com
+
+## Litsenziya
+
+Bu loyiha MIT litsenziyasi ostida tarqatiladi. Batafsil ma'lumot uchun `LICENSE` faylini ko'ring.
 
 ---
 
-**Eslatma**: Bu dastur faqat o'quv va test maqsadlarida ishlatilishi kerak. Real tizimlarda foydalanishdan oldin tegishli ruxsatlarni oling.
+**SiteScaner** - Professional veb xavfsizlik tahlili uchun zamonaviy yechim! 🚀
 

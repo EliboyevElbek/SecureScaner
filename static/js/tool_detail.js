@@ -9,6 +9,12 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Initialize copy buttons
     initializeCopyButtons();
+    
+    // Initialize input fields
+    initializeInputFields();
+    
+    // Initialize command builder
+    initializeCommandBuilder();
 });
 
 // Copy to clipboard functionality
@@ -206,3 +212,224 @@ const copyNotificationStyles = `
 const styleSheet = document.createElement('style');
 styleSheet.textContent = copyNotificationStyles;
 document.head.appendChild(styleSheet);
+
+// Initialize input fields with validation and real-time updates
+function initializeInputFields() {
+    const inputFields = document.querySelectorAll('.input-field');
+    
+    inputFields.forEach(input => {
+        // Add input event listener for real-time validation
+        input.addEventListener('input', function() {
+            validateInputField(this);
+            updateCommandPreview();
+        });
+        
+        // Add focus and blur effects
+        input.addEventListener('focus', function() {
+            this.parentElement.style.borderColor = '#00ff00';
+            this.parentElement.style.boxShadow = '0 8px 25px rgba(0, 255, 0, 0.2)';
+        });
+        
+        input.addEventListener('blur', function() {
+            this.parentElement.style.borderColor = '#444';
+            this.parentElement.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.3)';
+            validateInputField(this);
+        });
+        
+        // Initialize validation
+        validateInputField(input);
+    });
+}
+
+// Validate individual input field
+function validateInputField(input) {
+    const paramKey = input.dataset.paramKey;
+    const value = input.value.trim();
+    const type = input.type;
+    
+    // Remove previous validation classes
+    input.classList.remove('valid', 'invalid');
+    
+    // Check if required field is empty
+    if (input.hasAttribute('required') && !value) {
+        input.classList.add('invalid');
+        showFieldError(input, 'Bu maydon majburiy');
+        return false;
+    }
+    
+    // Type-specific validation
+    if (type === 'number') {
+        const numValue = parseFloat(value);
+        const min = input.getAttribute('min');
+        const max = input.getAttribute('max');
+        
+        if (min && numValue < parseFloat(min)) {
+            input.classList.add('invalid');
+            showFieldError(input, `Minimal qiymat: ${min}`);
+            return false;
+        }
+        
+        if (max && numValue > parseFloat(max)) {
+            input.classList.add('invalid');
+            showFieldError(input, `Maksimal qiymat: ${max}`);
+            return false;
+        }
+    }
+    
+    if (type === 'url' && value) {
+        try {
+            new URL(value);
+        } catch (e) {
+            input.classList.add('invalid');
+            showFieldError(input, 'Noto\'g\'ri URL format');
+            return false;
+        }
+    }
+    
+    // If validation passes
+    if (value) {
+        input.classList.add('valid');
+        hideFieldError(input);
+    }
+    
+    return true;
+}
+
+// Show field error message
+function showFieldError(input, message) {
+    // Remove existing error message
+    hideFieldError(input);
+    
+    const errorDiv = document.createElement('div');
+    errorDiv.className = 'field-error';
+    errorDiv.textContent = message;
+    errorDiv.style.cssText = `
+        color: #ff4444;
+        font-size: 0.8rem;
+        margin-top: 0.5rem;
+        padding: 0.25rem 0.5rem;
+        background: rgba(255, 68, 68, 0.1);
+        border-radius: 4px;
+        border-left: 3px solid #ff4444;
+    `;
+    
+    input.parentElement.appendChild(errorDiv);
+}
+
+// Hide field error message
+function hideFieldError(input) {
+    const existingError = input.parentElement.querySelector('.field-error');
+    if (existingError) {
+        existingError.remove();
+    }
+}
+
+// Initialize command builder functionality
+function initializeCommandBuilder() {
+    // Create command preview section if it doesn't exist
+    if (!document.querySelector('.command-preview-section')) {
+        createCommandPreviewSection();
+    }
+    
+    // Update command preview initially
+    updateCommandPreview();
+}
+
+// Create command preview section
+function createCommandPreviewSection() {
+    const inputsSection = document.querySelector('.inputs-section');
+    if (!inputsSection) return;
+    
+    const previewSection = document.createElement('div');
+    previewSection.className = 'command-preview-section';
+    previewSection.innerHTML = `
+        <h2 class="section-title">Buyruq ko\'rinishi</h2>
+        <div class="command-preview-container">
+            <div class="command-preview-box">
+                <code id="command-preview" class="command-preview-text"></code>
+                <button class="copy-command-btn" onclick="copyCommandToClipboard()">
+                    <img src="/static/images/copying.png" alt="Nusxalash" class="copy-icon">
+                </button>
+            </div>
+        </div>
+    `;
+    
+    inputsSection.parentNode.insertBefore(previewSection, inputsSection.nextSibling);
+}
+
+// Update command preview based on input values
+function updateCommandPreview() {
+    const previewElement = document.getElementById('command-preview');
+    if (!previewElement) return;
+    
+    const toolName = getToolNameFromPage();
+    const command = buildCommandFromInputs(toolName);
+    
+    previewElement.textContent = command;
+}
+
+// Get tool name from page
+function getToolNameFromPage() {
+    const title = document.querySelector('.tool-detail-title');
+    if (title) {
+        return title.textContent.toLowerCase();
+    }
+    return '';
+}
+
+// Build command from input values
+function buildCommandFromInputs(toolName) {
+    let command = toolName;
+    
+    const inputFields = document.querySelectorAll('.input-field');
+    inputFields.forEach(input => {
+        const value = input.value.trim();
+        const paramKey = input.dataset.paramKey;
+        
+        if (value) {
+            if (paramKey.startsWith('-')) {
+                command += ` ${paramKey} ${value}`;
+            } else {
+                command += ` ${paramKey} ${value}`;
+            }
+        }
+    });
+    
+    return command;
+}
+
+// Copy command to clipboard
+function copyCommandToClipboard() {
+    const previewElement = document.getElementById('command-preview');
+    if (!previewElement) return;
+    
+    const commandText = previewElement.textContent;
+    
+    // Create temporary textarea for copying
+    const textarea = document.createElement('textarea');
+    textarea.value = commandText;
+    document.body.appendChild(textarea);
+    textarea.select();
+    
+    try {
+        document.execCommand('copy');
+        showCopyNotification('Buyruq nusxalandi!', 'success');
+        
+        // Visual feedback
+        const copyBtn = document.querySelector('.copy-command-btn');
+        if (copyBtn) {
+            copyBtn.style.transform = 'scale(1.1)';
+            copyBtn.style.filter = 'brightness(1.5)';
+            
+            setTimeout(() => {
+                copyBtn.style.transform = 'scale(1)';
+                copyBtn.style.filter = 'brightness(1)';
+            }, 1000);
+        }
+        
+    } catch (err) {
+        showCopyNotification('Nusxalashda xatolik yuz berdi', 'error');
+    }
+    
+    document.body.removeChild(textarea);
+}
