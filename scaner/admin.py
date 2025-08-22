@@ -75,17 +75,17 @@ class ToolAdmin(admin.ModelAdmin):
 
 @admin.register(ToolParameter)
 class ToolParameterAdmin(admin.ModelAdmin):
-    list_display = ['tool', 'flag', 'parameter_type', 'is_required', 'order']
+    list_display = ['tool', 'name', 'short_name', 'parameter_type', 'is_required', 'order']
     list_filter = ['tool', 'parameter_type', 'is_required']
-    search_fields = ['flag', 'description']
+    search_fields = ['name', 'short_name', 'description']
     ordering = ['tool', 'order']
     
     fieldsets = (
         ('Asosiy ma\'lumotlar', {
-            'fields': ('tool', 'flag', 'parameter_type', 'description')
+            'fields': ('tool', 'name', 'short_name', 'description')
         }),
         ('Parametr xususiyatlari', {
-            'fields': ('placeholder', 'default_value', 'is_required', 'options', 'validation_regex', 'order')
+            'fields': ('parameter_type', 'default_value', 'is_required', 'order')
         }),
     )
 

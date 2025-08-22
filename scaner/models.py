@@ -165,21 +165,19 @@ class Tool(models.Model):
 
 class ToolParameter(models.Model):
     PARAMETER_TYPES = [
-        ('flag', 'Flag (oddiy)'),
-        ('input', 'Input talab qiladi'),
-        ('select', 'Tanlash ro\'yxati'),
+        ('flag', 'Bayroq'),
+        ('option', 'Variant'),
+        ('input', 'Kiritish'),
         ('checkbox', 'Belgilash'),
     ]
     
     tool = models.ForeignKey(Tool, on_delete=models.CASCADE, related_name='parameters', verbose_name="Tool")
-    flag = models.CharField(max_length=50, verbose_name="Flag (masalan: -T, --dbs)")
+    name = models.CharField(max_length=100, verbose_name="Parametr nomi")
+    short_name = models.CharField(max_length=20, blank=True, verbose_name="Qisqa nom")
     parameter_type = models.CharField(max_length=20, choices=PARAMETER_TYPES, verbose_name="Parametr turi")
     description = models.TextField(blank=True, verbose_name="Tavsif")
-    placeholder = models.CharField(max_length=200, blank=True, verbose_name="Placeholder (masalan: Jadval nomi)")
     default_value = models.CharField(max_length=255, blank=True, verbose_name="Standart qiymat")
     is_required = models.BooleanField(default=False, verbose_name="Majburiy")
-    options = models.JSONField(default=list, blank=True, verbose_name="Tanlash variantlari (select uchun)")
-    validation_regex = models.CharField(max_length=200, blank=True, verbose_name="Validatsiya regex")
     order = models.IntegerField(default=0, verbose_name="Tartib")
     
     class Meta:
@@ -188,7 +186,7 @@ class ToolParameter(models.Model):
         ordering = ['tool', 'order']
     
     def __str__(self):
-        return f"{self.tool.name} - {self.flag}"
+        return f"{self.tool.name} - {self.name}"
 
 class ScanSession(models.Model):
     """Skan sessiyasi - yangi tahlillar uchun"""
