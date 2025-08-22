@@ -1,0 +1,549 @@
+{% extends 'base.html' %}
+
+{% block title %}Tool Parametrlari - SiteScaner{% endblock title %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="/static/css/scan.css">
+<style>
+.tool-parameters-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.tool-selector {
+    background: white;
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+.tool-selector select {
+    width: 200px;
+    padding: 10px;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    font-size: 16px;
+    background: white;
+}
+
+.parameters-section {
+    background: white;
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+.parameter-group {
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 15px;
+    margin-bottom: 15px;
+    background: #fafafa;
+    transition: all 0.3s ease;
+}
+
+.parameter-group:hover {
+    border-color: #007bff;
+    box-shadow: 0 2px 8px rgba(0,123,255,0.1);
+}
+
+.parameter-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+}
+
+.parameter-label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 500;
+    cursor: pointer;
+}
+
+.param-checkbox {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+}
+
+.param-name {
+    font-size: 16px;
+    color: #333;
+}
+
+.param-short {
+    background: #007bff;
+    color: white;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-family: 'Courier New', monospace;
+}
+
+.required-badge {
+    background: #dc3545;
+    color: white;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: bold;
+}
+
+.parameter-input {
+    margin: 10px 0;
+}
+
+.param-input {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+    transition: border-color 0.3s ease;
+}
+
+.param-input:focus {
+    outline: none;
+    border-color: #007bff;
+    box-shadow: 0 0 0 3px rgba(0,123,255,0.1);
+}
+
+.parameter-help {
+    color: #666;
+    font-size: 13px;
+    margin-top: 5px;
+}
+
+.parameter-help-text {
+    color: #007bff;
+    font-size: 12px;
+    margin-top: 3px;
+    font-style: italic;
+}
+
+.command-preview {
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 15px;
+    margin-top: 20px;
+}
+
+.command-preview h4 {
+    margin: 0 0 10px 0;
+    color: #495057;
+}
+
+.final-command {
+    background: #343a40;
+    color: #f8f9fa;
+    padding: 12px;
+    border-radius: 6px;
+    font-family: 'Courier New', monospace;
+    font-size: 14px;
+    word-break: break-all;
+    border: none;
+    width: 100%;
+}
+
+.save-button {
+    background: #28a745;
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+    margin-top: 15px;
+}
+
+.save-button:hover {
+    background: #218838;
+}
+
+.save-button:disabled {
+    background: #6c757d;
+    cursor: not-allowed;
+}
+
+.tool-info {
+    background: #e3f2fd;
+    border: 1px solid #2196f3;
+    border-radius: 8px;
+    padding: 15px;
+    margin-bottom: 20px;
+}
+
+.tool-info h3 {
+    margin: 0 0 10px 0;
+    color: #1976d2;
+}
+
+.tool-description {
+    color: #424242;
+    margin: 0;
+}
+
+.loading {
+    text-align: center;
+    padding: 40px;
+    color: #666;
+}
+
+.error-message {
+    background: #f8d7da;
+    border: 1px solid #f5c6cb;
+    color: #721c24;
+    padding: 12px;
+    border-radius: 6px;
+    margin: 10px 0;
+}
+
+.success-message {
+    background: #d4edda;
+    border: 1px solid #c3e6cb;
+    color: #155724;
+    padding: 12px;
+    border-radius: 6px;
+    margin: 10px 0;
+}
+</style>
+{% endblock extra_css %}
+
+{% block content %}
+<div class="tool-parameters-container">
+    <!-- Page Header -->
+    <div class="page-header">
+        <div class="page-title">Tool Parametrlari</div>
+        <div class="page-subtitle">Har bir tool uchun parametrlarni sozlash va boshqarish</div>
+    </div>
+
+    <!-- Tool Selector -->
+    <div class="tool-selector">
+        <h3>Tool tanlang:</h3>
+        <select id="toolSelector" onchange="loadToolParameters()">
+            <option value="">Tool tanlang...</option>
+            <option value="sqlmap">SQLMap</option>
+            <option value="nmap">Nmap</option>
+            <option value="xsstrike">XSStrike</option>
+            <option value="gobuster">Gobuster</option>
+        </select>
+    </div>
+
+    <!-- Tool Info -->
+    <div id="toolInfo" class="tool-info" style="display: none;">
+        <h3 id="toolName"></h3>
+        <p id="toolDescription" class="tool-description"></p>
+    </div>
+
+    <!-- Parameters Section -->
+    <div id="parametersSection" class="parameters-section" style="display: none;">
+        <h3>Tool Parametrlari</h3>
+        <div id="parametersList"></div>
+        
+        <!-- Command Preview -->
+        <div class="command-preview">
+            <h4>Yakuniy buyruq:</h4>
+            <input type="text" id="finalCommand" class="final-command" readonly>
+        </div>
+        
+        <!-- Save Button -->
+        <button id="saveButton" class="save-button" onclick="saveParameters()">
+            Parametrlarni saqlash
+        </button>
+    </div>
+
+    <!-- Loading -->
+    <div id="loading" class="loading" style="display: none;">
+        <p>Yuklanmoqda...</p>
+    </div>
+
+    <!-- Messages -->
+    <div id="messageContainer"></div>
+</div>
+{% endblock content %}
+
+{% block extra_js %}
+<script>
+let currentTool = null;
+let currentParameters = {};
+
+function loadToolParameters() {
+    const toolType = document.getElementById('toolSelector').value;
+    if (!toolType) {
+        hideAllSections();
+        return;
+    }
+    
+    showLoading();
+    
+    fetch(`/scaner/get-tool-preview/?tool_type=${encodeURIComponent(toolType)}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                currentTool = data.tool;
+                displayToolInfo(data.tool);
+                displayParameters(data.parameters);
+                showParametersSection();
+                updateFinalCommand();
+            } else {
+                showError(data.error || 'Xatolik yuz berdi');
+            }
+        })
+        .catch(error => {
+            showError('Xatolik: ' + error.message);
+        })
+        .finally(() => {
+            hideLoading();
+        });
+}
+
+function displayToolInfo(tool) {
+    document.getElementById('toolName').textContent = tool.name;
+    document.getElementById('toolDescription').textContent = tool.description || 'Tavsif mavjud emas';
+    document.getElementById('toolInfo').style.display = 'block';
+}
+
+function displayParameters(parameters) {
+    const container = document.getElementById('parametersList');
+    container.innerHTML = '';
+    
+    parameters.forEach(param => {
+        const paramGroup = createParameterGroup(param);
+        container.appendChild(paramGroup);
+    });
+}
+
+function createParameterGroup(param) {
+    const group = document.createElement('div');
+    group.className = 'parameter-group';
+    group.dataset.paramId = param.id;
+    
+    const header = document.createElement('div');
+    header.className = 'parameter-header';
+    
+    const label = document.createElement('label');
+    label.className = 'parameter-label';
+    
+    // Checkbox yoki input turiga qarab
+    if (param.parameter_type === 'checkbox') {
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.className = 'param-checkbox';
+        checkbox.dataset.paramId = param.id;
+        checkbox.onchange = updateFinalCommand;
+        label.appendChild(checkbox);
+    }
+    
+    const name = document.createElement('span');
+    name.className = 'param-name';
+    name.textContent = param.name;
+    label.appendChild(name);
+    
+    if (param.short_name) {
+        const shortName = document.createElement('code');
+        shortName.className = 'param-short';
+        shortName.textContent = param.short_name;
+        label.appendChild(shortName);
+    }
+    
+    header.appendChild(label);
+    
+    if (param.is_required) {
+        const required = document.createElement('span');
+        required.className = 'required-badge';
+        required.textContent = 'Majburiy';
+        header.appendChild(required);
+    }
+    
+    group.appendChild(header);
+    
+    // Input maydoni
+    if (param.parameter_type === 'input' || param.parameter_type === 'option') {
+        const inputDiv = document.createElement('div');
+        inputDiv.className = 'parameter-input';
+        
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.className = 'param-input';
+        input.dataset.paramId = param.id;
+        input.placeholder = param.placeholder || param.description;
+        input.value = param.default_value || '';
+        input.oninput = updateFinalCommand;
+        
+        inputDiv.appendChild(input);
+        group.appendChild(inputDiv);
+    }
+    
+    // Tavsif
+    if (param.description) {
+        const desc = document.createElement('div');
+        desc.className = 'parameter-help';
+        desc.textContent = param.description;
+        group.appendChild(desc);
+    }
+    
+    // Yordam matni
+    if (param.help_text) {
+        const help = document.createElement('div');
+        help.className = 'parameter-help-text';
+        help.textContent = param.help_text;
+        group.appendChild(help);
+    }
+    
+    return group;
+}
+
+function updateFinalCommand() {
+    if (!currentTool) return;
+    
+    const commandParts = [currentTool.executable_path];
+    const parameters = document.querySelectorAll('.parameter-group');
+    
+    parameters.forEach(group => {
+        const paramId = group.dataset.paramId;
+        const checkbox = group.querySelector('.param-checkbox');
+        const input = group.querySelector('.param-input');
+        
+        if (checkbox && checkbox.checked) {
+            // Checkbox belgilangan
+            const shortName = group.querySelector('.param-short');
+            if (shortName) {
+                commandParts.push(shortName.textContent);
+            }
+        } else if (input && input.value.trim()) {
+            // Input qiymati bor
+            const shortName = group.querySelector('.param-short');
+            if (shortName) {
+                commandParts.push(shortName.textContent);
+                commandParts.push(input.value.trim());
+            } else {
+                commandParts.push(input.value.trim());
+            }
+        }
+    });
+    
+    document.getElementById('finalCommand').value = commandParts.join(' ');
+}
+
+function saveParameters() {
+    if (!currentTool) return;
+    
+    const parameters = {};
+    const parameterGroups = document.querySelectorAll('.parameter-group');
+    
+    parameterGroups.forEach(group => {
+        const paramId = group.dataset.paramId;
+        const checkbox = group.querySelector('.param-checkbox');
+        const input = group.querySelector('.param-input');
+        
+        if (checkbox) {
+            // Checkbox parametri
+            parameters[paramId] = {
+                enabled: checkbox.checked,
+                value: ''
+            };
+        } else if (input) {
+            // Input parametri
+            parameters[paramId] = {
+                enabled: true,
+                value: input.value.trim()
+            };
+        }
+    });
+    
+    // Saqlash
+    const saveButton = document.getElementById('saveButton');
+    saveButton.disabled = true;
+    saveButton.textContent = 'Saqlanmoqda...';
+    
+    fetch('/scaner/save-parameter-values/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCSRFToken()
+        },
+        body: JSON.stringify({
+            domain_name: 'default', // Hozircha default domain
+            tool_type: currentTool.tool_type,
+            parameters: parameters
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showSuccess('Parametrlar muvaffaqiyatli saqlandi!');
+            updateFinalCommand();
+        } else {
+            showError(data.error || 'Saqlashda xatolik yuz berdi');
+        }
+    })
+    .catch(error => {
+        showError('Xatolik: ' + error.message);
+    })
+    .finally(() => {
+        saveButton.disabled = false;
+        saveButton.textContent = 'Parametrlarni saqlash';
+    });
+}
+
+function showLoading() {
+    document.getElementById('loading').style.display = 'block';
+}
+
+function hideLoading() {
+    document.getElementById('loading').style.display = 'none';
+}
+
+function showParametersSection() {
+    document.getElementById('parametersSection').style.display = 'block';
+}
+
+function hideAllSections() {
+    document.getElementById('toolInfo').style.display = 'none';
+    document.getElementById('parametersSection').style.display = 'none';
+}
+
+function showSuccess(message) {
+    showMessage(message, 'success');
+}
+
+function showError(message) {
+    showMessage(message, 'error');
+}
+
+function showMessage(message, type) {
+    const container = document.getElementById('messageContainer');
+    const messageDiv = document.createElement('div');
+    messageDiv.className = type === 'success' ? 'success-message' : 'error-message';
+    messageDiv.textContent = message;
+    
+    container.appendChild(messageDiv);
+    
+    setTimeout(() => {
+        messageDiv.remove();
+    }, 5000);
+}
+
+function getCSRFToken() {
+    const token = document.querySelector('[name=csrfmiddlewaretoken]');
+    return token ? token.value : '';
+}
+
+// Sahifa yuklanganda
+document.addEventListener('DOMContentLoaded', function() {
+    // CSRF token qo'shish
+    const csrfInput = document.createElement('input');
+    csrfInput.type = 'hidden';
+    csrfInput.name = 'csrfmiddlewaretoken';
+    csrfInput.value = getCSRFToken();
+    document.body.appendChild(csrfInput);
+});
+</script>
+{% endblock extra_js %}

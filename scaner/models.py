@@ -165,10 +165,10 @@ class Tool(models.Model):
 
 class ToolParameter(models.Model):
     PARAMETER_TYPES = [
-        ('flag', 'Bayroq'),
-        ('option', 'Variant'),
-        ('input', 'Kiritish'),
-        ('checkbox', 'Belgilash'),
+        ('flag', 'Bayroq (--help)'),
+        ('option', 'Variant (--level 1)'),
+        ('input', 'Kiritish (--url https://...'),
+        ('checkbox', 'Belgilash (--verbose)'),
     ]
     
     tool = models.ForeignKey(Tool, on_delete=models.CASCADE, related_name='parameters', verbose_name="Tool")
@@ -177,6 +177,9 @@ class ToolParameter(models.Model):
     parameter_type = models.CharField(max_length=20, choices=PARAMETER_TYPES, verbose_name="Parametr turi")
     description = models.TextField(blank=True, verbose_name="Tavsif")
     default_value = models.CharField(max_length=255, blank=True, verbose_name="Standart qiymat")
+    placeholder = models.CharField(max_length=255, blank=True, verbose_name="Placeholder matni")
+    validation_regex = models.CharField(max_length=255, blank=True, verbose_name="Validatsiya regex")
+    help_text = models.TextField(blank=True, verbose_name="Yordam matni")
     is_required = models.BooleanField(default=False, verbose_name="Majburiy")
     order = models.IntegerField(default=0, verbose_name="Tartib")
     
@@ -187,6 +190,33 @@ class ToolParameter(models.Model):
     
     def __str__(self):
         return f"{self.tool.name} - {self.name}"
+    
+    def get_input_type(self):
+        """HTML input turini aniqlash"""
+        if self.parameter_type == 'checkbox':
+            return 'checkbox'
+        elif self.parameter_type == 'input':
+            return 'text'
+        elif self.parameter_type == 'option':
+            return 'text'
+        else:
+            return 'text'
+
+class ToolParameterValue(models.Model):
+    """Tool parametrining qiymati - har bir domain uchun"""
+    domain = models.ForeignKey(KeshDomain, on_delete=models.CASCADE, related_name='parameter_values', verbose_name="Domain")
+    parameter = models.ForeignKey(ToolParameter, on_delete=models.CASCADE, related_name='values', verbose_name="Parametr")
+    value = models.CharField(max_length=500, blank=True, verbose_name="Qiymat")
+    is_enabled = models.BooleanField(default=False, verbose_name="Faollashtirilgan")
+    
+    class Meta:
+        verbose_name = "Tool Parametr Qiymati"
+        verbose_name_plural = "Tool Parametr Qiymatlari"
+        unique_together = ['domain', 'parameter']
+        ordering = ['parameter__order']
+    
+    def __str__(self):
+        return f"{self.domain.domain_name} - {self.parameter.name}: {self.value}"
 
 class ScanSession(models.Model):
     """Skan sessiyasi - yangi tahlillar uchun"""
