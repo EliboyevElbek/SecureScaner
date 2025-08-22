@@ -4,16 +4,11 @@
 document.addEventListener('DOMContentLoaded', function() {
     console.log('Scan History page loaded');
     
-    // Faqat sahifa yuklanganda yangi tahlillarni eski tahlillarga qo'shish
-    // (avtomatik interval olib tashlandi)
-    // moveNewScansToOld(); // Bu funksiya hozircha o'chirildi
-    
-    // Yangi tahlillarda yangi domainlar ko'rinadi
-    // Eski tahlillarda esa avvalgi tahlillar ko'rinadi
-    console.log('Yangi tahlillar va eski tahlillar alohida ko\'rsatilmoqda');
+    // Sahifa yuklanganda yangi tahlillarni eski tahlillarga qo'shish
+    moveNewScansToOld();
 });
 
-// Yangi tahlillarni eski tahlillarga qo'shish funksiyasi (hozircha o'chirildi)
+// Yangi tahlillarni eski tahlillarga qo'shish funksiyasi
 function moveNewScansToOld() {
     const newScansSection = document.querySelector('.new-scans-section');
     const oldScansSection = document.querySelector('.old-scans-section');

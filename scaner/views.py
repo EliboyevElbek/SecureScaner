@@ -121,34 +121,25 @@ def scan(request):
 def scan_history(request):
     """Scan history sahifasi - yangi va eski tahlillarni ko'rsatish"""
     try:
-        # Bugungi sana
-        from datetime import datetime, timedelta
-        today = datetime.now().date()
+        # Barcha tahlillarni olish (status='completed' bo'lgan)
+        all_scans = DomainScan.objects.filter(
+            status='completed'
+        ).order_by('-scan_date')
         
-        # Bugungi yangi tahlillarni olish (24 soat ichida)
+        # Yangi tahlillarni olish (faqat eng so'nggi tahlil qilingan domain)
         # Yangi tahlillarda yangi domainlar ko'rinadi
-        yesterday = today - timedelta(days=1)
-        new_scans = DomainScan.objects.filter(
-            scan_date__gte=yesterday,
-            status='completed'
-        ).order_by('-scan_date')
+        new_scans = all_scans[:1]  # Faqat 1 ta eng so'nggi
         
-        # Eski tahlillarni olish (24 soatdan oldin)
+        # Eski tahlillarni olish (avvalgi barcha tahlillar)
         # Eski tahlillarda avvalgi tahlillar ko'rinadi
-        old_scans = DomainScan.objects.filter(
-            scan_date__lt=yesterday,
-            status='completed'
-        ).order_by('-scan_date')
-        
-        # Faqat oxirgi 50 ta eski tahlilni olish
-        old_scans = old_scans[:50]
+        old_scans = all_scans[1:51]  # 2-dan 51-gacha (1 ta yangi + 50 ta eski)
         
         context = {
             'new_scans': new_scans,
             'old_scans': old_scans,
             'new_count': new_scans.count(),
             'old_count': old_scans.count(),
-            'total_count': new_scans.count() + old_scans.count()
+            'total_count': all_scans.count()
         }
         
         return render(request, 'scan_history.html', context)
