@@ -39,3 +39,4 @@ class Command(BaseCommand):
                 f'Successfully updated {updated_count} domains'
             )
         )
+
