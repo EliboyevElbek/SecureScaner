@@ -916,8 +916,9 @@ function startScan() {
             const message = data.message || 'Tahlil muvaffaqiyatli bajarildi!';
             showNotification(message, 'success');
             
-            // Redirect to scan results or show results
+            // Tahlil tugagandan so'ng history sahifasiga o'tish
             setTimeout(() => {
+                // History sahifasiga o'tish va yangi tahlillarni eski tahlillarga qo'shish
                 window.location.href = '/scaner/history/';
             }, 2000);
         } else {

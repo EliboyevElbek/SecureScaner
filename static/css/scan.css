@@ -16,10 +16,10 @@
 }
 
 .section-title {
-    color: #ffffff;
-    font-size: 24px;
-    margin-bottom: 1.5rem;
-    padding: 1rem;
+    color: #00ff00;
+    font-size: 20px;
+    margin-bottom: 1rem;
+    padding: 0.75rem;
     border-radius: 12px;
     font-weight: 600;
     font-family: 'Inter', sans-serif;
@@ -52,30 +52,32 @@
 }
 
 .new-title {
-    background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05));
-    border-left: 4px solid #ffffff;
+    background: linear-gradient(135deg, rgba(0, 255, 0, 0.1), rgba(0, 255, 0, 0.05));
+    border-left: 4px solid #00ff00;
     color: #ffffff;
     text-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
 }
 
 .old-title {
-    background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05));
-    border-left: 4px solid #ffffff;
+    background: linear-gradient(135deg, rgba(0, 255, 0, 0.1), rgba(0, 255, 0, 0.05));
+    border-left: 4px solid #00ff00;
     color: #ffffff;
     text-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
 }
 
 .title-text {
-    font-size: 24px;
+    font-size: 20px;
     font-weight: 600;
 }
+
+
 
 .title-count {
     background: linear-gradient(135deg, #00ff00, #00cc00);
     color: #000000;
-    padding: 0.5rem 1rem;
-    border-radius: 20px;
-    font-size: 18px;
+    padding: 0.4rem 0.8rem;
+    border-radius: 16px;
+    font-size: 16px;
     font-weight: 700;
     font-family: 'Orbitron', monospace;
     box-shadow: 0 4px 15px rgba(0, 255, 0, 0.3);
