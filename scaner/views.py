@@ -63,32 +63,6 @@ def scan(request):
                 if not domains:
                     return JsonResponse({'error': 'Domenlar kiritilmagan'}, status=400)
                 
-                # Yangi tahlil boshlanganda avvalgi yangi tahlillarni eski qatorga ko'chirish
-                try:
-                    from django.utils import timezone
-                    from datetime import timedelta
-                    
-                    # Bugungi sana
-                    today = timezone.now().date()
-                    
-                    # Avvalgi yangi tahlillarni topish (bugun va kecha)
-                    recent_scans = DomainScan.objects.filter(
-                        scan_date__date__gte=today - timedelta(days=1)
-                    )
-                    
-                    if recent_scans.exists():
-                        print(f"Yangi tahlil boshlanganda {recent_scans.count()} ta avvalgi yangi tahlil eski qatorga ko'chirildi")
-                        
-                        # Avvalgi yangi tahlillarni eski qatorga ko'chirish (2 kun oldingi sanaga)
-                        old_date = today - timedelta(days=2)
-                        for scan in recent_scans:
-                            scan.scan_date = old_date
-                            scan.save()
-                        
-                        print(f"Avvalgi yangi tahlillar {old_date} sanasiga ko'chirildi")
-                except Exception as e:
-                    print(f"Avvalgi yangi tahlillarni ko'chirishda xatolik: {e}")
-                
                 # Har bir domen uchun tahlil qilish
                 scan_results = []
                 
@@ -146,39 +120,20 @@ def scan(request):
 
 def scan_history(request):
     """Tahlil tarixini HTML sahifada ko'rsatish"""
-    from django.utils import timezone
-    from datetime import timedelta
+    scans = DomainScan.objects.all().order_by('-scan_date')
     
-    # Bugungi sana
-    today = timezone.now().date()
-    
-    # Yangi tahlillar (bugun va kecha)
-    recent_scans = DomainScan.objects.filter(
-        scan_date__date__gte=today - timedelta(days=1)
-    ).order_by('-scan_date')
-    
-    # Eski tahlillar (2 kun va undan oldin)
-    old_scans = DomainScan.objects.filter(
-        scan_date__date__lt=today - timedelta(days=1)
-    ).order_by('-scan_date')
-    
-    # Pagination - faqat eski tahlillar uchun
+    # Pagination
     from django.core.paginator import Paginator
-    paginator = Paginator(old_scans, 20)  # Har sahifada 20 ta
+    paginator = Paginator(scans, 20)  # Har sahifada 20 ta
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
     
     # Faqat domainlar soni
     total_domains = DomainScan.objects.values('domain_name').distinct().count()
     
-    # Yangi tahlillar soni
-    recent_count = recent_scans.count()
-    
     return render(request, template_name='scan_history.html', context={
-        'recent_scans': recent_scans,
         'page_obj': page_obj,
-        'total_domains': total_domains,
-        'recent_count': recent_count
+        'total_domains': total_domains
     })
 
 def viewScanDetails(request, scan_id):

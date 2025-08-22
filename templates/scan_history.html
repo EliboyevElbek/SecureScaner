@@ -29,86 +29,40 @@
 <div class="scan-container">
     <!-- History Header -->
     <div class="history-header">
-        <h2>Tahlil tarixi</h2>
+        <h2>Barcha tahlillar</h2>
         <a href="{% url 'scan' %}" class="btn btn-primary">Yangi tahlil</a>
     </div>
     
-    <!-- Yangi tahlillar (bugun va kecha) -->
-    {% if recent_scans %}
-    <div class="recent-scans-section">
-        <div class="section-header recent">
-            <h3>🆕 Yangi tahlillar (son 24 soat)</h3>
-            <span class="count-badge">{{ recent_count }}</span>
-        </div>
-        <div class="history-grid recent-grid">
-            {% for scan in recent_scans %}
-            <div class="scan-item recent-scan">
-                <div class="scan-item-header">
-                    <div class="domain-info-with-icon">
-                        <div class="domain-icon">
-                            <img src="https://www.google.com/s2/favicons?domain={{ scan.domain_name }}&sz=32" 
-                                 alt="{{ scan.domain_name }} icon" 
-                                 onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQgMjQgMCAwIDAgMjQgMjQgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTEyIDJMMiA3VjIwQzIgMjAuNTUyMyAyLjQ0NzcyIDIxIDMgMjFIMjFDMjEuNTUyMyAyMSAyMiAyMC41NTIzIDIyIDIwVjdMMTIgMloiIHN0cm9rZT0iIzAwZmYwMCIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9zZS1saW5lam9pbj0icm91bmQiLz4KPHBhdGggZD0iTTkgMjFWMTRMMTUgMTBWMjEiIHN0cm9rZT0iIzAwZmYwMCIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9zZS1saW5lam9pbj0icm91bmQiLz4KPC9zdmc+'"
-                                 class="favicon">
-                        </div>
-                        <div class="domain-text">
-                            <h3>{{ scan.domain_name }}</h3>
-                        </div>
-                    </div>
-                    <span class="scan-status {{ scan.status }}">{{ scan.get_status_display }}</span>
-                </div>
-                <div class="scan-item-details">
-                    <p><strong>IP:</strong> {{ scan.ip_address|default:"N/A" }}</p>
-                    <p><strong>Sana:</strong> {{ scan.scan_date|date:"d.m.Y H:i" }}</p>
-                    <p><strong>Davomiyligi:</strong> {{ scan.get_duration }}</p>
-                </div>
-                {% if scan.status == 'completed' %}
-                <div class="scan-item-actions">
-                    <button class="btn btn-small" onclick="viewScanDetails({{ scan.id }})">Batafsil</button>
-                </div>
-                {% endif %}
-            </div>
-            {% endfor %}
-        </div>
-    </div>
-    {% endif %}
-    
-    <!-- Eski tahlillar -->
     {% if page_obj %}
-    <div class="old-scans-section">
-        <div class="section-header old">
-            <h3>📚 Barcha tahlillar</h3>
-        </div>
-        <div class="history-grid old-grid">
-            {% for scan in page_obj %}
-            <div class="scan-item old-scan">
-                <div class="scan-item-header">
-                    <div class="domain-info-with-icon">
-                        <div class="domain-icon">
-                            <img src="https://www.google.com/s2/favicons?domain={{ scan.domain_name }}&sz=32" 
-                                 alt="{{ scan.domain_name }} icon" 
-                                 onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQgMjQgMCAwIDAgMjQgMjQgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTEyIDJMMiA3VjIwQzIgMjAuNTUyMyAyLjQ0NzcyIDIxIDMgMjFIMjFDMjEuNTUyMyAyMSAyMiAyMC41NTIzIDIyIDIwVjdMMTIgMloiIHN0cm9rZT0iIzAwZmYwMCIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9zZS1saW5lam9pbj0icm91bmQiLz4KPHBhdGggZD0iTTkgMjFWMTRMMTUgMTBWMjEiIHN0cm9rZT0iIzAwZmYwMCIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9zZS1saW5lam9pbj0icm91bmQiLz4KPC9zdmc+'"
-                                 class="favicon">
-                        </div>
-                        <div class="domain-text">
-                            <h3>{{ scan.domain_name }}</h3>
-                        </div>
+    <div class="history-grid">
+        {% for scan in page_obj %}
+        <div class="scan-item">
+            <div class="scan-item-header">
+                <div class="domain-info-with-icon">
+                    <div class="domain-icon">
+                        <img src="https://www.google.com/s2/favicons?domain={{ scan.domain_name }}&sz=32" 
+                             alt="{{ scan.domain_name }} icon" 
+                             onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTEyIDJMMiA3VjIwQzIgMjAuNTUyMyAyLjQ0NzcyIDIxIDMgMjFIMjFDMjEuNTUyMyAyMSAyMiAyMC41NTIzIDIyIDIwVjdMMTIgMloiIHN0cm9rZT0iIzAwZmYwMCIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiLz4KPHBhdGggZD0iTTkgMjFWMTRMMTUgMTBWMjEiIHN0cm9rZT0iIzAwZmYwMCIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiLz4KPC9zdmc+'"
+                             class="favicon">
                     </div>
-                    <span class="scan-status {{ scan.status }}">{{ scan.get_status_display }}</span>
+                    <div class="domain-text">
+                        <h3>{{ scan.domain_name }}</h3>
+                    </div>
                 </div>
-                <div class="scan-item-details">
-                    <p><strong>IP:</strong> {{ scan.ip_address|default:"N/A" }}</p>
-                    <p><strong>Sana:</strong> {{ scan.scan_date|date:"d.m.Y H:i" }}</p>
-                    <p><strong>Davomiyligi:</strong> {{ scan.get_duration }}</p>
-                </div>
-                {% if scan.status == 'completed' %}
-                <div class="scan-item-actions">
-                    <button class="btn btn-small" onclick="viewScanDetails({{ scan.id }})">Batafsil</button>
-                </div>
-                {% endif %}
+                <span class="scan-status {{ scan.status }}">{{ scan.get_status_display }}</span>
             </div>
-            {% endfor %}
+            <div class="scan-item-details">
+                <p><strong>IP:</strong> {{ scan.ip_address|default:"N/A" }}</p>
+                <p><strong>Sana:</strong> {{ scan.scan_date|date:"d.m.Y H:i" }}</p>
+                <p><strong>Davomiyligi:</strong> {{ scan.get_duration }}</p>
+            </div>
+            {% if scan.status == 'completed' %}
+            <div class="scan-item-actions">
+                <button class="btn btn-small" onclick="viewScanDetails({{ scan.id }})">Batafsil</button>
+            </div>
+            {% endif %}
         </div>
+        {% endfor %}
     </div>
     
     <!-- Pagination -->
