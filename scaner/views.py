@@ -784,57 +784,16 @@ def get_tools(request):
             # Tool'larni list ga o'tkazish
             tools_list = list(tools)
             
-            # Tool parametrlarini qo'shish
-            tools_data = {
-                'nmap': {
-                    'parameters': [
-                        {'flag': '-sS', 'description': 'TCP SYN skanerlash - portlarni ochiq yoki yopiqligini aniqlash'},
-                        {'flag': '-sU', 'description': 'UDP skanerlash - UDP portlarni tekshirish'},
-                        {'flag': '-O', 'description': 'OS fingerprinting - operatsion tizimni aniqlash'},
-                        {'flag': '-sV', 'description': 'Xizmat versiyasini aniqlash'},
-                        {'flag': '-p', 'description': 'Maxsus portlarni skanerlash (masalan: -p 80,443,8080)'},
-                        {'flag': '-A', 'description': 'Aggressive skanerlash - barcha xususiyatlarni faollashtirish'},
-                        {'flag': '--script', 'description': 'NSE skriptlarini ishlatish'},
-                        {'flag': '-T4', 'description': 'Tezlik - 4 darajada tez skanerlash'}
-                    ]
-                },
-                'sqlmap': {
-                    'parameters': [
-                        {'flag': '--dbs', 'description': 'Mavjud ma\'lumotlar bazalarini ko\'rish'},
-                        {'flag': '--batch', 'description': 'Savollarsiz ishlash - avtomatik javoblar'},
-                        {'flag': '--random-agent', 'description': 'Tasodifiy User-Agent ishlatish'},
-                        {'flag': '--tables', 'description': 'Ma\'lumotlar bazasidagi jadvallarni ko\'rish'},
-                        {'flag': '--columns', 'description': 'Jadvaldagi ustunlarni ko\'rish'},
-                        {'flag': '--dump', 'description': 'Ma\'lumotlarni olish va saqlash'},
-                        {'flag': '--level', 'description': 'Test darajasi (1-5) - yuqori daraja ko\'proq test'},
-                        {'flag': '--risk', 'description': 'Xavf darajasi (1-3) - yuqori xavf ko\'proq payload'}
-                    ]
-                },
-                'xsstrike': {
-                    'parameters': [
-                        {'flag': '--crawl', 'description': 'Sahifalarni avtomatik ko\'rish va tekshirish'},
-                        {'flag': '--blind', 'description': 'Blind XSS testlarini o\'tkazish'},
-                        {'flag': '--skip-dom', 'description': 'DOM XSS testlarini o\'tkazmaslik'},
-                        {'flag': '--skip-payload', 'description': 'Payload testlarini o\'tkazmaslik'},
-                        {'flag': '--params', 'description': 'Maxsus parametrlarni tekshirish'},
-                        {'flag': '--headers', 'description': 'HTTP headerlarni tekshirish'},
-                        {'flag': '--cookies', 'description': 'Cookie larni tekshirish'},
-                        {'flag': '--json', 'description': 'JSON formatida natijalarni ko\'rsatish'}
-                    ]
-                },
-                'gobuster': {
-                    'parameters': [
-                        {'flag': 'dir', 'description': 'Papkalarni qidirish rejimi'},
-                        {'flag': 'dns', 'description': 'DNS subdomain qidirish rejimi'},
-                        {'flag': 'fuzz', 'description': 'Fayl nomlarini qidirish rejimi'},
-                        {'flag': '-w', 'description': 'So\'zlar ro\'yxati fayli (wordlist)'},
-                        {'flag': '-u', 'description': 'Target URL yoki domain'},
-                        {'flag': '-t', 'description': 'Threadlar soni (parallel ishlash)'},
-                        {'flag': '-x', 'description': 'Fayl kengaytmalarini qo\'shish'},
-                        {'flag': '--status-codes', 'description': 'Qaysi HTTP kodlarni ko\'rsatish'}
-                    ]
+            # Tool parametrlarini tools_config.py dan olish
+            from .tools_config import TOOLS_DATA
+            
+            tools_data = {}
+            for tool_name, tool_info in TOOLS_DATA.items():
+                tools_data[tool_name] = {
+                    'parameters': tool_info.get('parameters', []),
+                    'inputs': tool_info.get('inputs', []),
+                    'examples': tool_info.get('examples', [])
                 }
-            }
             
             return JsonResponse({
                 'success': True,

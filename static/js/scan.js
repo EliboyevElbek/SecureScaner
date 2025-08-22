@@ -169,6 +169,9 @@ function prepareDomains() {
                 saveDefaultToolCommands(domain);
             });
             
+            // Yangi domainlar uchun input field'larni tozalash
+            clearInputFieldsForNewDomains(newDomains);
+            
             // Log detailed results
             if (data.errors && data.errors.length > 0) {
                 console.log('Domain saqlash xatolari:', data.errors);
@@ -219,6 +222,20 @@ function renderDomains() {
             </div>
         </div>
     `).join('');
+    
+    // Yangi domainlar uchun input field'lar tozalanganini ko'rsatish
+    const newDomains = domains.filter(domain => {
+        const hasInputs = ['sqlmap', 'nmap', 'xsstrike', 'gobuster'].some(toolType => {
+            const inputKey = `tool_inputs_${domain}_${toolType}`;
+            const savedInputs = localStorage.getItem(inputKey);
+            return savedInputs && Object.keys(JSON.parse(savedInputs || '{}')).length > 0;
+        });
+        return !hasInputs;
+    });
+    
+    if (newDomains.length > 0) {
+        console.log(`Yangi domainlar (input field'lar tozalangan): ${newDomains.join(', ')}`);
+    }
 }
 
 function editDomain(index) {
@@ -713,8 +730,8 @@ function getToolInputs(toolType) {
     // Fallback - agar tools data mavjud bo'lmasa
     const fallbackInputs = {
         'nmap': [
-            { key: '-p', description: 'Port range', placeholder: '80,443,8080', type: 'text', default: '80,443,8080' },
-            { key: '--script', description: 'NSE script', placeholder: 'vuln,auth', type: 'text', default: 'vuln' }
+            { key: '-p', description: 'Port range', placeholder: '80,443,8080', type: 'text', default: '' },
+            { key: '--script', description: 'NSE script', placeholder: 'vuln,auth', type: 'text', default: '' }
         ],
         'sqlmap': [
             { key: '--level', description: 'Test level (1-5)', placeholder: '1-5', type: 'number', default: '1', min: 1, max: 5 },
@@ -752,7 +769,7 @@ function closeToolParams() {
         const domain = existingParams.dataset.domain;
         
         if (toolType && domain) {
-            // Input'larni localStorage ga saqlash
+            // Input'larni localStorage ga saqlash (faqat bo'sh bo'lmagan qiymatlar)
             const inputFields = existingParams.querySelectorAll('.tool-input-field');
             const inputsToSave = {};
             inputFields.forEach(input => {
@@ -779,6 +796,52 @@ function closeToolParams() {
             existingParams.remove();
         }, 300);
     }
+}
+
+// Debug funksiyasi - localStorage ni tozalash
+function clearNmapDefaults() {
+    // Barcha domainlar uchun Nmap input'larini tozalash
+    const domains = JSON.parse(localStorage.getItem('domains') || '[]');
+    domains.forEach(domain => {
+        const key = `tool_inputs_${domain}_nmap`;
+        const savedInputs = JSON.parse(localStorage.getItem(key) || '{}');
+        
+        // Agar -p yoki --script da default qiymatlar bo'lsa, ularni o'chirish
+        if (savedInputs['-p'] === '80,443,8080') {
+            delete savedInputs['-p'];
+        }
+        if (savedInputs['--script'] === 'vuln') {
+            delete savedInputs['--script'];
+        }
+        
+        // Yangilangan qiymatlarni saqlash
+        localStorage.setItem(key, JSON.stringify(savedInputs));
+        console.log(`Cleared defaults for ${domain}:`, savedInputs);
+    });
+    
+    console.log('Nmap default qiymatlar tozalandi');
+    showNotification('Nmap default qiymatlar tozalandi', 'success');
+}
+
+// Yangi domainlar uchun input field'larni tozalash
+function clearInputFieldsForNewDomains(newDomains) {
+    const tools = ['sqlmap', 'nmap', 'xsstrike', 'gobuster'];
+    
+    newDomains.forEach(domain => {
+        tools.forEach(toolType => {
+            // Input field'larni tozalash
+            const inputKey = `tool_inputs_${domain}_${toolType}`;
+            localStorage.removeItem(inputKey);
+            console.log(`Cleared input fields for ${domain} - ${toolType}`);
+            
+            // Checkbox parametrlarni ham tozalash (faqat yangi domain uchun)
+            const paramKey = `tool_params_${domain}_${toolType}`;
+            localStorage.removeItem(paramKey);
+            console.log(`Cleared parameters for ${domain} - ${toolType}`);
+        });
+    });
+    
+    console.log(`Input fields cleared for ${newDomains.length} new domains`);
 }
 
 function getBaseCommand(toolType, domain) {

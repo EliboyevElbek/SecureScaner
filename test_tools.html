@@ -45,6 +45,13 @@
         <button onclick="testToolUpdate()">Test Tool Update</button>
         <div id="updateResult" class="result"></div>
     </div>
+    
+    <div class="test-section">
+        <h2>Debug - Clear Nmap Defaults</h2>
+        <p>Bu funksiya localStorage dan Nmap ning eski default qiymatlarini (80,443,8080 va vuln) o'chiradi.</p>
+        <button onclick="clearNmapDefaults()">Clear Nmap Defaults</button>
+        <div id="clearResult" class="result"></div>
+    </div>
 
     <script>
         function getCSRFToken() {
@@ -152,6 +159,42 @@
             .catch(error => {
                 resultDiv.innerHTML = `<span class="error">Error: ${error.message}</span>`;
             });
+        }
+        
+        function clearNmapDefaults() {
+            const resultDiv = document.getElementById('clearResult');
+            resultDiv.innerHTML = '<span class="info">Clearing Nmap defaults...</span>';
+            
+            try {
+                // localStorage dan barcha domainlar uchun Nmap default'larini tozalash
+                const domains = JSON.parse(localStorage.getItem('domains') || '[]');
+                let clearedCount = 0;
+                
+                domains.forEach(domain => {
+                    const key = `tool_inputs_${domain}_nmap`;
+                    const savedInputs = JSON.parse(localStorage.getItem(key) || '{}');
+                    
+                    // Agar -p yoki --script da default qiymatlar bo'lsa, ularni o'chirish
+                    if (savedInputs['-p'] === '80,443,8080') {
+                        delete savedInputs['-p'];
+                        clearedCount++;
+                    }
+                    if (savedInputs['--script'] === 'vuln') {
+                        delete savedInputs['--script'];
+                        clearedCount++;
+                    }
+                    
+                    // Yangilangan qiymatlarni saqlash
+                    localStorage.setItem(key, JSON.stringify(savedInputs));
+                });
+                
+                resultDiv.innerHTML = `<span class="success">Nmap default qiymatlar tozalandi!</span><br>`;
+                resultDiv.innerHTML += `<span class="info">Tozalangan qiymatlar soni: ${clearedCount}</span><br>`;
+                resultDiv.innerHTML += `<span class="info">Tekshirilgan domainlar: ${domains.length}</span>`;
+                
+            } catch (error) {
+                resultDiv.innerHTML = `<span class="error">Xatolik: ${error.message}</span>`;
+            }
         }
     </script>
 </body>
