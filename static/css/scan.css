@@ -6,6 +6,87 @@
     padding: 2rem;
 }
 
+/* Yangi va eski tahlillarni ajratish */
+.new-scans-section {
+    margin-bottom: 2rem;
+}
+
+.old-scans-section {
+    margin-bottom: 2rem;
+}
+
+.section-title {
+    color: #ffffff;
+    font-size: 24px;
+    margin-bottom: 1.5rem;
+    padding: 1rem;
+    border-radius: 12px;
+    font-weight: 600;
+    font-family: 'Inter', sans-serif;
+    position: relative;
+    overflow: hidden;
+}
+
+.section-title::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(135deg, rgba(0, 255, 0, 0.1), rgba(0, 255, 0, 0.05));
+    z-index: -1;
+    border-radius: 12px;
+}
+
+.new-title {
+    background: linear-gradient(135deg, rgba(0, 255, 0, 0.15), rgba(0, 255, 0, 0.08));
+    border-left: 4px solid #00ff00;
+    color: #00ff00;
+    text-shadow: 0 0 15px rgba(0, 255, 0, 0.5);
+    box-shadow: 0 0 20px rgba(0, 255, 0, 0.2);
+}
+
+.new-title::before {
+    background: linear-gradient(135deg, rgba(0, 255, 0, 0.2), rgba(0, 255, 0, 0.1));
+}
+
+.old-title {
+    background: linear-gradient(135deg, rgba(0, 255, 0, 0.1), rgba(0, 255, 0, 0.05));
+    border-left: 4px solid #00ff00;
+    color: #00ff00;
+    text-shadow: 0 0 15px rgba(0, 255, 0, 0.5);
+    box-shadow: 0 0 20px rgba(0, 255, 0, 0.2);
+}
+
+.old-title::before {
+    background: linear-gradient(135deg, rgba(0, 255, 0, 0.15), rgba(0, 255, 0, 0.08));
+}
+
+.new-scan-item {
+    border: 2px solid #333333 !important;
+    background: rgba(0, 0, 0, 0.8) !important;
+}
+
+.new-scan-item:hover {
+    border-color: #555555 !important;
+    background: rgba(0, 0, 0, 0.9) !important;
+    transform: translateY(-2px) !important;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4) !important;
+}
+
+.old-scan-item {
+    border: 2px solid #333333 !important;
+    background: rgba(0, 0, 0, 0.8) !important;
+}
+
+.old-scan-item:hover {
+    border-color: #555555 !important;
+    background: rgba(0, 0, 0, 0.9) !important;
+    transform: translateY(-2px) !important;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4) !important;
+}
+
 /* Input Section - Dark Professional */
 .input-section {
     margin-bottom: 36px;
@@ -1684,6 +1765,16 @@
     margin-bottom: 2rem;
 }
 
+.stats-overview .stats-single {
+    display: inline-block;
+    margin-right: 1rem;
+    margin-bottom: 1rem;
+}
+
+.stats-overview .stats-single:last-child {
+    margin-right: 0;
+}
+
 .stat-card {
     background: linear-gradient(135deg, rgba(0, 0, 0, 0.95), rgba(20, 20, 20, 0.95));
     border: 2px solid #333333;
@@ -1765,6 +1856,11 @@
 
 /* Responsive adjustments */
 @media (max-width: 768px) {
+    .stats-overview {
+        flex-direction: column;
+        gap: 1.5rem;
+    }
+    
     .stats-overview .stats-grid {
         grid-template-columns: repeat(2, 1fr);
         gap: 1.5rem;
@@ -1806,12 +1902,17 @@
 .stats-overview {
     margin-bottom: 2rem;
     padding: 0 2rem;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 2rem;
+    flex-wrap: wrap;
 }
 
 .stats-single {
     display: flex;
     justify-content: center;
-    margin-bottom: 2rem;
+    margin-bottom: 0;
 }
 
 .stats-single .stat-card {

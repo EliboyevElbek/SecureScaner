@@ -119,22 +119,49 @@ def scan(request):
     })
 
 def scan_history(request):
-    """Tahlil tarixini HTML sahifada ko'rsatish"""
-    scans = DomainScan.objects.all().order_by('-scan_date')
-    
-    # Pagination
-    from django.core.paginator import Paginator
-    paginator = Paginator(scans, 20)  # Har sahifada 20 ta
-    page_number = request.GET.get('page')
-    page_obj = paginator.get_page(page_number)
-    
-    # Faqat domainlar soni
-    total_domains = DomainScan.objects.values('domain_name').distinct().count()
-    
-    return render(request, template_name='scan_history.html', context={
-        'page_obj': page_obj,
-        'total_domains': total_domains
-    })
+    """Scan history sahifasi - yangi va eski tahlillarni ko'rsatish"""
+    try:
+        # Bugungi sana
+        from datetime import datetime, timedelta
+        today = datetime.now().date()
+        
+        # Bugungi yangi tahlillarni olish (24 soat ichida)
+        yesterday = today - timedelta(days=1)
+        new_scans = DomainScan.objects.filter(
+            scan_date__gte=yesterday,
+            status='completed'
+        ).order_by('-scan_date')
+        
+        # Eski tahlillarni olish (24 soatdan oldin)
+        old_scans = DomainScan.objects.filter(
+            scan_date__lt=yesterday,
+            status='completed'
+        ).order_by('-scan_date')
+        
+        # Faqat oxirgi 50 ta eski tahlilni olish
+        old_scans = old_scans[:50]
+        
+        context = {
+            'new_scans': new_scans,
+            'old_scans': old_scans,
+            'new_count': new_scans.count(),
+            'old_count': old_scans.count(),
+            'total_count': new_scans.count() + old_scans.count()
+        }
+        
+        return render(request, 'scan_history.html', context)
+        
+    except Exception as e:
+        print(f"Scan history xatolik: {e}")
+        context = {
+            'new_scans': [],
+            'old_scans': [],
+            'new_count': 0,
+            'old_count': 0,
+            'total_count': 0,
+            'error': str(e)
+        }
+        return render(request, 'scan_history.html', context)
 
 def viewScanDetails(request, scan_id):
     """Individual scan details ko'rsatish"""
@@ -447,7 +474,7 @@ def get_ssl_info(domain):
         # SSL xatolik bo'lsa HTTP bilan tekshirish
         try:
             response = requests.get(f"http://{domain}", timeout=10, allow_redirects=True)
-            return {
+        return {
                 'ssl_enabled': False,
                 'ssl_version': 'HTTP ishlatiladi',
                 'certificate_valid': False,
@@ -459,7 +486,7 @@ def get_ssl_info(domain):
                 'ssl_version': 'SSL xatolik + HTTP ham xatolik',
                 'certificate_valid': False,
                 'protocol': 'Xatolik'
-            }
+        }
     except requests.exceptions.ConnectionError:
         # HTTPS ulanish xatolik bo'lsa HTTP bilan tekshirish
         try:
@@ -471,12 +498,12 @@ def get_ssl_info(domain):
                 'protocol': 'HTTP'
             }
         except Exception as e:
-            return {
-                'ssl_enabled': False,
-                'ssl_version': 'Ulanish xatolik',
+        return {
+            'ssl_enabled': False,
+            'ssl_version': 'Ulanish xatolik',
                 'certificate_valid': False,
                 'protocol': 'Xatolik'
-            }
+        }
     except requests.exceptions.Timeout:
         # HTTPS vaqt tugasa HTTP bilan tekshirish
         try:
@@ -488,18 +515,18 @@ def get_ssl_info(domain):
                 'protocol': 'HTTP'
             }
         except Exception as e:
-            return {
-                'ssl_enabled': False,
-                'ssl_version': 'Vaqt tugadi',
+        return {
+            'ssl_enabled': False,
+            'ssl_version': 'Vaqt tugadi',
                 'certificate_valid': False,
                 'protocol': 'Xatolik'
-            }
+        }
     except Exception as e:
         # Boshqa xatolik bo'lsa HTTP bilan tekshirish
         try:
             response = requests.get(f"http://{domain}", timeout=10, allow_redirects=True)
-            return {
-                'ssl_enabled': False,
+        return {
+            'ssl_enabled': False,
                 'ssl_version': 'HTTP ishlatiladi',
                 'certificate_valid': False,
                 'protocol': 'HTTP'
@@ -510,7 +537,7 @@ def get_ssl_info(domain):
                 'ssl_version': f'Xatolik: {str(e)}',
                 'certificate_valid': False,
                 'protocol': 'Xatolik'
-            }
+        }
 
 def get_security_headers(domain):
     """Xavfsizlik sarlavhalarini olish"""
@@ -530,13 +557,13 @@ def get_security_headers(domain):
             print(f"HTTP orqali muvaffaqiyatli ulanish {domain}")
         except Exception as e:
             print(f"HTTP ham xatolik {domain}: {e}")
-            return {
-                'x_frame_options': 'SSL xatolik',
-                'x_content_type_options': 'SSL xatolik',
-                'x_xss_protection': 'SSL xatolik',
-                'strict_transport_security': 'SSL xatolik',
-                'content_security_policy': 'SSL xatolik'
-            }
+        return {
+            'x_frame_options': 'SSL xatolik',
+            'x_content_type_options': 'SSL xatolik',
+            'x_xss_protection': 'SSL xatolik',
+            'strict_transport_security': 'SSL xatolik',
+            'content_security_policy': 'SSL xatolik'
+        }
     except requests.exceptions.ConnectionError:
         print(f"HTTPS ulanish xatolik {domain} uchun, HTTP bilan urinish")
         # HTTPS ulanish xatolik bo'lsa HTTP bilan urinish
@@ -546,13 +573,13 @@ def get_security_headers(domain):
             print(f"HTTP orqali muvaffaqiyatli ulanish {domain}")
         except Exception as e:
             print(f"HTTP ham xatolik {domain}: {e}")
-            return {
-                'x_frame_options': 'Ulanish xatolik',
-                'x_content_type_options': 'Ulanish xatolik',
-                'x_xss_protection': 'Ulanish xatolik',
-                'strict_transport_security': 'Ulanish xatolik',
-                'content_security_policy': 'Ulanish xatolik'
-            }
+        return {
+            'x_frame_options': 'Ulanish xatolik',
+            'x_content_type_options': 'Ulanish xatolik',
+            'x_xss_protection': 'Ulanish xatolik',
+            'strict_transport_security': 'Ulanish xatolik',
+            'content_security_policy': 'Ulanish xatolik'
+        }
     except requests.exceptions.Timeout:
         print(f"HTTPS vaqt tugadi {domain} uchun, HTTP bilan urinish")
         # HTTPS vaqt tugasa HTTP bilan urinish
@@ -562,13 +589,13 @@ def get_security_headers(domain):
             print(f"HTTP orqali muvaffaqiyatli ulanish {domain}")
         except Exception as e:
             print(f"HTTP ham xatolik {domain}: {e}")
-            return {
-                'x_frame_options': 'Vaqt tugadi',
-                'x_content_type_options': 'Vaqt tugadi',
-                'x_xss_protection': 'Vaqt tugadi',
-                'strict_transport_security': 'Vaqt tugadi',
-                'content_security_policy': 'Vaqt tugadi'
-            }
+        return {
+            'x_frame_options': 'Vaqt tugadi',
+            'x_content_type_options': 'Vaqt tugadi',
+            'x_xss_protection': 'Vaqt tugadi',
+            'strict_transport_security': 'Vaqt tugadi',
+            'content_security_policy': 'Vaqt tugadi'
+        }
     except Exception as e:
         print(f"HTTPS xatolik {domain}: {e}, HTTP bilan urinish")
         # Boshqa xatolik bo'lsa HTTP bilan urinish
@@ -578,13 +605,13 @@ def get_security_headers(domain):
             print(f"HTTP orqali muvaffaqiyatli ulanish {domain}")
         except Exception as e2:
             print(f"HTTP ham xatolik {domain}: {e2}")
-            return {
-                'x_frame_options': 'Tekshirilmadi',
-                'x_content_type_options': 'Tekshirilmadi',
-                'x_xss_protection': 'Tekshirilmadi',
-                'strict_transport_security': 'Tekshirilmadi',
-                'content_security_policy': 'Tekshirilmadi'
-            }
+        return {
+            'x_frame_options': 'Tekshirilmadi',
+            'x_content_type_options': 'Tekshirilmadi',
+            'x_xss_protection': 'Tekshirilmadi',
+            'strict_transport_security': 'Tekshirilmadi',
+            'content_security_policy': 'Tekshirilmadi'
+        }
     
     # Xavfsizlik sarlavhalarini tekshirish
     security_headers = {
