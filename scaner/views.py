@@ -6,7 +6,7 @@ import json
 import socket
 import requests
 import urllib3
-from .models import DomainScan, Tool, KeshDomain, DomainToolConfiguration, ScanSession, ToolParameter, ToolParameterValue
+from .models import DomainScan, Tool, KeshDomain, DomainToolConfiguration, ScanSession
 
 # SSL warnings ni o'chirish
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -735,158 +735,200 @@ def save_domains(request):
     
     return JsonResponse({'error': 'Faqat POST so\'rov qabul qilinadi'}, status=405)
 
+@csrf_exempt
 def delete_domain(request):
-    """Domain o'chirish"""
+    """KeshDomain bazasidan domain o'chirish"""
     if request.method == 'POST':
         try:
             data = json.loads(request.body)
-            domain_name = data.get('domain_name')
+            domain_name = data.get('domain_name', '').strip()
             
             if not domain_name:
-                return JsonResponse({'error': 'Domain nomi ko\'rsatilmagan'}, status=400)
+                return JsonResponse({'error': 'Domain nomi kiritilmagan'}, status=400)
             
-            # Domain ni o'chirish
             try:
-                domain = KeshDomain.objects.get(domain_name=domain_name)
-                domain.delete()
-                return JsonResponse({'success': True, 'message': f'{domain_name} o\'chirildi'})
-            except KeshDomain.DoesNotExist:
-                return JsonResponse({'error': 'Domain topilmadi'}, status=404)
+                # Domain ni bazadan topish va o'chirish
+                kesh_domain = KeshDomain.objects.get(domain_name=domain_name)
+                kesh_domain.delete()
                 
+                return JsonResponse({
+                    'success': True,
+                    'message': f'Domain {domain_name} muvaffaqiyatli o\'chirildi!'
+                })
+                
+            except KeshDomain.DoesNotExist:
+                return JsonResponse({
+                    'error': f'Domain {domain_name} bazada topilmadi'
+                }, status=404)
+                
+        except json.JSONDecodeError:
+            return JsonResponse({'error': 'Noto\'g\'ri JSON format'}, status=400)
         except Exception as e:
-            return JsonResponse({'error': f'Xatolik: {str(e)}'}, status=500)
+            return JsonResponse({'error': f'Xatolik yuz berdi: {str(e)}'}, status=500)
     
     return JsonResponse({'error': 'Faqat POST so\'rov qabul qilinadi'}, status=405)
 
+@csrf_exempt
 def clear_all_domains(request):
-    """Barcha domainlarni o'chirish"""
+    """KeshDomain bazasidagi barcha domainlarni o'chirish"""
     if request.method == 'POST':
         try:
+            # Barcha domainlarni o'chirish
+            deleted_count = KeshDomain.objects.count()
             KeshDomain.objects.all().delete()
-            return JsonResponse({'success': True, 'message': 'Barcha domainlar o\'chirildi'})
+            
+            return JsonResponse({
+                'success': True,
+                'message': f'Barcha {deleted_count} ta domain muvaffaqiyatli o\'chirildi!',
+                'deleted_count': deleted_count
+            })
+                
         except Exception as e:
-            return JsonResponse({'error': f'Xatolik: {str(e)}'}, status=500)
+            return JsonResponse({'error': f'Xatolik yuz berdi: {str(e)}'}, status=500)
     
     return JsonResponse({'error': 'Faqat POST so\'rov qabul qilinadi'}, status=405)
 
+@csrf_exempt
 def update_domain(request):
-    """Domain nomini yangilash"""
+    """KeshDomain bazasida domainni tahrirlash"""
     if request.method == 'POST':
         try:
             data = json.loads(request.body)
-            old_name = data.get('old_name')
-            new_name = data.get('new_name')
+            old_domain = data.get('old_domain', '').strip()
+            new_domain = data.get('new_domain', '').strip()
             
-            if not old_name or not new_name:
-                return JsonResponse({'error': 'Eski va yangi nom ko\'rsatilmagan'}, status=400)
+            if not old_domain or not new_domain:
+                return JsonResponse({'error': 'Eski va yangi domain nomlari kiritilmagan'}, status=400)
+            
+            # Yangi domain validatsiyasi
+            if not is_valid_domain(new_domain):
+                return JsonResponse({'error': 'Yangi domain noto\'g\'ri formatda'}, status=400)
             
             try:
-                domain = KeshDomain.objects.get(domain_name=old_name)
-                domain.domain_name = new_name
-                domain.save()
-                return JsonResponse({'success': True, 'message': f'Domain nomi {new_name} ga o\'zgartirildi'})
-            except KeshDomain.DoesNotExist:
-                return JsonResponse({'error': 'Domain topilmadi'}, status=404)
+                # Eski domain ni bazadan topish
+                kesh_domain = KeshDomain.objects.get(domain_name=old_domain)
                 
+                # Yangi domain allaqachon mavjudligini tekshirish
+                if KeshDomain.objects.filter(domain_name=new_domain).exclude(id=kesh_domain.id).exists():
+                    return JsonResponse({
+                        'error': f'Domain {new_domain} allaqachon mavjud'
+                    }, status=400)
+                
+                # Domain nomini yangilash
+                kesh_domain.domain_name = new_domain
+                
+                # KeshDomain.tool_commands maydondagi domain nomlarini yangilash
+                if kesh_domain.tool_commands:
+                    for command_item in kesh_domain.tool_commands:
+                        for tool_type, command in command_item.items():
+                            if command and old_domain in command:
+                                command_item[tool_type] = command.replace(old_domain, new_domain)
+                
+                kesh_domain.save()
+                
+                # DomainToolConfiguration jadvalidagi tool buyruqlarini ham yangilash
+                tool_configs = DomainToolConfiguration.objects.filter(domain=kesh_domain)
+                for config in tool_configs:
+                    # Eski domain nomini yangi domain nomi bilan almashtirish
+                    if config.final_command:
+                        config.final_command = config.final_command.replace(old_domain, new_domain)
+                    if config.base_command:
+                        config.base_command = config.base_command.replace(old_domain, new_domain)
+                    config.save()
+                
+                return JsonResponse({
+                    'success': True,
+                    'message': f'Domain {old_domain} muvaffaqiyatli {new_domain} ga o\'zgartirildi!',
+                    'old_domain': old_domain,
+                    'new_domain': new_domain
+                })
+            
+            except KeshDomain.DoesNotExist:
+                return JsonResponse({
+                    'error': f'Domain {old_domain} bazada topilmadi'
+                }, status=404)
+            
+        except json.JSONDecodeError:
+            return JsonResponse({'error': 'Noto\'g\'ri JSON format'}, status=400)
         except Exception as e:
-            return JsonResponse({'error': f'Xatolik: {str(e)}'}, status=500)
+            return JsonResponse({'error': f'Xatolik yuz berdi: {str(e)}'}, status=500)
     
     return JsonResponse({'error': 'Faqat POST so\'rov qabul qilinadi'}, status=405)
 
 @csrf_exempt
 def get_tools(request):
-    """Barcha tool'larni olish"""
-    try:
-        tools = Tool.objects.filter(is_active=True)
-        tools_data = []
-        
-        for tool in tools:
-            tools_data.append({
-                'id': tool.id,
-                'name': tool.name,
-                'tool_type': tool.tool_type,
-                'description': tool.description,
-                'executable_path': tool.executable_path
-            })
-        
-        return JsonResponse({
-            'success': True,
-            'tools': tools_data
-        })
-        
-    except Exception as e:
-        return JsonResponse({'error': f'Xatolik: {str(e)}'}, status=500)
-
-def get_domain_tool_config(request):
-    """Domain uchun tool konfiguratsiyasini olish"""
-    try:
-        domain_name = request.GET.get('domain_name')
-        tool_type = request.GET.get('tool_type')
-        
-        if not domain_name or not tool_type:
-            return JsonResponse({'error': 'Domain yoki tool turi ko\'rsatilmagan'}, status=400)
-        
+    """Barcha faol tool'larni olish"""
+    if request.method == 'GET':
         try:
-            domain = KeshDomain.objects.get(domain_name=domain_name)
-            config = DomainToolConfiguration.objects.get(domain=domain, tool_type=tool_type)
+            # Faol tool'larni bazadan olish
+            tools = Tool.objects.filter(is_active=True).values('id', 'name', 'tool_type', 'description')
+            
+            # Tool'larni list ga o'tkazish
+            tools_list = list(tools)
+            
+            # Tool parametrlarini qo'shish
+            tools_data = {
+                'nmap': {
+                    'parameters': [
+                        {'flag': '-sS', 'description': 'TCP SYN skanerlash - portlarni ochiq yoki yopiqligini aniqlash'},
+                        {'flag': '-sU', 'description': 'UDP skanerlash - UDP portlarni tekshirish'},
+                        {'flag': '-O', 'description': 'OS fingerprinting - operatsion tizimni aniqlash'},
+                        {'flag': '-sV', 'description': 'Xizmat versiyasini aniqlash'},
+                        {'flag': '-p', 'description': 'Maxsus portlarni skanerlash (masalan: -p 80,443,8080)'},
+                        {'flag': '-A', 'description': 'Aggressive skanerlash - barcha xususiyatlarni faollashtirish'},
+                        {'flag': '--script', 'description': 'NSE skriptlarini ishlatish'},
+                        {'flag': '-T4', 'description': 'Tezlik - 4 darajada tez skanerlash'}
+                    ]
+                },
+                'sqlmap': {
+                    'parameters': [
+                        {'flag': '--dbs', 'description': 'Mavjud ma\'lumotlar bazalarini ko\'rish'},
+                        {'flag': '--batch', 'description': 'Savollarsiz ishlash - avtomatik javoblar'},
+                        {'flag': '--random-agent', 'description': 'Tasodifiy User-Agent ishlatish'},
+                        {'flag': '--tables', 'description': 'Ma\'lumotlar bazasidagi jadvallarni ko\'rish'},
+                        {'flag': '--columns', 'description': 'Jadvaldagi ustunlarni ko\'rish'},
+                        {'flag': '--dump', 'description': 'Ma\'lumotlarni olish va saqlash'},
+                        {'flag': '--level', 'description': 'Test darajasi (1-5) - yuqori daraja ko\'proq test'},
+                        {'flag': '--risk', 'description': 'Xavf darajasi (1-3) - yuqori xavf ko\'proq payload'}
+                    ]
+                },
+                'xsstrike': {
+                    'parameters': [
+                        {'flag': '--crawl', 'description': 'Sahifalarni avtomatik ko\'rish va tekshirish'},
+                        {'flag': '--blind', 'description': 'Blind XSS testlarini o\'tkazish'},
+                        {'flag': '--skip-dom', 'description': 'DOM XSS testlarini o\'tkazmaslik'},
+                        {'flag': '--skip-payload', 'description': 'Payload testlarini o\'tkazmaslik'},
+                        {'flag': '--params', 'description': 'Maxsus parametrlarni tekshirish'},
+                        {'flag': '--headers', 'description': 'HTTP headerlarni tekshirish'},
+                        {'flag': '--cookies', 'description': 'Cookie larni tekshirish'},
+                        {'flag': '--json', 'description': 'JSON formatida natijalarni ko\'rsatish'}
+                    ]
+                },
+                'gobuster': {
+                    'parameters': [
+                        {'flag': 'dir', 'description': 'Papkalarni qidirish rejimi'},
+                        {'flag': 'dns', 'description': 'DNS subdomain qidirish rejimi'},
+                        {'flag': 'fuzz', 'description': 'Fayl nomlarini qidirish rejimi'},
+                        {'flag': '-w', 'description': 'So\'zlar ro\'yxati fayli (wordlist)'},
+                        {'flag': '-u', 'description': 'Target URL yoki domain'},
+                        {'flag': '-t', 'description': 'Threadlar soni (parallel ishlash)'},
+                        {'flag': '-x', 'description': 'Fayl kengaytmalarini qo\'shish'},
+                        {'flag': '--status-codes', 'description': 'Qaysi HTTP kodlarni ko\'rsatish'}
+                    ]
+                }
+            }
             
             return JsonResponse({
                 'success': True,
-                'config': {
-                    'base_command': config.base_command,
-                    'selected_parameters': config.selected_parameters,
-                    'final_command': config.final_command
-                }
+                'tools': tools_list,
+                'tools_data': tools_data,
+                'total_tools': len(tools_list)
             })
-            
-        except (KeshDomain.DoesNotExist, DomainToolConfiguration.DoesNotExist):
-            return JsonResponse({'error': 'Konfiguratsiya topilmadi'}, status=404)
-            
-    except Exception as e:
-        return JsonResponse({'error': f'Xatolik: {str(e)}'}, status=500)
-
-def save_domain_tool_config(request):
-    """Domain uchun tool konfiguratsiyasini saqlash"""
-    if request.method == 'POST':
-        try:
-            data = json.loads(request.body)
-            domain_name = data.get('domain_name')
-            tool_type = data.get('tool_type')
-            config_data = data.get('config', {})
-            
-            if not domain_name or not tool_type:
-                return JsonResponse({'error': 'Domain yoki tool turi ko\'rsatilmagan'}, status=400)
-            
-            try:
-                domain = KeshDomain.objects.get(domain_name=domain_name)
-                config, created = DomainToolConfiguration.objects.get_or_create(
-                    domain=domain,
-                    tool_type=tool_type,
-                    defaults={
-                        'base_command': config_data.get('base_command', ''),
-                        'selected_parameters': config_data.get('selected_parameters', []),
-                        'final_command': config_data.get('final_command', '')
-                    }
-                )
-                
-                if not created:
-                    config.base_command = config_data.get('base_command', '')
-                    config.selected_parameters = config_data.get('selected_parameters', [])
-                    config.final_command = config_data.get('final_command', '')
-                    config.save()
-                
-                return JsonResponse({
-                    'success': True,
-                    'message': 'Konfiguratsiya saqlandi'
-                })
-                
-            except KeshDomain.DoesNotExist:
-                return JsonResponse({'error': 'Domain topilmadi'}, status=404)
                 
         except Exception as e:
-            return JsonResponse({'error': f'Xatolik: {str(e)}'}, status=500)
+            return JsonResponse({'error': f'Xatolik yuz berdi: {str(e)}'}, status=500)
     
-    return JsonResponse({'error': 'Faqat POST so\'rov qabul qilinadi'}, status=405)
+    return JsonResponse({'error': 'Faqat GET so\'rov qabul qilinadi'}, status=405)
 
 @csrf_exempt
 def update_tool_commands(request):
@@ -938,6 +980,107 @@ def update_tool_commands(request):
             return JsonResponse({'error': 'Noto\'g\'ri JSON format'}, status=400)
         except Exception as e:
             print(f"Error in update_tool_commands: {str(e)}")
+            return JsonResponse({'error': f'Xatolik yuz berdi: {str(e)}'}, status=500)
+    
+    return JsonResponse({'error': 'Faqat POST so\'rov qabul qilinadi'}, status=405)
+
+@csrf_exempt
+def get_domain_tool_config(request):
+    """Domain uchun tool konfiguratsiyasini olish"""
+    if request.method == 'GET':
+        try:
+            domain_name = request.GET.get('domain_name', '').strip()
+            
+            if not domain_name:
+                return JsonResponse({'error': 'Domain nomi kiritilmagan'}, status=400)
+            
+            try:
+                # Domain ni bazadan topish
+                kesh_domain = KeshDomain.objects.get(domain_name=domain_name)
+                
+                # Tool konfiguratsiyalarini olish
+                tool_configs = []
+                for config in kesh_domain.tool_configs.all():
+                    tool_configs.append({
+                        'tool_type': config.tool_type,
+                        'base_command': config.base_command,
+                        'selected_parameters': config.selected_parameters,
+                        'final_command': config.final_command,
+                        'is_active': config.is_active
+                    })
+                
+                return JsonResponse({
+                    'success': True,
+                    'domain': domain_name,
+                    'tool_configs': tool_configs,
+                    'saved_commands': kesh_domain.tool_commands
+                })
+            
+            except KeshDomain.DoesNotExist:
+                return JsonResponse({
+                    'error': f'Domain {domain_name} bazada topilmadi'
+                }, status=404)
+            
+        except Exception as e:
+            return JsonResponse({'error': f'Xatolik yuz berdi: {str(e)}'}, status=500)
+    
+    return JsonResponse({'error': 'Faqat GET so\'rov qabul qilinadi'}, status=405)
+
+@csrf_exempt
+def save_domain_tool_config(request):
+    """Domain uchun tool konfiguratsiyasini saqlash"""
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            domain_name = data.get('domain_name', '').strip()
+            tool_type = data.get('tool_type', '').strip()
+            base_command = data.get('base_command', '').strip()
+            selected_parameters = data.get('selected_parameters', [])
+            
+            if not all([domain_name, tool_type, base_command]):
+                return JsonResponse({'error': 'Barcha maydonlar to\'ldirilishi kerak'}, status=400)
+            
+            try:
+                # Domain ni bazadan topish yoki yaratish
+                kesh_domain, created = KeshDomain.objects.get_or_create(
+                    domain_name=domain_name
+                )
+                
+                # Tool konfiguratsiyasini topish yoki yaratish
+                tool_config, config_created = DomainToolConfiguration.objects.get_or_create(
+                    domain=kesh_domain,
+                    tool_type=tool_type,
+                    defaults={
+                        'base_command': base_command,
+                        'selected_parameters': selected_parameters,
+                        'final_command': f"{base_command} {' '.join(selected_parameters)}"
+                    }
+                )
+                
+                if not config_created:
+                    # Mavjud konfiguratsiyani yangilash
+                    tool_config.base_command = base_command
+                    tool_config.selected_parameters = selected_parameters
+                    tool_config.final_command = f"{base_command} {' '.join(selected_parameters)}"
+                    tool_config.save()
+                
+                # KeshDomain tool_commands ni ham yangilash
+                final_command = f"{base_command} {' '.join(selected_parameters)}"
+                kesh_domain.merge_tool_commands([{tool_type: final_command}])
+                
+                return JsonResponse({
+                    'success': True,
+                    'message': f'Domain {domain_name} uchun {tool_type} konfiguratsiyasi saqlandi!',
+                    'final_command': final_command,
+                    'created': config_created
+                })
+            
+            except Exception as e:
+                return JsonResponse({'error': f'Saqlash xatosi: {str(e)}'}, status=500)
+            
+        except json.JSONDecodeError:
+            return JsonResponse({'error': 'Noto\'g\'ri JSON format'}, status=400)
+        except Exception as e:
             return JsonResponse({'error': f'Xatolik yuz berdi: {str(e)}'}, status=500)
     
     return JsonResponse({'error': 'Faqat POST so\'rov qabul qilinadi'}, status=405)
@@ -1047,246 +1190,3 @@ def extract_parameters_from_command(full_command, base_command):
             return params_part.split()
     
     return []
-
-@csrf_exempt
-def get_tool_parameters(request):
-    """Tool parametrlarini olish"""
-    try:
-        tool_type = request.GET.get('tool_type')
-        if not tool_type:
-            return JsonResponse({'error': 'Tool turi ko\'rsatilmagan'}, status=400)
-        
-        tool = get_object_or_404(Tool, tool_type=tool_type, is_active=True)
-        parameters = ToolParameter.objects.filter(tool=tool).order_by('order')
-        
-        params_data = []
-        for param in parameters:
-            params_data.append({
-                'id': param.id,
-                'name': param.name,
-                'short_name': param.short_name,
-                'parameter_type': param.parameter_type,
-                'description': param.description,
-                'default_value': param.default_value,
-                'placeholder': param.placeholder,
-                'help_text': param.help_text,
-                'is_required': param.is_required,
-                'order': param.order
-            })
-        
-        return JsonResponse({
-            'success': True,
-            'tool': {
-                'id': tool.id,
-                'name': tool.name,
-                'tool_type': tool.tool_type,
-                'executable_path': tool.executable_path
-            },
-            'parameters': params_data
-        })
-        
-    except Exception as e:
-        return JsonResponse({'error': f'Xatolik: {str(e)}'}, status=500)
-
-@csrf_exempt
-def get_domain_parameter_values(request):
-    """Domain uchun saqlangan parametr qiymatlarini olish"""
-    try:
-        domain_name = request.GET.get('domain_name')
-        tool_type = request.GET.get('tool_type')
-        
-        if not domain_name or not tool_type:
-            return JsonResponse({'error': 'Domain yoki tool turi ko\'rsatilmagan'}, status=400)
-        
-        domain = get_object_or_404(KeshDomain, domain_name=domain_name)
-        tool = get_object_or_404(Tool, tool_type=tool_type, is_active=True)
-        
-        # Mavjud parametr qiymatlarini olish
-        existing_values = ToolParameterValue.objects.filter(
-            domain=domain,
-            parameter__tool=tool
-        ).select_related('parameter')
-        
-        values_data = {}
-        for value in existing_values:
-            values_data[value.parameter.id] = {
-                'enabled': value.is_enabled,
-                'value': value.value
-            }
-        
-        return JsonResponse({
-            'success': True,
-            'domain': domain_name,
-            'tool_type': tool_type,
-            'parameter_values': values_data
-        })
-        
-    except Exception as e:
-        return JsonResponse({'error': f'Xatolik: {str(e)}'}, status=500)
-
-@csrf_exempt
-def save_parameter_values(request):
-    """Tool parametr qiymatlarini saqlash"""
-    try:
-        data = json.loads(request.body)
-        domain_name = data.get('domain_name')
-        tool_type = data.get('tool_type')
-        parameters = data.get('parameters', {})
-        
-        if not domain_name or not tool_type:
-            return JsonResponse({'error': 'Domain yoki tool turi ko\'rsatilmagan'}, status=400)
-        
-        domain = get_object_or_404(KeshDomain, domain_name=domain_name)
-        tool = get_object_or_404(Tool, tool_type=tool_type, is_active=True)
-        
-        # Har bir parametr uchun qiymatni saqlash
-        for param_id, param_data in parameters.items():
-            try:
-                param = ToolParameter.objects.get(id=param_id, tool=tool)
-                value, created = ToolParameterValue.objects.get_or_create(
-                    domain=domain,
-                    parameter=param,
-                    defaults={
-                        'value': param_data.get('value', ''),
-                        'is_enabled': param_data.get('enabled', False)
-                    }
-                )
-                
-                if not created:
-                    value.value = param_data.get('value', '')
-                    value.is_enabled = param_data.get('enabled', False)
-                    value.save()
-                    
-            except ToolParameter.DoesNotExist:
-                continue
-        
-        # Yakuniy buyruqni yaratish va saqlash
-        final_command = build_final_command(tool, domain, parameters)
-        
-        # DomainToolConfiguration ni yangilash
-        config, created = DomainToolConfiguration.objects.get_or_create(
-            domain=domain,
-            tool_type=tool_type,
-            defaults={
-                'base_command': f"{tool.executable_path}",
-                'selected_parameters': list(parameters.keys()),
-                'final_command': final_command
-            }
-        )
-        
-        if not created:
-            config.selected_parameters = list(parameters.keys())
-            config.final_command = final_command
-            config.save()
-        
-        return JsonResponse({
-            'success': True,
-            'message': 'Parametrlar saqlandi',
-            'final_command': final_command
-        })
-        
-    except Exception as e:
-        return JsonResponse({'error': f'Xatolik: {str(e)}'}, status=500)
-
-def build_final_command(tool, domain, parameters):
-    """Yakuniy buyruqni yaratish"""
-    command_parts = [tool.executable_path]
-    
-    for param_id, param_data in parameters.items():
-        if not param_data.get('enabled', False):
-            continue
-            
-        try:
-            param = ToolParameter.objects.get(id=param_id)
-            value = param_data.get('value', '').strip()
-            
-            if param.parameter_type == 'flag':
-                # Faqat bayroq qo'shish
-                if param.short_name:
-                    command_parts.append(param.short_name)
-            elif param.parameter_type == 'checkbox':
-                # Checkbox belgilangan bo'lsa bayroq qo'shish
-                if param.short_name:
-                    command_parts.append(param.short_name)
-            elif param.parameter_type == 'option' or param.parameter_type == 'input':
-                # Qiymat bilan birga bayroq qo'shish
-                if param.short_name and value:
-                    command_parts.append(param.short_name)
-                    command_parts.append(value)
-                elif value:
-                    # Short name yo'q bo'lsa faqat qiymat
-                    command_parts.append(value)
-                    
-        except ToolParameter.DoesNotExist:
-            continue
-    
-    return ' '.join(command_parts)
-
-@csrf_exempt
-def get_tool_preview(request):
-    """Tool va uning parametrlari preview ko'rsatish"""
-    try:
-        tool_type = request.GET.get('tool_type')
-        if not tool_type:
-            return JsonResponse({'error': 'Tool turi ko\'rsatilmagan'}, status=400)
-        
-        tool = get_object_or_404(Tool, tool_type=tool_type, is_active=True)
-        parameters = ToolParameter.objects.filter(tool=tool).order_by('order')
-        
-        # Tool haqida ma'lumot
-        tool_info = {
-            'id': tool.id,
-            'name': tool.name,
-            'tool_type': tool.tool_type,
-            'description': tool.description,
-            'executable_path': tool.executable_path
-        }
-        
-        # Parametrlar ro'yxati
-        params_list = []
-        for param in parameters:
-            param_info = {
-                'id': param.id,
-                'name': param.name,
-                'short_name': param.short_name,
-                'parameter_type': param.parameter_type,
-                'description': param.description,
-                'default_value': param.default_value,
-                'placeholder': param.placeholder,
-                'help_text': param.help_text,
-                'is_required': param.is_required,
-                'order': param.order
-            }
-            params_list.append(param_info)
-        
-        return JsonResponse({
-            'success': True,
-            'tool': tool_info,
-            'parameters': params_list
-        })
-        
-    except Exception as e:
-        return JsonResponse({'error': f'Xatolik: {str(e)}'}, status=500)
-
-def tool_parameters_view(request):
-    """Tool parametrlari sahifasini ko'rsatish"""
-    return render(request, 'tool_parameters.html')
-
-def tools(request):
-    """Tools sahifasini ko'rsatish"""
-    tools_list = Tool.objects.filter(is_active=True)
-    context = {
-        'tools': tools_list
-    }
-    return render(request, 'tools.html', context)
-
-def tool_detail(request, tool_name):
-    """Tool haqida batafsil ma'lumot"""
-    try:
-        tool = Tool.objects.get(name__iexact=tool_name, is_active=True)
-        context = {
-            'tool': tool
-        }
-        return render(request, 'tool_detail.html', context)
-    except Tool.DoesNotExist:
-        return render(request, '404.html', status=404)
