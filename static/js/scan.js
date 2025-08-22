@@ -880,6 +880,10 @@ function startScan() {
     
     console.log('Starting scan for domains:', domains);
     
+    // Yangi tahlil boshlanganda scan history sahifasiga signal yuborish
+    localStorage.setItem('scanHistoryUpdate', 'true');
+    localStorage.setItem('updateTimestamp', Date.now().toString());
+    
     // Show loading state with professional animation
     const scanButton = document.querySelector('.btn-success');
     const originalText = scanButton.textContent;

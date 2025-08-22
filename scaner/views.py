@@ -63,6 +63,32 @@ def scan(request):
                 if not domains:
                     return JsonResponse({'error': 'Domenlar kiritilmagan'}, status=400)
                 
+                # Yangi tahlil boshlanganda avvalgi yangi tahlillarni eski qatorga ko'chirish
+                try:
+                    from django.utils import timezone
+                    from datetime import timedelta
+                    
+                    # Bugungi sana
+                    today = timezone.now().date()
+                    
+                    # Avvalgi yangi tahlillarni topish (bugun va kecha)
+                    recent_scans = DomainScan.objects.filter(
+                        scan_date__date__gte=today - timedelta(days=1)
+                    )
+                    
+                    if recent_scans.exists():
+                        print(f"Yangi tahlil boshlanganda {recent_scans.count()} ta avvalgi yangi tahlil eski qatorga ko'chirildi")
+                        
+                        # Avvalgi yangi tahlillarni eski qatorga ko'chirish (2 kun oldingi sanaga)
+                        old_date = today - timedelta(days=2)
+                        for scan in recent_scans:
+                            scan.scan_date = old_date
+                            scan.save()
+                        
+                        print(f"Avvalgi yangi tahlillar {old_date} sanasiga ko'chirildi")
+                except Exception as e:
+                    print(f"Avvalgi yangi tahlillarni ko'chirishda xatolik: {e}")
+                
                 # Har bir domen uchun tahlil qilish
                 scan_results = []
                 
@@ -120,20 +146,39 @@ def scan(request):
 
 def scan_history(request):
     """Tahlil tarixini HTML sahifada ko'rsatish"""
-    scans = DomainScan.objects.all().order_by('-scan_date')
+    from django.utils import timezone
+    from datetime import timedelta
     
-    # Pagination
+    # Bugungi sana
+    today = timezone.now().date()
+    
+    # Yangi tahlillar (bugun va kecha)
+    recent_scans = DomainScan.objects.filter(
+        scan_date__date__gte=today - timedelta(days=1)
+    ).order_by('-scan_date')
+    
+    # Eski tahlillar (2 kun va undan oldin)
+    old_scans = DomainScan.objects.filter(
+        scan_date__date__lt=today - timedelta(days=1)
+    ).order_by('-scan_date')
+    
+    # Pagination - faqat eski tahlillar uchun
     from django.core.paginator import Paginator
-    paginator = Paginator(scans, 20)  # Har sahifada 20 ta
+    paginator = Paginator(old_scans, 20)  # Har sahifada 20 ta
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
     
     # Faqat domainlar soni
     total_domains = DomainScan.objects.values('domain_name').distinct().count()
     
+    # Yangi tahlillar soni
+    recent_count = recent_scans.count()
+    
     return render(request, template_name='scan_history.html', context={
+        'recent_scans': recent_scans,
         'page_obj': page_obj,
-        'total_domains': total_domains
+        'total_domains': total_domains,
+        'recent_count': recent_count
     })
 
 def viewScanDetails(request, scan_id):
@@ -435,88 +480,175 @@ def get_dns_info(domain):
 def get_ssl_info(domain):
     """SSL ma'lumotlarini olish"""
     try:
-        # HTTPS orqali tekshirish
-        response = requests.get(f"https://{domain}", timeout=5, verify=False, allow_redirects=False)
+        # Avval HTTPS bilan urinish
+        response = requests.get(f"https://{domain}", timeout=10, verify=False, allow_redirects=True)
         return {
             'ssl_enabled': True,
             'ssl_version': 'TLS 1.2+',
-            'certificate_valid': True
+            'certificate_valid': True,
+            'protocol': 'HTTPS'
         }
     except requests.exceptions.SSLError:
-        return {
-            'ssl_enabled': True,
-            'ssl_version': 'SSL xatolik',
-            'certificate_valid': False
-        }
+        # SSL xatolik bo'lsa HTTP bilan tekshirish
+        try:
+            response = requests.get(f"http://{domain}", timeout=10, allow_redirects=True)
+            return {
+                'ssl_enabled': False,
+                'ssl_version': 'HTTP ishlatiladi',
+                'certificate_valid': False,
+                'protocol': 'HTTP'
+            }
+        except Exception as e:
+            return {
+                'ssl_enabled': False,
+                'ssl_version': 'SSL xatolik + HTTP ham xatolik',
+                'certificate_valid': False,
+                'protocol': 'Xatolik'
+            }
     except requests.exceptions.ConnectionError:
-        return {
-            'ssl_enabled': False,
-            'ssl_version': 'Ulanish xatolik',
-            'certificate_valid': False
-        }
+        # HTTPS ulanish xatolik bo'lsa HTTP bilan tekshirish
+        try:
+            response = requests.get(f"http://{domain}", timeout=10, allow_redirects=True)
+            return {
+                'ssl_enabled': False,
+                'ssl_version': 'HTTP ishlatiladi',
+                'certificate_valid': False,
+                'protocol': 'HTTP'
+            }
+        except Exception as e:
+            return {
+                'ssl_enabled': False,
+                'ssl_version': 'Ulanish xatolik',
+                'certificate_valid': False,
+                'protocol': 'Xatolik'
+            }
     except requests.exceptions.Timeout:
-        return {
-            'ssl_enabled': False,
-            'ssl_version': 'Vaqt tugadi',
-            'certificate_valid': False
-        }
+        # HTTPS vaqt tugasa HTTP bilan tekshirish
+        try:
+            response = requests.get(f"http://{domain}", timeout=10, allow_redirects=True)
+            return {
+                'ssl_enabled': False,
+                'ssl_version': 'HTTP ishlatiladi',
+                'certificate_valid': False,
+                'protocol': 'HTTP'
+            }
+        except Exception as e:
+            return {
+                'ssl_enabled': False,
+                'ssl_version': 'Vaqt tugadi',
+                'certificate_valid': False,
+                'protocol': 'Xatolik'
+            }
     except Exception as e:
-        print(f"SSL tekshirishda xatolik {domain}: {e}")
-        return {
-            'ssl_enabled': False,
-            'ssl_version': 'N/A',
-            'certificate_valid': False
-        }
+        # Boshqa xatolik bo'lsa HTTP bilan tekshirish
+        try:
+            response = requests.get(f"http://{domain}", timeout=10, allow_redirects=True)
+            return {
+                'ssl_enabled': False,
+                'ssl_version': 'HTTP ishlatiladi',
+                'certificate_valid': False,
+                'protocol': 'HTTP'
+            }
+        except Exception as e2:
+            return {
+                'ssl_enabled': False,
+                'ssl_version': f'Xatolik: {str(e)}',
+                'certificate_valid': False,
+                'protocol': 'Xatolik'
+            }
 
 def get_security_headers(domain):
     """Xavfsizlik sarlavhalarini olish"""
+    headers = {}
+    
+    # Avval HTTPS bilan urinish
     try:
-        response = requests.get(f"https://{domain}", timeout=5, verify=False, allow_redirects=False)
+        response = requests.get(f"https://{domain}", timeout=10, verify=False, allow_redirects=True)
         headers = response.headers
-        
-        return {
-            'x_frame_options': headers.get('X-Frame-Options', 'Yo\'q'),
-            'x_content_type_options': headers.get('X-Content-Type-Options', 'Yo\'q'),
-            'x_xss_protection': headers.get('X-XSS-Protection', 'Yo\'q'),
-            'strict_transport_security': headers.get('Strict-Transport-Security', 'Yo\'q'),
-            'content_security_policy': headers.get('Content-Security-Policy', 'Yo\'q')
-        }
+        print(f"HTTPS orqali muvaffaqiyatli ulanish {domain}")
     except requests.exceptions.SSLError:
-        print(f"SSL xatolik {domain} uchun xavfsizlik sarlavhalarini olishda")
-        return {
-            'x_frame_options': 'SSL xatolik',
-            'x_content_type_options': 'SSL xatolik',
-            'x_xss_protection': 'SSL xatolik',
-            'strict_transport_security': 'SSL xatolik',
-            'content_security_policy': 'SSL xatolik'
-        }
+        print(f"SSL xatolik {domain} uchun, HTTP bilan urinish")
+        # SSL xatolik bo'lsa HTTP bilan urinish
+        try:
+            response = requests.get(f"http://{domain}", timeout=10, allow_redirects=True)
+            headers = response.headers
+            print(f"HTTP orqali muvaffaqiyatli ulanish {domain}")
+        except Exception as e:
+            print(f"HTTP ham xatolik {domain}: {e}")
+            return {
+                'x_frame_options': 'SSL xatolik',
+                'x_content_type_options': 'SSL xatolik',
+                'x_xss_protection': 'SSL xatolik',
+                'strict_transport_security': 'SSL xatolik',
+                'content_security_policy': 'SSL xatolik'
+            }
     except requests.exceptions.ConnectionError:
-        print(f"Ulanish xatolik {domain} uchun xavfsizlik sarlavhalarini olishda")
-        return {
-            'x_frame_options': 'Ulanish xatolik',
-            'x_content_type_options': 'Ulanish xatolik',
-            'x_xss_protection': 'Ulanish xatolik',
-            'strict_transport_security': 'Ulanish xatolik',
-            'content_security_policy': 'Ulanish xatolik'
-        }
+        print(f"HTTPS ulanish xatolik {domain} uchun, HTTP bilan urinish")
+        # HTTPS ulanish xatolik bo'lsa HTTP bilan urinish
+        try:
+            response = requests.get(f"http://{domain}", timeout=10, allow_redirects=True)
+            headers = response.headers
+            print(f"HTTP orqali muvaffaqiyatli ulanish {domain}")
+        except Exception as e:
+            print(f"HTTP ham xatolik {domain}: {e}")
+            return {
+                'x_frame_options': 'Ulanish xatolik',
+                'x_content_type_options': 'Ulanish xatolik',
+                'x_xss_protection': 'Ulanish xatolik',
+                'strict_transport_security': 'Ulanish xatolik',
+                'content_security_policy': 'Ulanish xatolik'
+            }
     except requests.exceptions.Timeout:
-        print(f"Vaqt tugadi {domain} uchun xavfsizlik sarlavhalarini olishda")
-        return {
-            'x_frame_options': 'Vaqt tugadi',
-            'x_content_type_options': 'Vaqt tugadi',
-            'x_xss_protection': 'Vaqt tugadi',
-            'strict_transport_security': 'Vaqt tugadi',
-            'content_security_policy': 'Vaqt tugadi'
-        }
+        print(f"HTTPS vaqt tugadi {domain} uchun, HTTP bilan urinish")
+        # HTTPS vaqt tugasa HTTP bilan urinish
+        try:
+            response = requests.get(f"http://{domain}", timeout=10, allow_redirects=True)
+            headers = response.headers
+            print(f"HTTP orqali muvaffaqiyatli ulanish {domain}")
+        except Exception as e:
+            print(f"HTTP ham xatolik {domain}: {e}")
+            return {
+                'x_frame_options': 'Vaqt tugadi',
+                'x_content_type_options': 'Vaqt tugadi',
+                'x_xss_protection': 'Vaqt tugadi',
+                'strict_transport_security': 'Vaqt tugadi',
+                'content_security_policy': 'Vaqt tugadi'
+            }
     except Exception as e:
-        print(f"Xavfsizlik sarlavhalarini olishda xatolik {domain}: {e}")
-        return {
-            'x_frame_options': 'Tekshirilmadi',
-            'x_content_type_options': 'Tekshirilmadi',
-            'x_xss_protection': 'Tekshirilmadi',
-            'strict_transport_security': 'Tekshirilmadi',
-            'content_security_policy': 'Tekshirilmadi'
-        }
+        print(f"HTTPS xatolik {domain}: {e}, HTTP bilan urinish")
+        # Boshqa xatolik bo'lsa HTTP bilan urinish
+        try:
+            response = requests.get(f"http://{domain}", timeout=10, allow_redirects=True)
+            headers = response.headers
+            print(f"HTTP orqali muvaffaqiyatli ulanish {domain}")
+        except Exception as e2:
+            print(f"HTTP ham xatolik {domain}: {e2}")
+            return {
+                'x_frame_options': 'Tekshirilmadi',
+                'x_content_type_options': 'Tekshirilmadi',
+                'x_xss_protection': 'Tekshirilmadi',
+                'strict_transport_security': 'Tekshirilmadi',
+                'content_security_policy': 'Tekshirilmadi'
+            }
+    
+    # Xavfsizlik sarlavhalarini tekshirish
+    security_headers = {
+        'x_frame_options': headers.get('X-Frame-Options', 'Yo\'q'),
+        'x_content_type_options': headers.get('X-Content-Type-Options', 'Yo\'q'),
+        'x_xss_protection': headers.get('X-XSS-Protection', 'Yo\'q'),
+        'strict_transport_security': headers.get('Strict-Transport-Security', 'Yo\'q'),
+        'content_security_policy': headers.get('Content-Security-Policy', 'Yo\'q'),
+        'referrer_policy': headers.get('Referrer-Policy', 'Yo\'q'),
+        'permissions_policy': headers.get('Permissions-Policy', 'Yo\'q')
+    }
+    
+    # Debug ma'lumotlari
+    print(f"Domain {domain} uchun topilgan sarlavhalar:")
+    for key, value in security_headers.items():
+        if value != 'Yo\'q':
+            print(f"  {key}: {value}")
+    
+    return security_headers
 
 @csrf_exempt
 def save_domains(request):
