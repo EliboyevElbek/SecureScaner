@@ -6,7 +6,7 @@ import json
 import socket
 import requests
 import urllib3
-from .models import DomainScan, Tool, KeshDomain, DomainToolConfiguration
+from .models import DomainScan, Tool, KeshDomain, DomainToolConfiguration, ScanSession
 
 # SSL warnings ni o'chirish
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -63,7 +63,23 @@ def scan(request):
                 if not domains:
                     return JsonResponse({'error': 'Domenlar kiritilmagan'}, status=400)
                 
-                # Har bir domen uchun tahlil qilish
+                # 1. ScanSession bazasini tozalash (avvalgi yangi tahlillarni "Barcha tahlillar"ga o'tkazish uchun)
+                try:
+                    ScanSession.objects.all().delete()
+                    print("ScanSession bazasi tozalandi - avvalgi yangi tahlillar 'Barcha tahlillar'ga o'tdi")
+                except Exception as e:
+                    print(f"ScanSession tozalashda xatolik: {e}")
+                
+                # 2. Yangi ScanSession yaratish va domainlarni saqlash
+                try:
+                    new_session = ScanSession.objects.create(
+                        domains=domains
+                    )
+                    print(f"Yangi ScanSession yaratildi: {new_session.id} - {len(domains)} ta domain")
+                except Exception as e:
+                    print(f"ScanSession yaratishda xatolik: {e}")
+                
+                # 3. Har bir domen uchun tahlil qilish
                 scan_results = []
                 
                 for domain in domains:
@@ -84,15 +100,13 @@ def scan(request):
                     scan_result = perform_domain_scan(domain)
                     scan_results.append(scan_result)
                 
-                # Tahlil tugagandan so'ng KeshDomain bazasidagi barcha domainlarni o'chirish
+                # 4. Tahlil tugagandan so'ng KeshDomain bazasidagi barcha domainlarni o'chirish
                 try:
                     from .models import KeshDomain
                     deleted_count = KeshDomain.objects.count()
                     KeshDomain.objects.all().delete()
                     print(f"Tahlil tugagandan so'ng {deleted_count} ta domain KeshDomain bazasidan o'chirildi")
                     
-                    # Yangi tahlil qilingan domainlarni "Yangi tahlillar"da ko'rsatish uchun
-                    # Avvalgi barcha domainlarni "Barcha tahlillar"ga o'tkazish
                     print(f"Yangi tahlil qilingan domainlar: {[r['domain'] for r in scan_results if r['status'] == 'completed']}")
                     
                 except Exception as e:
@@ -131,25 +145,35 @@ def scan_history(request):
             status='completed'
         ).order_by('-scan_date')
         
-        # Yangi tahlillarni olish (faqat eng so'nggi skan sessiyada kiritilgan domainlar)
-        # "Tahlil qilish" tugmasi bosilganda avvalgi yangi tahlillar "Barcha tahlillar"ga o'tadi
+        # Yangi tahlillarni olish (eng so'nggi ScanSession dagi domainlar)
+        # "Tahlil qilish" tugmasi bosilganda yaratilgan eng so'nggi sessiyadagi domainlar
         if all_scans.exists():
-            # Eng so'nggi tahlil qilingan domainni topish
-            latest_scan = all_scans.first()
-            latest_domain = latest_scan.domain_name
+            # Eng so'nggi ScanSession ni topish
+            latest_session = ScanSession.objects.order_by('-created_at').first()
             
-            # Faqat eng so'nggi tahlil qilingan domainni "yangi tahlillar"da ko'rsatish
-            # Bu esa har safar yangi domain kiritilganda avvalgi domainlar "Barcha tahlillar"ga o'tishini ta'minlaydi
-            new_scans = DomainScan.objects.filter(
-                domain_name=latest_domain,
-                status='completed'
-            ).order_by('-scan_date')[:1]
+            if latest_session and latest_session.domains:
+                # Eng so'nggi sessiyadagi barcha domainlarni "yangi tahlillar" deb hisoblash
+                new_domains = latest_session.domains
+                new_scans = DomainScan.objects.filter(
+                    domain_name__in=new_domains,
+                    status='completed'
+                ).order_by('-scan_date')
+                print(f"ScanSession dan yangi tahlillar: {new_domains}")
+            else:
+                # ScanSession yo'q bo'lsa, eng so'nggi tahlil qilingan domainni olish
+                latest_scan = all_scans.first()
+                new_scans = DomainScan.objects.filter(
+                    domain_name=latest_scan.domain_name,
+                    status='completed'
+                ).order_by('-scan_date')[:1]
+                new_domains = [latest_scan.domain_name]
+                print(f"ScanSession yo'q, eng so'nggi domain: {new_domains}")
             
-            # Eski tahlillarni olish (yangi tahlillarda ko'rsatilmagan domainlar)
+            # Eski tahlillarni olish (yangi tahlillarda bo'lmagan domainlar)
             old_scans = DomainScan.objects.filter(
                 status='completed'
             ).exclude(
-                domain_name=latest_domain
+                domain_name__in=new_domains
             ).order_by('-scan_date')[:50]
         else:
             new_scans = []

@@ -189,85 +189,16 @@ class ToolParameter(models.Model):
         return f"{self.tool.name} - {self.name}"
 
 class ScanSession(models.Model):
-    STATUS_CHOICES = [
-        ('preparing', 'Tayyorlanmoqda'),
-        ('running', 'Ishlayapti'),
-        ('completed', 'Tugallandi'),
-        ('failed', 'Xatolik'),
-        ('cancelled', 'Bekor qilindi'),
-    ]
-    
-    name = models.CharField(max_length=255, verbose_name="Sessiya nomi")
+    """Skan sessiyasi - yangi tahlillar uchun"""
     domains = models.JSONField(default=list, verbose_name="Domainlar")
-    tools = models.JSONField(default=list, verbose_name="Tool'lar")
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='preparing', verbose_name="Holat")
     created_at = models.DateTimeField(default=timezone.now, verbose_name="Yaratilgan sana")
-    started_at = models.DateTimeField(null=True, blank=True, verbose_name="Boshlangan sana")
-    completed_at = models.DateTimeField(null=True, blank=True, verbose_name="Tugallangan sana")
-    results = models.JSONField(default=dict, verbose_name="Natijalar")
-    error_message = models.TextField(blank=True, null=True, verbose_name="Xatolik xabari")
     
     class Meta:
-        verbose_name = "Tahlil Sessiyasi"
-        verbose_name_plural = "Tahlil Sessiyalari"
+        verbose_name = "Skan Sessiyasi"
+        verbose_name_plural = "Skan Sessiyalari"
         ordering = ['-created_at']
     
     def __str__(self):
-        return f"{self.name} - {self.get_status_display()}"
-    
-    def get_duration(self):
-        """Sessiya davomiyligini hisoblash"""
-        if self.started_at and self.completed_at:
-            duration = self.completed_at - self.started_at
-            return f"{duration.total_seconds():.1f} soniya"
-        elif self.started_at:
-            duration = timezone.now() - self.started_at
-            return f"{duration.total_seconds():.1f} soniya"
-        return "N/A"
-    
-    def get_progress(self):
-        """Progress foizini hisoblash"""
-        if self.status == 'completed':
-            return 100
-        elif self.status == 'running' and self.started_at:
-            # Taxminiy progress
-            return 50
-        return 0
+        return f"Sessiya {self.id} - {len(self.domains)} ta domain - {self.created_at.strftime('%d.%m.%Y %H:%M')}"
 
-class ToolExecution(models.Model):
-    STATUS_CHOICES = [
-        ('pending', 'Kutilmoqda'),
-        ('running', 'Ishlayapti'),
-        ('completed', 'Tugallandi'),
-        ('failed', 'Xatolik'),
-    ]
-    
-    scan_session = models.ForeignKey(ScanSession, on_delete=models.CASCADE, related_name='executions', verbose_name="Tahlil sessiyasi")
-    tool = models.ForeignKey(Tool, on_delete=models.CASCADE, verbose_name="Tool")
-    domain = models.CharField(max_length=255, verbose_name="Domain")
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending', verbose_name="Holat")
-    command = models.TextField(verbose_name="Buyruq")
-    parameters = models.JSONField(default=dict, verbose_name="Parametrlar")
-    started_at = models.DateTimeField(null=True, blank=True, verbose_name="Boshlangan sana")
-    completed_at = models.DateTimeField(null=True, blank=True, verbose_name="Tugallangan sana")
-    output = models.TextField(blank=True, verbose_name="Natija")
-    error_output = models.TextField(blank=True, verbose_name="Xatolik")
-    exit_code = models.IntegerField(null=True, blank=True, verbose_name="Chiqish kodi")
-    
-    class Meta:
-        verbose_name = "Tool Ishga tushirish"
-        verbose_name_plural = "Tool Ishga tushirishlar"
-        ordering = ['-started_at']
-    
-    def __str__(self):
-        return f"{self.tool.name} - {self.domain} - {self.get_status_display()}"
-    
-    def get_duration(self):
-        """Ishlash davomiyligini hisoblash"""
-        if self.started_at and self.completed_at:
-            duration = self.completed_at - self.started_at
-            return f"{duration.total_seconds():.1f} soniya"
-        elif self.started_at:
-            duration = timezone.now() - self.started_at
-            return f"{duration.total_seconds():.1f} soniya"
-        return "N/A"
+# ToolExecution modeli endi kerak emas, chunki ScanSession soddalashtirildi

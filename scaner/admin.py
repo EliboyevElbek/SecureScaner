@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import DomainScan, Tool, ToolParameter, ScanSession, ToolExecution, KeshDomain, DomainToolConfiguration
+from .models import DomainScan, Tool, ToolParameter, ScanSession, KeshDomain, DomainToolConfiguration
 
 # Register your models here.
 
@@ -91,63 +91,26 @@ class ToolParameterAdmin(admin.ModelAdmin):
 
 @admin.register(ScanSession)
 class ScanSessionAdmin(admin.ModelAdmin):
-    list_display = ['name', 'status', 'domains_count', 'tools_count', 'created_at', 'get_duration']
-    list_filter = ['status', 'created_at']
-    search_fields = ['name']
-    readonly_fields = ['created_at', 'started_at', 'completed_at', 'results']
+    list_display = ['id', 'domains_count', 'created_at']
+    list_filter = ['created_at']
+    search_fields = ['domains']
+    readonly_fields = ['created_at']
     date_hierarchy = 'created_at'
     
     fieldsets = (
         ('Asosiy ma\'lumotlar', {
-            'fields': ('name', 'status', 'domains', 'tools')
+            'fields': ('domains',)
         }),
         ('Vaqt ma\'lumotlari', {
-            'fields': ('created_at', 'started_at', 'completed_at')
-        }),
-        ('Natijalar', {
-            'fields': ('results', 'error_message'),
-            'classes': ('collapse',)
+            'fields': ('created_at',)
         }),
     )
     
     def domains_count(self, obj):
         return len(obj.domains) if obj.domains else 0
     domains_count.short_description = "Domainlar soni"
-    
-    def tools_count(self, obj):
-        return len(obj.tools) if obj.tools else 0
-    tools_count.short_description = "Tool'lar soni"
-    
-    def get_duration(self, obj):
-        return obj.get_duration()
-    get_duration.short_description = "Davomiyligi"
 
-@admin.register(ToolExecution)
-class ToolExecutionAdmin(admin.ModelAdmin):
-    list_display = ['tool', 'domain', 'status', 'scan_session', 'started_at', 'get_duration']
-    list_filter = ['status', 'tool', 'scan_session']
-    search_fields = ['domain', 'tool__name']
-    readonly_fields = ['started_at', 'completed_at', 'output', 'error_output', 'exit_code']
-    
-    fieldsets = (
-        ('Asosiy ma\'lumotlar', {
-            'fields': ('scan_session', 'tool', 'domain', 'status')
-        }),
-        ('Ishga tushirish', {
-            'fields': ('command', 'parameters')
-        }),
-        ('Natijalar', {
-            'fields': ('output', 'error_output', 'exit_code')
-        }),
-        ('Vaqt ma\'lumotlari', {
-            'fields': ('started_at', 'completed_at'),
-            'classes': ('collapse',)
-        }),
-    )
-    
-    def get_duration(self, obj):
-        return obj.get_duration()
-    get_duration.short_description = "Davomiyligi"
+# ToolExecutionAdmin endi kerak emas, chunki ToolExecution modeli o'chirildi
 
 @admin.register(DomainToolConfiguration)
 class DomainToolConfigurationAdmin(admin.ModelAdmin):
