@@ -69,7 +69,70 @@
                     <p><strong>IP:</strong> {{ scan.ip_address|default:"N/A" }}</p>
                     <p><strong>Sana:</strong> {{ scan.scan_date|date:"d.m.Y H:i" }}</p>
                     <p><strong>Davomiyligi:</strong> {{ scan.get_duration }}</p>
+                    {% if scan.current_tool %}
+                    <p><strong>Joriy tool:</strong> {{ scan.current_tool }}</p>
+                    {% endif %}
+                    {% if scan.scan_progress %}
+                    <p><strong>Progress:</strong> {{ scan.scan_progress }}%</p>
+                    {% endif %}
                 </div>
+                
+                <!-- Tool natijalari -->
+                {% if scan.tool_results %}
+                <div class="tool-results-section">
+                    <h4>Tool natijalari:</h4>
+                    <div class="tool-results-grid">
+                        {% for tool_type, result in scan.tool_results.items %}
+                        <div class="tool-result-item">
+                            <div class="tool-header">
+                                <span class="tool-name">{{ tool_type|title }}</span>
+                                <span class="tool-status tool-{{ result.status|default:'unknown' }}">
+                                    {% if result.status == 'success' %}
+                                        ✅ Muvaffaqiyatli
+                                    {% elif result.status == 'error' %}
+                                        ❌ Xatolik
+                                    {% elif result.status == 'timeout' %}
+                                        ⏰ Vaqt tugadi
+                                    {% else %}
+                                        ⏸️ Noma'lum
+                                    {% endif %}
+                                </span>
+                            </div>
+                            <div class="tool-details">
+                                {% if tool_type == 'nmap' and result.ports_found %}
+                                <p><strong>Ochiq portlar:</strong> {{ result.ports_found }} ta</p>
+                                {% endif %}
+                                {% if tool_type == 'sqlmap' and result.vulnerabilities_found %}
+                                <p><strong>Zaifliklar:</strong> 
+                                    {% if result.vulnerabilities_found %}
+                                        ✅ SQL Injection topildi
+                                    {% else %}
+                                        ❌ Zaiflik topilmadi
+                                    {% endif %}
+                                </p>
+                                {% endif %}
+                                {% if tool_type == 'xsstrike' and result.xss_found %}
+                                <p><strong>XSS:</strong> 
+                                    {% if result.xss_found %}
+                                        ✅ XSS zaifligi topildi
+                                    {% else %}
+                                        ❌ XSS zaifligi topilmadi
+                                    {% endif %}
+                                </p>
+                                {% endif %}
+                                {% if tool_type == 'gobuster' and result.directories_found %}
+                                <p><strong>Papkalar:</strong> {{ result.directories_found }} ta</p>
+                                {% endif %}
+                                {% if result.error %}
+                                <p class="tool-error"><strong>Xatolik:</strong> {{ result.error }}</p>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+                
                 {% if scan.status == 'completed' %}
                 <div class="scan-item-actions">
                     <button class="btn btn-small" onclick="viewScanDetails({{ scan.id }})">Batafsil</button>

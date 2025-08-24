@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import DomainScan, Tool, ToolParameter, ScanSession, KeshDomain, DomainToolConfiguration
+from .models import DomainScan, Tool, ToolParameter, ScanSession, KeshDomain, DomainToolConfiguration, ToolExecution
 
 # Register your models here.
 
@@ -31,27 +31,27 @@ class KeshDomainAdmin(admin.ModelAdmin):
 
 @admin.register(DomainScan)
 class DomainScanAdmin(admin.ModelAdmin):
-    list_display = ['domain_name', 'status', 'ip_address', 'scan_date', 'get_duration']
-    list_filter = ['status', 'scan_date']
+    list_display = ['domain_name', 'status', 'scan_date', 'ip_address', 'current_tool', 'scan_progress']
+    list_filter = ['status', 'scan_date', 'current_tool']
     search_fields = ['domain_name', 'ip_address']
-    readonly_fields = ['scan_date', 'scan_result', 'dns_records', 'ssl_info', 'security_headers']
-    date_hierarchy = 'scan_date'
+    readonly_fields = ['scan_date', 'scan_result', 'tool_results']
+    ordering = ['-scan_date']
     
     fieldsets = (
         ('Asosiy ma\'lumotlar', {
             'fields': ('domain_name', 'status', 'scan_date')
         }),
-        ('Tahlil natijalari', {
-            'fields': ('ip_address', 'dns_records', 'ssl_info', 'security_headers', 'scan_result')
+        ('Tarmoq ma\'lumotlari', {
+            'fields': ('ip_address', 'dns_records', 'ssl_info', 'security_headers')
         }),
-        ('Xatolik ma\'lumotlari', {
+        ('Tahlil natijalari', {
+            'fields': ('scan_result', 'tool_results', 'current_tool', 'scan_progress')
+        }),
+        ('Xatoliklar', {
             'fields': ('error_message',),
             'classes': ('collapse',)
-        }),
+        })
     )
-    
-    def has_add_permission(self, request):
-        return False
 
 @admin.register(Tool)
 class ToolAdmin(admin.ModelAdmin):
@@ -110,7 +110,25 @@ class ScanSessionAdmin(admin.ModelAdmin):
         return len(obj.domains) if obj.domains else 0
     domains_count.short_description = "Domainlar soni"
 
-# ToolExecutionAdmin endi kerak emas, chunki ToolExecution modeli o'chirildi
+@admin.register(ToolExecution)
+class ToolExecutionAdmin(admin.ModelAdmin):
+    list_display = ['domain_scan', 'tool_name', 'tool_type', 'status', 'start_time', 'duration']
+    list_filter = ['status', 'tool_type', 'start_time']
+    search_fields = ['tool_name', 'domain_scan__domain_name']
+    readonly_fields = ['start_time', 'end_time', 'duration']
+    ordering = ['-created_at']
+    
+    fieldsets = (
+        ('Asosiy ma\'lumotlar', {
+            'fields': ('domain_scan', 'tool_name', 'tool_type', 'status')
+        }),
+        ('Bajarilish', {
+            'fields': ('command', 'start_time', 'end_time', 'duration')
+        }),
+        ('Natijalar', {
+            'fields': ('output', 'error_output')
+        })
+    )
 
 @admin.register(DomainToolConfiguration)
 class DomainToolConfigurationAdmin(admin.ModelAdmin):

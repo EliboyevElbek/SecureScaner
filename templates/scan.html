@@ -44,65 +44,25 @@
             </div>
         </div>
 
-        <!-- Scan Results Section -->
-        {% if show_results %}
-        <div class="results-section card">
-            <h2>Tahlil Natijalari</h2>
-            <div class="results-summary">
-                <p><strong>Jami tahlil qilingan:</strong> {{ total_scanned }} ta</p>
-                <p><strong>Tahlil vaqti:</strong> {{ timestamp|date:"d.m.Y H:i:s" }}</p>
-            </div>
-            
-            <div class="results-list">
-                {% for result in scan_results %}
-                <div class="result-item card">
-                    <div class="result-header">
-                        <h3>{{ result.domain }}</h3>
-                        <span class="status-badge status-{{ result.status }}">
-                            {% if result.status == 'completed' %}
-                                ✅ Tugallandi
-                            {% elif result.status == 'failed' %}
-                                ❌ Xatolik
-                            {% else %}
-                                ⏳ Jarayonda
-                            {% endif %}
-                        </span>
-                    </div>
-                    
-                    {% if result.status == 'completed' %}
-                    <div class="result-details">
-                        <div class="detail-row">
-                            <strong>IP Manzil:</strong> {{ result.ip_address|default:"Topilmadi" }}
-                        </div>
-                        <div class="detail-row">
-                            <strong>SSL:</strong> 
-                            {% if result.ssl_info.ssl_enabled %}
-                                ✅ Faol
-                            {% else %}
-                                ❌ Faol emas
-                            {% endif %}
-                        </div>
-                        <div class="detail-row">
-                            <strong>Xavfsizlik sarlavhalari:</strong>
-                            <ul class="security-headers">
-                                <li>X-Frame-Options: {{ result.security_headers.x_frame_options }}</li>
-                                <li>X-Content-Type-Options: {{ result.security_headers.x_content_type_options }}</li>
-                                <li>X-XSS-Protection: {{ result.security_headers.x_xss_protection }}</li>
-                                <li>HSTS: {{ result.security_headers.strict_transport_security }}</li>
-                                <li>CSP: {{ result.security_headers.content_security_policy }}</li>
-                            </ul>
-                        </div>
-                    </div>
-                    {% elif result.status == 'failed' %}
-                    <div class="error-message">
-                        <strong>Xatolik:</strong> {{ result.error }}
-                    </div>
-                    {% endif %}
-                </div>
-                {% endfor %}
+        <!-- Scan Progress Section -->
+        <div class="progress-section card" id="progressSection" style="display: none;">
+            <h2>Tahlil Jarayoni</h2>
+            <div class="progress-container" id="progressContainer">
+                <!-- Progress will be populated here -->
             </div>
         </div>
-        {% endif %}
+
+        <!-- Scan Results Section -->
+        <div class="results-section card" id="resultsSection" style="display: none;">
+            <h2>Tahlil Natijalari</h2>
+            <div class="results-summary" id="resultsSummary">
+                <!-- Summary will be populated here -->
+            </div>
+            
+            <div class="results-list" id="resultsList">
+                <!-- Results will be populated here -->
+            </div>
+        </div>
     </div>
 </div>
 {% endblock content %}

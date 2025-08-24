@@ -21,6 +21,10 @@ class DomainScan(models.Model):
     ssl_info = models.JSONField(default=dict, verbose_name="SSL ma'lumotlari")
     security_headers = models.JSONField(default=dict, verbose_name="Xavfsizlik sarlavhalari")
     error_message = models.TextField(blank=True, null=True, verbose_name="Xatolik xabari")
+    # Yangi maydonlar tool natijalari uchun
+    tool_results = models.JSONField(default=dict, verbose_name="Tool natijalari")
+    current_tool = models.CharField(max_length=50, blank=True, null=True, verbose_name="Joriy tool")
+    scan_progress = models.IntegerField(default=0, verbose_name="Tahlil progressi (%)")
     
     class Meta:
         verbose_name = "Domain Tahlil"
@@ -201,4 +205,43 @@ class ScanSession(models.Model):
     def __str__(self):
         return f"Sessiya {self.id} - {len(self.domains)} ta domain - {self.created_at.strftime('%d.%m.%Y %H:%M')}"
 
-# ToolExecution modeli endi kerak emas, chunki ScanSession soddalashtirildi
+class ToolExecution(models.Model):
+    """Tool bajarilishi - har bir domain va tool uchun"""
+    STATUS_CHOICES = [
+        ('pending', 'Kutilmoqda'),
+        ('running', 'Jarayonda'),
+        ('completed', 'Tugallandi'),
+        ('failed', 'Xatolik'),
+    ]
+    
+    domain_scan = models.ForeignKey(DomainScan, on_delete=models.CASCADE, related_name='tool_executions', verbose_name="Domain tahlil")
+    tool_name = models.CharField(max_length=50, verbose_name="Tool nomi")
+    tool_type = models.CharField(max_length=50, verbose_name="Tool turi")
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending', verbose_name="Holat")
+    command = models.TextField(verbose_name="Bajarilgan buyruq")
+    output = models.TextField(blank=True, verbose_name="Natija")
+    error_output = models.TextField(blank=True, verbose_name="Xatolik natijasi")
+    start_time = models.DateTimeField(null=True, blank=True, verbose_name="Boshlanish vaqti")
+    end_time = models.DateTimeField(null=True, blank=True, verbose_name="Tugash vaqti")
+    duration = models.FloatField(null=True, blank=True, verbose_name="Davomiyligi (soniya)")
+    created_at = models.DateTimeField(default=timezone.now, verbose_name="Yaratilgan sana")
+    
+    class Meta:
+        verbose_name = "Tool Bajarilishi"
+        verbose_name_plural = "Tool Bajarilishlari"
+        ordering = ['-created_at']
+        unique_together = ['domain_scan', 'tool_name']
+    
+    def __str__(self):
+        return f"{self.domain_scan.domain_name} - {self.tool_name} - {self.get_status_display()}"
+    
+    def get_duration_display(self):
+        """Davomiylikni ko'rsatish"""
+        if self.duration:
+            if self.duration < 60:
+                return f"{self.duration:.1f} soniya"
+            else:
+                minutes = int(self.duration // 60)
+                seconds = self.duration % 60
+                return f"{minutes} daqiqa {seconds:.1f} soniya"
+        return "N/A"
