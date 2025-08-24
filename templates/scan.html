@@ -38,8 +38,7 @@
                 <!-- Domains will be populated here -->
             </div>
             <div class="scan-actions">
-                <button class="btn btn-success btn-large" onclick="startScan()" id="startScanBtn">Tahlilni boshlash</button>
-                <button class="btn btn-danger btn-large" onclick="stopAllScans()" id="stopScanBtn" style="display: none;">⏹️ Tahlilni to'xtatish</button>
+                <button class="btn btn-success btn-large" onclick="startScan()">Tahlilni boshlash</button>
                 <button class="btn btn-secondary" onclick="resetDomains()">Qaytadan boshlash</button>
                 <button class="btn btn-primary" onclick="addMoreDomains()">+ Domain qo'shish</button>
             </div>
@@ -93,122 +92,6 @@
                                 <li>CSP: {{ result.security_headers.content_security_policy }}</li>
                             </ul>
                         </div>
-                        
-                        <!-- Tool Scanning Results -->
-                        {% if result.tool_results %}
-                        <div class="tool-results">
-                            <h4>🔧 Tool Tahlil Natijalari</h4>
-                            
-                            <!-- Nmap Results -->
-                            {% if result.tool_results.nmap %}
-                            <div class="tool-result nmap-result">
-                                <h5>🌐 Nmap (Port & Vulnerability Scan)</h5>
-                                {% if result.tool_results.nmap.status == 'completed' %}
-                                    {% if result.tool_results.nmap.ports %}
-                                    <div class="ports-info">
-                                        <strong>Ochiq Portlar:</strong>
-                                        <ul>
-                                        {% for port in result.tool_results.nmap.ports %}
-                                            <li>Port {{ port.port }} ({{ port.service }})</li>
-                                        {% endfor %}
-                                        </ul>
-                                    </div>
-                                    {% endif %}
-                                    
-                                    {% if result.tool_results.nmap.vulnerabilities %}
-                                    <div class="vulnerabilities-info">
-                                        <strong>Topilgan Zaifliklar:</strong>
-                                        <ul>
-                                        {% for vuln in result.tool_results.nmap.vulnerabilities %}
-                                            <li>{{ vuln }}</li>
-                                        {% endfor %}
-                                        </ul>
-                                    </div>
-                                    {% endif %}
-                                {% else %}
-                                    <span class="tool-status tool-{{ result.tool_results.nmap.status }}">
-                                        {{ result.tool_results.nmap.error|default:"Tahlil tugallanmadi" }}
-                                    </span>
-                                {% endif %}
-                            </div>
-                            {% endif %}
-                            
-                            <!-- SQLMap Results -->
-                            {% if result.tool_results.sqlmap %}
-                            <div class="tool-result sqlmap-result">
-                                <h5>💉 SQLMap (SQL Injection Scan)</h5>
-                                {% if result.tool_results.sqlmap.status == 'completed' %}
-                                    {% if result.tool_results.sqlmap.vulnerabilities %}
-                                    <div class="vulnerabilities-info">
-                                        <strong>Topilgan SQL Injection:</strong>
-                                        <ul>
-                                        {% for vuln in result.tool_results.sqlmap.vulnerabilities %}
-                                            <li>{{ vuln }}</li>
-                                        {% endfor %}
-                                        </ul>
-                                    </div>
-                                    {% else %}
-                                        <span class="tool-status tool-safe">✅ SQL Injection topilmadi</span>
-                                    {% endif %}
-                                {% else %}
-                                    <span class="tool-status tool-{{ result.tool_results.sqlmap.status }}">
-                                        {{ result.tool_results.sqlmap.error|default:"Tahlil tugallanmadi" }}
-                                    </span>
-                                {% endif %}
-                            </div>
-                            {% endif %}
-                            
-                            <!-- Gobuster Results -->
-                            {% if result.tool_results.gobuster %}
-                            <div class="tool-result gobuster-result">
-                                <h5>📁 Gobuster (Directory Discovery)</h5>
-                                {% if result.tool_results.gobuster.status == 'completed' %}
-                                    {% if result.tool_results.gobuster.directories %}
-                                    <div class="directories-info">
-                                        <strong>Topilgan Direktoriyalar:</strong>
-                                        <ul>
-                                        {% for dir in result.tool_results.gobuster.directories %}
-                                            <li>{{ dir }}</li>
-                                        {% endfor %}
-                                        </ul>
-                                    </div>
-                                    {% else %}
-                                        <span class="tool-status tool-safe">✅ Maxsus direktoriyalar topilmadi</span>
-                                    {% endif %}
-                                {% else %}
-                                    <span class="tool-status tool-{{ result.tool_results.gobuster.status }}">
-                                        {{ result.tool_results.gobuster.error|default:"Tahlil tugallanmadi" }}
-                                    </span>
-                                {% endif %}
-                            </div>
-                            {% endif %}
-                            
-                            <!-- XSStrike Results -->
-                            {% if result.tool_results.xsstrike %}
-                            <div class="tool-result xsstrike-result">
-                                <h5>🕷️ XSStrike (XSS Detection)</h5>
-                                {% if result.tool_results.xsstrike.status == 'completed' %}
-                                    {% if result.tool_results.xsstrike.xss_vulnerabilities %}
-                                    <div class="vulnerabilities-info">
-                                        <strong>Topilgan XSS Zaifliklari:</strong>
-                                        <ul>
-                                        {% for vuln in result.tool_results.xsstrike.xss_vulnerabilities %}
-                                            <li>{{ vuln }}</li>
-                                        {% endfor %}
-                                        </ul>
-                                    </div>
-                                    {% else %}
-                                        <span class="tool-status tool-safe">✅ XSS zaifliklari topilmadi</span>
-                                    {% endif %}
-                                {% else %}
-                                    <span class="tool-status tool-{{ result.tool_results.xsstrike.status }}">
-                                        {{ result.tool_results.xsstrike.error|default:"Tahlil tugallanmadi" }}
-                                    </span>
-                                {% endif %}
-                            </div>
-                            {% endif %}
-                        </div>
-                        {% endif %}
                     </div>
                     {% elif result.status == 'failed' %}
                     <div class="error-message">
