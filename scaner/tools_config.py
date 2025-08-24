@@ -204,7 +204,7 @@ TOOLS_DATA = {
                 'key': '-w',
                 'description': 'So\'zlar ro\'yxati fayli (wordlist)',
                 'placeholder': 'Masalan: /usr/share/wordlists/dirb/common.txt',
-                'default': '/usr/share/wordlists/dirb/common.txt',
+                'default': '',
                 'type': 'file',
                 'required': False
             },
@@ -212,7 +212,7 @@ TOOLS_DATA = {
                 'key': '-t',
                 'description': 'Threadlar soni (parallel ishlash)',
                 'placeholder': 'Masalan: 10',
-                'default': '10',
+                'default': '',
                 'type': 'number',
                 'required': False,
                 'min': 1,
@@ -222,7 +222,7 @@ TOOLS_DATA = {
                 'key': '-x',
                 'description': 'Fayl kengaytmalarini qo\'shish',
                 'placeholder': 'Masalan: php,html,txt,js',
-                'default': 'php,html,txt',
+                'default': '',
                 'type': 'text',
                 'required': False
             },
@@ -230,7 +230,7 @@ TOOLS_DATA = {
                 'key': '--status-codes',
                 'description': 'Qaysi HTTP kodlarni ko\'rsatish',
                 'placeholder': 'Masalan: 200,204,301,302,307,401,403',
-                'default': '200,204,301,302,307,401,403',
+                'default': '',
                 'type': 'text',
                 'required': False
             },
