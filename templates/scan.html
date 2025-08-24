@@ -38,7 +38,8 @@
                 <!-- Domains will be populated here -->
             </div>
             <div class="scan-actions">
-                <button class="btn btn-success btn-large" onclick="startScan()">Tahlilni boshlash</button>
+                <button class="btn btn-success btn-large" onclick="startScan()" id="startScanBtn">Tahlilni boshlash</button>
+                <button class="btn btn-danger btn-large" onclick="stopAllScans()" id="stopScanBtn" style="display: none;">⏹️ Tahlilni to'xtatish</button>
                 <button class="btn btn-secondary" onclick="resetDomains()">Qaytadan boshlash</button>
                 <button class="btn btn-primary" onclick="addMoreDomains()">+ Domain qo'shish</button>
             </div>

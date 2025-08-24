@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Process Management Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #1a1a1a;
+            color: #ffffff;
+        }
+        .container {
+            background: #2a2a2a;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            margin: 5px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .danger {
+            background: #dc3545;
+        }
+        .danger:hover {
+            background: #c82333;
+        }
+        .success {
+            background: #28a745;
+        }
+        .success:hover {
+            background: #218838;
+        }
+        .status {
+            background: #17a2b8;
+        }
+        .status:hover {
+            background: #138496;
+        }
+        .log {
+            background: #333;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .process-item {
+            background: #444;
+            padding: 10px;
+            margin: 5px 0;
+            border-radius: 5px;
+            border-left: 4px solid #007bff;
+        }
+        .running {
+            border-left-color: #28a745;
+        }
+        .stopped {
+            border-left-color: #dc3545;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔧 Process Management Test</h1>
+    
+    <div class="container">
+        <h3>Process Boshqarish</h3>
+        <button onclick="createTestProcess()" class="success">➕ Test Process Yaratish</button>
+        <button onclick="checkStatus()" class="status">📊 Status Tekshirish</button>
+        <button onclick="stopAllProcesses()" class="danger">⏹️ Barcha Process'larni To'xtatish</button>
+    </div>
+    
+    <div class="container">
+        <h3>📋 Process Status</h3>
+        <div id="processStatus">Hech qanday process yo'q</div>
+    </div>
+    
+    <div class="container">
+        <h3>📝 Log</h3>
+        <div id="log" class="log"></div>
+    </div>
+
+    <script>
+        function log(message) {
+            const logDiv = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            logDiv.innerHTML += `[${timestamp}] ${message}<br>`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        function createTestProcess() {
+            log('Test process yaratilmoqda...');
+            
+            fetch('/scaner/test-process/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                },
+                body: 'action=create'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    log(`✅ ${data.message}`);
+                    checkStatus();
+                } else {
+                    log(`❌ Xatolik: ${data.error}`);
+                }
+            })
+            .catch(error => {
+                log(`❌ Xatolik: ${error}`);
+            });
+        }
+
+        function checkStatus() {
+            log('Process status tekshirilmoqda...');
+            
+            fetch('/scaner/test-process/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                },
+                body: 'action=status'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    log(`📊 ${data.process_count} ta process topildi`);
+                    displayProcessStatus(data.processes);
+                } else {
+                    log(`❌ Xatolik: ${data.error}`);
+                }
+            })
+            .catch(error => {
+                log(`❌ Xatolik: ${error}`);
+            });
+        }
+
+        function displayProcessStatus(processes) {
+            const statusDiv = document.getElementById('processStatus');
+            
+            if (processes.length === 0) {
+                statusDiv.innerHTML = 'Hech qanday process yo\'q';
+                return;
+            }
+            
+            let html = '';
+            processes.forEach(process => {
+                const statusClass = process.running ? 'running' : 'stopped';
+                const statusText = process.running ? '🟢 Ishlayapti' : '🔴 To\'xtagan';
+                
+                html += `
+                    <div class="process-item ${statusClass}">
+                        <strong>ID:</strong> ${process.id}<br>
+                        <strong>Domain:</strong> ${process.domain}<br>
+                        <strong>Tool:</strong> ${process.tool}<br>
+                        <strong>Status:</strong> ${statusText}
+                    </div>
+                `;
+            });
+            
+            statusDiv.innerHTML = html;
+        }
+
+        function stopAllProcesses() {
+            log('Barcha process\'lar to\'xtatilmoqda...');
+            
+            fetch('/scaner/test-process/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                },
+                body: 'action=stop'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    log(`✅ ${data.message}`);
+                    checkStatus();
+                } else {
+                    log(`❌ Xatolik: ${data.error}`);
+                }
+            })
+            .catch(error => {
+                log(`❌ Xatolik: ${error}`);
+            });
+        }
+
+        // Sahifa yuklanganda status tekshirish
+        window.onload = function() {
+            log('Sahifa yuklandi. Process status tekshirilmoqda...');
+            checkStatus();
+        };
+    </script>
+
+    {% csrf_token %}
+</body>
+</html>

@@ -1175,14 +1175,14 @@ function startScan() {
     
     console.log('Starting parallel scan for domains:', domains);
     
-    // Show loading state with professional animation
-    const scanButton = document.querySelector('.btn-success');
-    const originalText = scanButton.textContent;
-    scanButton.textContent = '🚀 Parallel Tahlil Boshlanmoqda...';
-    scanButton.disabled = true;
-    scanButton.classList.add('loading');
+    // Show stop button and hide start button
+    const startBtn = document.getElementById('startScanBtn');
+    const stopBtn = document.getElementById('stopScanBtn');
     
-    // Add loading animation to all domain items
+    startBtn.style.display = 'none';
+    stopBtn.style.display = 'inline-block';
+    
+    // Add scanning state to all domain items
     document.querySelectorAll('.domain-item').forEach(item => {
         item.classList.add('scanning');
     });
@@ -1228,10 +1228,9 @@ function startScan() {
         console.error('Scan error:', error);
         showNotification('Tahlil xatosi: ' + error.message, 'error');
         
-        // Reset button and domain items
-        scanButton.textContent = originalText;
-        scanButton.disabled = false;
-        scanButton.classList.remove('loading');
+        // Reset buttons and domain items
+        startBtn.style.display = 'inline-block';
+        stopBtn.style.display = 'none';
         
         document.querySelectorAll('.domain-item').forEach(item => {
             item.classList.remove('scanning');
@@ -1247,6 +1246,91 @@ function showDomainProgressButtons() {
             progressBtn.style.display = 'inline-block';
             progressBtn.classList.add('pulse-animation');
         }
+    });
+}
+
+function stopAllScans() {
+    if (confirm('Haqiqatdan tahlilni to\'xtatishni xohlaysizmi?')) {
+        console.log('Stopping all scans...');
+        
+        // Show notification
+        showNotification('Tahlil to\'xtatilmoqda...', 'warning');
+        
+        // Backend ga so'rov yuborish - subprocess'larni to'xtatish uchun
+        fetch('/scaner/stop-scanning/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCSRFToken()
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showNotification('Backend subprocess\'lar to\'xtatildi', 'success');
+            } else {
+                showNotification('Backend da xatolik: ' + (data.error || 'Noma\'lum xatolik'), 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Stop scanning error:', error);
+            showNotification('Backend ga so\'rov yuborishda xatolik', 'error');
+        });
+        
+        // Stop all tool intervals
+        domains.forEach((domain, domainIndex) => {
+            ['nmap', 'sqlmap', 'gobuster', 'xsstrike'].forEach(toolType => {
+                const intervalId = window[`tool_interval_${domainIndex}_${toolType}`];
+                if (intervalId) {
+                    clearInterval(intervalId);
+                    delete window[`tool_interval_${domainIndex}_${toolType}`];
+                }
+            });
+        });
+        
+        // Reset buttons
+        const startBtn = document.getElementById('startScanBtn');
+        const stopBtn = document.getElementById('stopScanBtn');
+        
+        startBtn.style.display = 'inline-block';
+        stopBtn.style.display = 'none';
+        
+        // Remove scanning state from domain items
+        document.querySelectorAll('.domain-item').forEach(item => {
+            item.classList.remove('scanning');
+        });
+        
+        // Hide progress buttons
+        domains.forEach((domain, index) => {
+            const progressBtn = document.getElementById(`progressBtn_${index}`);
+            if (progressBtn) {
+                progressBtn.style.display = 'none';
+                progressBtn.classList.remove('pulse-animation');
+            }
+        });
+        
+        // Close all open modals
+        closeAllModals();
+        
+        showNotification('Tahlil to\'xtatildi', 'info');
+    }
+}
+
+function closeAllModals() {
+    // Close scan progress modals
+    domains.forEach((domain, domainIndex) => {
+        const modal = document.getElementById(`scanProgressModal_${domainIndex}`);
+        if (modal) {
+            modal.remove();
+        }
+        
+        // Close tool logs modals
+        ['nmap', 'sqlmap', 'gobuster', 'xsstrike'].forEach(toolType => {
+            const toolModal = document.getElementById(`toolLogsModal_${domainIndex}_${toolType}`);
+            if (toolModal) {
+                toolModal.remove();
+            }
+        });
     });
 }
 

@@ -502,31 +502,7 @@
     font-family: 'Inter', sans-serif;
 }
 
-/* Loading States - Dark Professional */
-.loading {
-    opacity: 0.6;
-    pointer-events: none;
-    position: relative;
-}
-
-.loading::after {
-    content: '';
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 24px;
-    height: 24px;
-    margin: -12px 0 0 -12px;
-    border: 2px solid #00ff00;
-    border-top: 2px solid transparent;
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
-}
+/* Loading States - Dark Professional - REMOVED */
 
 /* Scan History Styles - Dark Professional */
 .history-header {
@@ -3979,6 +3955,11 @@
     0% { transform: scale(1); }
     50% { transform: scale(1.05); }
     100% { transform: scale(1); }
+}
+
+/* Scan Control Buttons */
+#startScanBtn, #stopScanBtn {
+    transition: all 0.3s ease;
 }
 
 /* Scan Progress Modal Styles */
