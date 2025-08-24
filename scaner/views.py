@@ -6,12 +6,12 @@ import json
 import socket
 import requests
 import urllib3
-from .models import DomainScan, Tool, KeshDomain, DomainToolConfiguration, ScanSession, ToolExecution
-from django.utils import timezone
-import subprocess
 import threading
-import time
+import subprocess
+import concurrent.futures
 from concurrent.futures import ThreadPoolExecutor, as_completed
+import time
+from .models import DomainScan, Tool, KeshDomain, DomainToolConfiguration, ScanSession
 
 # SSL warnings ni o'chirish
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -84,26 +84,8 @@ def scan(request):
                 except Exception as e:
                     print(f"ScanSession yaratishda xatolik: {e}")
                 
-                # 3. Har bir domen uchun tahlil qilish
-                scan_results = []
-                
-                for domain in domains:
-                    domain = domain.strip()
-                    if not domain:
-                        continue
-                    
-                    # Domain validatsiyasi
-                    if not is_valid_domain(domain):
-                        scan_results.append({
-                            'domain': domain,
-                            'status': 'failed',
-                            'error': 'Noto\'g\'ri domain format'
-                        })
-                        continue
-                    
-                    # Domen tahlilini amalga oshirish
-                    scan_result = perform_domain_scan(domain)
-                    scan_results.append(scan_result)
+                # 3. Parallel ravishda domainlarni tahlil qilish
+                scan_results = perform_parallel_domain_scans(domains)
                 
                 # 4. Tahlil tugagandan so'ng KeshDomain bazasidagi barcha domainlarni o'chirish
                 try:
@@ -120,7 +102,7 @@ def scan(request):
                 return JsonResponse({
                     'success': True,
                     'results': scan_results,
-                    'message': f'Tahlil muvaffaqiyatli tugallandi. {len(scan_results)} ta domain tahlil qilindi.'
+                    'message': f'Tahlil muvaffaqiyatli tugallandi. {len(scan_results)} ta domain parallel ravishda tahlil qilindi.'
                 })
             
             else:
@@ -142,51 +124,6 @@ def scan(request):
         'existing_domains': existing_domains
     })
 
-@csrf_exempt
-def scan_progress(request):
-    """Real-time scan progress uchun API endpoint"""
-    if request.method == 'POST':
-        try:
-            data = json.loads(request.body)
-            domain = data.get('domain')
-            
-            if not domain:
-                return JsonResponse({'error': 'Domain nomi kiritilmagan'}, status=400)
-            
-            # Domain scan ni topish
-            scan = DomainScan.objects.filter(domain_name=domain).order_by('-scan_date').first()
-            
-            if not scan:
-                return JsonResponse({'error': 'Domain tahlili topilmadi'}, status=400)
-            
-            # Tool execution natijalarini olish
-            tool_executions = scan.tool_executions.all()
-            tool_statuses = {}
-            
-            for execution in tool_executions:
-                tool_statuses[execution.tool_name] = {
-                    'status': execution.status,
-                    'progress': execution.get_duration_display(),
-                    'output': execution.output[:500] if execution.output else '',  # Faqat birinchi 500 belgi
-                    'error': execution.error_output[:500] if execution.error_output else ''
-                }
-            
-            return JsonResponse({
-                'success': True,
-                'scan_status': scan.status,
-                'current_tool': scan.current_tool,
-                'scan_progress': scan.scan_progress,
-                'tool_statuses': tool_statuses,
-                'scan_id': scan.id
-            })
-            
-        except json.JSONDecodeError:
-            return JsonResponse({'error': 'Noto\'g\'ri JSON format'}, status=400)
-        except Exception as e:
-            return JsonResponse({'error': f'Xatolik yuz berdi: {str(e)}'}, status=500)
-    
-    return JsonResponse({'error': 'Faqat POST so\'rov qabul qilinadi'}, status=405)
-
 def scan_history(request):
     """Scan history sahifasi - yangi va eski tahlillarni ko'rsatish"""
     try:
@@ -197,34 +134,57 @@ def scan_history(request):
         
         # Yangi tahlillarni olish (eng so'nggi ScanSession dagi domainlar)
         # "Tahlil qilish" tugmasi bosilganda yaratilgan eng so'nggi sessiyadagi domainlar
+        new_domains = []  # Initialize new_domains
+        new_scans = []
+        old_scans = []
+        
         if all_scans.exists():
-            # Eng so'nggi ScanSession ni topish
-            latest_session = ScanSession.objects.order_by('-created_at').first()
-            
-            if latest_session and latest_session.domains:
-                # Eng so'nggi sessiyadagi barcha domainlarni "yangi tahlillar" deb hisoblash
-                new_domains = latest_session.domains
-                new_scans = DomainScan.objects.filter(
-                    domain_name__in=new_domains,
-                    status='completed'
-                ).order_by('-scan_date')
-                print(f"ScanSession dan yangi tahlillar: {new_domains}")
-            else:
-                # ScanSession yo'q bo'lsa, eng so'nggi tahlil qilingan domainni olish
-                latest_scan = all_scans.first()
-                new_scans = DomainScan.objects.filter(
-                    domain_name=latest_scan.domain_name,
-                    status='completed'
-                ).order_by('-scan_date')[:1]
-                new_domains = [latest_scan.domain_name]
-                print(f"ScanSession yo'q, eng so'nggi domain: {new_domains}")
-            
-            # Eski tahlillarni olish (yangi tahlillarda bo'lmagan domainlar)
-            old_scans = DomainScan.objects.filter(
-                status='completed'
-            ).exclude(
-                domain_name__in=new_domains
-            ).order_by('-scan_date')[:50]
+            try:
+                # Eng so'nggi ScanSession ni topish
+                latest_session = ScanSession.objects.order_by('-created_at').first()
+                
+                if latest_session and hasattr(latest_session, 'domains') and latest_session.domains:
+                    # Eng so'nggi sessiyadagi barcha domainlarni "yangi tahlillar" deb hisoblash
+                    new_domains = latest_session.domains
+                    if isinstance(new_domains, list) and new_domains:
+                        new_scans = DomainScan.objects.filter(
+                            domain_name__in=new_domains,
+                            status='completed'
+                        ).order_by('-scan_date')
+                        print(f"ScanSession dan yangi tahlillar: {new_domains}")
+                    else:
+                        new_domains = []
+                        new_scans = []
+                else:
+                    # ScanSession yo'q bo'lsa, eng so'nggi tahlil qilingan domainni olish
+                    latest_scan = all_scans.first()
+                    if latest_scan:
+                        new_domains = [latest_scan.domain_name]
+                        new_scans = DomainScan.objects.filter(
+                            domain_name=latest_scan.domain_name,
+                            status='completed'
+                        ).order_by('-scan_date')[:1]
+                        print(f"ScanSession yo'q, eng so'nggi domain: {new_domains}")
+                    else:
+                        new_domains = []
+                        new_scans = []
+                
+                # Eski tahlillarni olish (yangi tahlillarda bo'lmagan domainlar)
+                if new_domains:
+                    old_scans = DomainScan.objects.filter(
+                        status='completed'
+                    ).exclude(
+                        domain_name__in=new_domains
+                    ).order_by('-scan_date')[:50]
+                else:
+                    old_scans = all_scans[:50]
+                    
+            except Exception as session_error:
+                print(f"ScanSession processing xatolik: {session_error}")
+                # Fallback: use all scans as old scans
+                new_domains = []
+                new_scans = []
+                old_scans = all_scans[:50]
         else:
             new_scans = []
             old_scans = []
@@ -232,15 +192,17 @@ def scan_history(request):
         context = {
             'new_scans': new_scans,
             'old_scans': old_scans,
-            'new_count': new_scans.count(),
-            'old_count': old_scans.count(),
+            'new_count': len(new_scans) if isinstance(new_scans, list) else new_scans.count(),
+            'old_count': len(old_scans) if isinstance(old_scans, list) else old_scans.count(),
             'total_count': all_scans.count()
         }
         
         return render(request, 'scan_history.html', context)
         
     except Exception as e:
+        import traceback
         print(f"Scan history xatolik: {e}")
+        print(f"Traceback: {traceback.format_exc()}")
         context = {
             'new_scans': [],
             'old_scans': [],
@@ -371,15 +333,15 @@ def is_valid_domain(domain):
     return bool(re.match(domain_pattern, domain))
 
 def perform_domain_scan(domain):
-    """Domen tahlilini amalga oshirish - parallel tool execution bilan"""
+    """Domen tahlilini amalga oshirish"""
     scan = None
     try:
         # Yangi scan yaratish
         scan = DomainScan.objects.create(
             domain_name=domain,
             status='scanning',
-            current_tool='DNS tekshirish',
-            scan_progress=0
+            scan_progress=0,
+            current_tool='starting'
         )
         
         # IP manzilni olish
@@ -387,8 +349,6 @@ def perform_domain_scan(domain):
         try:
             ip_address = socket.gethostbyname(domain)
             scan.ip_address = ip_address
-            scan.scan_progress = 10
-            scan.save()
         except socket.gaierror:
             ip_address = None
         except Exception as e:
@@ -396,29 +356,20 @@ def perform_domain_scan(domain):
             ip_address = None
         
         # DNS ma'lumotlarini olish
-        scan.current_tool = 'DNS ma\'lumotlari'
-        scan.scan_progress = 20
-        scan.save()
         dns_records = get_dns_info(domain)
         
         # SSL ma'lumotlarini olish
-        scan.current_tool = 'SSL tekshirish'
-        scan.scan_progress = 30
-        scan.save()
         ssl_info = get_ssl_info(domain)
         
         # Xavfsizlik sarlavhalarini olish
-        scan.current_tool = 'Xavfsizlik sarlavhalari'
-        scan.scan_progress = 40
-        scan.save()
         security_headers = get_security_headers(domain)
         
-        # Tool natijalarini parallel bajarish
-        scan.current_tool = 'Tool tahlillari'
+        # Tool scanning natijalarini olish (parallel ravishda)
+        scan.current_tool = 'scanning_tools'
         scan.scan_progress = 50
         scan.save()
         
-        tool_results = perform_tool_scans(scan, domain)
+        tool_results = perform_tool_scans(domain)
         
         # Natijalarni saqlash
         scan.scan_result = {
@@ -427,16 +378,16 @@ def perform_domain_scan(domain):
             'ssl_info': ssl_info,
             'security_headers': security_headers,
             'tool_results': tool_results,
-            'scan_duration': '0.5 soniya'
+            'scan_duration': '2-5 soniya'
         }
         
         scan.dns_records = dns_records
         scan.ssl_info = ssl_info
         scan.security_headers = security_headers
         scan.tool_results = tool_results
-        scan.status = 'completed'
-        scan.current_tool = 'Tugallandi'
+        scan.current_tool = 'completed'
         scan.scan_progress = 100
+        scan.status = 'completed'
         scan.save()
         
         return {
@@ -456,7 +407,6 @@ def perform_domain_scan(domain):
         if scan:
             scan.status = 'failed'
             scan.error_message = str(e)
-            scan.current_tool = 'Xatolik'
             scan.save()
         
         print(f"Domain tahlilida xatolik {domain}: {e}")
@@ -466,246 +416,34 @@ def perform_domain_scan(domain):
             'error': str(e)
         }
 
-def perform_tool_scans(scan, domain):
-    """Tool tahlillarini parallel bajarish"""
-    tool_results = {}
+def perform_parallel_domain_scans(domains):
+    """Parallel ravishda domainlarni tahlil qilish"""
+    scan_results = []
     
-    # Mavjud toolarni olish
-    tools = Tool.objects.filter(is_active=True)
-    
-    # Har bir tool uchun ToolExecution yaratish
-    tool_executions = {}
-    for tool in tools:
-        execution = ToolExecution.objects.create(
-            domain_scan=scan,
-            tool_name=tool.name,
-            tool_type=tool.tool_type,
-            status='pending',
-            command=''
-        )
-        tool_executions[tool.tool_type] = execution
-    
-    # Parallel bajarish uchun ThreadPoolExecutor ishlatish
-    with ThreadPoolExecutor(max_workers=4) as executor:
-        # Har bir tool uchun future yaratish
-        future_to_tool = {}
+    # ThreadPoolExecutor yordamida parallel ishlash
+    with ThreadPoolExecutor(max_workers=min(len(domains), 10)) as executor:
+        # Har bir domain uchun future yaratish
+        future_to_domain = {
+            executor.submit(perform_domain_scan, domain): domain 
+            for domain in domains if domain.strip()
+        }
         
-        for tool in tools:
-            future = executor.submit(run_single_tool, tool, domain, tool_executions[tool.tool_type])
-            future_to_tool[future] = tool.tool_type
-        
-        # Natijalarni kutish va progress yangilash
-        completed_tools = 0
-        total_tools = len(tools)
-        
-        for future in as_completed(future_to_tool):
-            tool_type = future_to_tool[future]
+        # Natijalarni olish
+        for future in as_completed(future_to_domain):
+            domain = future_to_domain[future]
             try:
                 result = future.result()
-                tool_results[tool_type] = result
-                completed_tools += 1
-                
-                # Progress yangilash
-                progress = 50 + int((completed_tools / total_tools) * 50)
-                scan.scan_progress = progress
-                scan.current_tool = f'Tool tahlillari ({completed_tools}/{total_tools})'
-                scan.save()
-                
+                scan_results.append(result)
+                print(f"Domain {domain} tahlili tugallandi: {result['status']}")
             except Exception as e:
-                print(f"Tool {tool_type} da xatolik: {e}")
-                tool_results[tool_type] = {'error': str(e)}
+                print(f"Domain {domain} tahlilida xatolik: {e}")
+                scan_results.append({
+                    'domain': domain,
+                    'status': 'failed',
+                    'error': str(e)
+                })
     
-    return tool_results
-
-def run_single_tool(tool, domain, execution):
-    """Bitta tool ni bajarish"""
-    try:
-        execution.status = 'running'
-        execution.start_time = timezone.now()
-        execution.save()
-        
-        # Tool turiga qarab buyruq yaratish
-        if tool.tool_type == 'nmap':
-            result = run_nmap_scan(tool, domain, execution)
-        elif tool.tool_type == 'sqlmap':
-            result = run_sqlmap_scan(tool, domain, execution)
-        elif tool.tool_type == 'xsstrike':
-            result = run_xsstrike_scan(tool, domain, execution)
-        elif tool.tool_type == 'gobuster':
-            result = run_gobuster_scan(tool, domain, execution)
-        else:
-            result = {'error': 'Noma\'lum tool turi'}
-        
-        execution.status = 'completed'
-        execution.output = str(result)
-        execution.end_time = timezone.now()
-        if execution.start_time:
-            execution.duration = (execution.end_time - execution.start_time).total_seconds()
-        execution.save()
-        
-        return result
-        
-    except Exception as e:
-        execution.status = 'failed'
-        execution.error_output = str(e)
-        execution.end_time = timezone.now()
-        if execution.start_time:
-            execution.duration = (execution.end_time - execution.start_time).total_seconds()
-        execution.save()
-        
-        return {'error': str(e)}
-
-def run_nmap_scan(tool, domain, execution):
-    """Nmap scan bajarish"""
-    try:
-        # Nmap buyrug'ini tayyorlash
-        command = f'"{tool.executable_path}" -sS -sV -O {domain}'
-        execution.command = command
-        
-        # Subprocess orqali bajarish
-        process = subprocess.Popen(
-            command,
-            shell=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True
-        )
-        
-        stdout, stderr = process.communicate(timeout=300)  # 5 daqiqa timeout
-        
-        if process.returncode == 0:
-            return {
-                'status': 'success',
-                'output': stdout,
-                'ports_found': len([line for line in stdout.split('\n') if 'open' in line]),
-                'services': [line for line in stdout.split('\n') if 'open' in line]
-            }
-        else:
-            return {
-                'status': 'error',
-                'error': stderr,
-                'return_code': process.returncode
-            }
-            
-    except subprocess.TimeoutExpired:
-        process.kill()
-        return {'status': 'timeout', 'error': 'Vaqt tugadi'}
-    except Exception as e:
-        return {'status': 'error', 'error': str(e)}
-
-def run_sqlmap_scan(tool, domain, execution):
-    """SQLMap scan bajarish"""
-    try:
-        # SQLMap buyrug'ini tayyorlash
-        command = f'"{tool.executable_path}" -u "http://{domain}" --batch --random-agent --level 1'
-        execution.command = command
-        
-        # Subprocess orqali bajarish
-        process = subprocess.Popen(
-            command,
-            shell=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True
-        )
-        
-        stdout, stderr = process.communicate(timeout=300)  # 5 daqiqa timeout
-        
-        if process.returncode == 0:
-            return {
-                'status': 'success',
-                'output': stdout,
-                'vulnerabilities_found': 'SQL injection' in stdout.lower(),
-                'details': stdout
-            }
-        else:
-            return {
-                'status': 'error',
-                'error': stderr,
-                'return_code': process.returncode
-            }
-            
-    except subprocess.TimeoutExpired:
-        process.kill()
-        return {'status': 'timeout', 'error': 'Vaqt tugadi'}
-    except Exception as e:
-        return {'status': 'error', 'error': str(e)}
-
-def run_xsstrike_scan(tool, domain, execution):
-    """XSStrike scan bajarish"""
-    try:
-        # XSStrike buyrug'ini tayyorlash
-        command = f'"{tool.executable_path}" -u "http://{domain}" --skip-domains'
-        execution.command = command
-        
-        # Subprocess orqali bajarish
-        process = subprocess.Popen(
-            command,
-            shell=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True
-        )
-        
-        stdout, stderr = process.communicate(timeout=300)  # 5 daqiqa timeout
-        
-        if process.returncode == 0:
-            return {
-                'status': 'success',
-                'output': stdout,
-                'xss_found': 'xss' in stdout.lower() or 'vulnerable' in stdout.lower(),
-                'details': stdout
-            }
-        else:
-            return {
-                'status': 'error',
-                'error': stderr,
-                'return_code': process.returncode
-            }
-            
-    except subprocess.TimeoutExpired:
-        process.kill()
-        return {'status': 'timeout', 'error': 'Vaqt tugadi'}
-    except Exception as e:
-        return {'status': 'error', 'error': str(e)}
-
-def run_gobuster_scan(tool, domain, execution):
-    """Gobuster scan bajarish"""
-    try:
-        # Gobuster buyrug'ini tayyorlash
-        command = f'"{tool.executable_path}" dir -u "http://{domain}" -w "tools/gobuster/common.txt"'
-        execution.command = command
-        
-        # Subprocess orqali bajarish
-        process = subprocess.Popen(
-            command,
-            shell=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True
-        )
-        
-        stdout, stderr = process.communicate(timeout=300)  # 5 daqiqa timeout
-        
-        if process.returncode == 0:
-            return {
-                'status': 'success',
-                'output': stdout,
-                'directories_found': len([line for line in stdout.split('\n') if 'found' in line.lower()]),
-                'details': stdout
-            }
-        else:
-            return {
-                'status': 'error',
-                'error': stderr,
-                'return_code': process.returncode
-            }
-            
-    except subprocess.TimeoutExpired:
-        process.kill()
-        return {'status': 'timeout', 'error': 'Vaqt tugadi'}
-    except Exception as e:
-        return {'status': 'error', 'error': str(e)}
+    return scan_results
 
 def get_dns_info(domain):
     """DNS ma'lumotlarini olish"""
@@ -904,6 +642,367 @@ def get_security_headers(domain):
             print(f"  {key}: {value}")
     
     return security_headers
+
+def perform_tool_scans(domain):
+    """Domain uchun tool scanning natijalarini olish"""
+    tool_results = {}
+    
+    try:
+        # Nmap scanning
+        try:
+            nmap_result = run_nmap_scan(domain)
+            tool_results['nmap'] = nmap_result
+        except Exception as e:
+            print(f"Nmap scanning xatolik {domain}: {e}")
+            tool_results['nmap'] = {
+                'status': 'error',
+                'error': f'Nmap tool mavjud emas yoki xatolik: {str(e)}'
+            }
+        
+        # SQLMap scanning (basic)
+        try:
+            sqlmap_result = run_sqlmap_scan(domain)
+            tool_results['sqlmap'] = sqlmap_result
+        except Exception as e:
+            print(f"SQLMap scanning xatolik {domain}: {e}")
+            tool_results['sqlmap'] = {
+                'status': 'error',
+                'error': f'SQLMap tool mavjud emas yoki xatolik: {str(e)}'
+            }
+        
+        # Gobuster scanning
+        try:
+            gobuster_result = run_gobuster_scan(domain)
+            tool_results['gobuster'] = gobuster_result
+        except Exception as e:
+            print(f"Gobuster scanning xatolik {domain}: {e}")
+            tool_results['gobuster'] = {
+                'status': 'error',
+                'error': f'Gobuster tool mavjud emas yoki xatolik: {str(e)}'
+            }
+        
+        # XSStrike scanning
+        try:
+            xsstrike_result = run_xsstrike_scan(domain)
+            tool_results['xsstrike'] = xsstrike_result
+        except Exception as e:
+            print(f"XSStrike scanning xatolik {domain}: {e}")
+            tool_results['xsstrike'] = {
+                'status': 'error',
+                'error': f'XSStrike tool mavjud emas yoki xatolik: {str(e)}'
+            }
+        
+    except Exception as e:
+        print(f"Tool scanning xatolik {domain}: {e}")
+        tool_results['error'] = str(e)
+    
+    return tool_results
+
+def run_nmap_scan(domain):
+    """Nmap orqali domain scanning"""
+    try:
+        # Check if nmap tool exists
+        import os
+        nmap_path = 'tools/nmap/nmap.exe'
+        if not os.path.exists(nmap_path):
+            return {
+                'status': 'error',
+                'error': 'Nmap tool topilmadi. Iltimos, tools/nmap/ papkasini tekshiring.'
+            }
+        
+        # Nmap command
+        cmd = [
+            nmap_path,
+            '-sS',  # TCP SYN scan
+            '-sV',  # Version detection
+            '-O',   # OS detection
+            '--script=vuln',  # Vulnerability scripts
+            '-T4',  # Timing template
+            '--host-timeout=300s',  # Host timeout
+            domain
+        ]
+        
+        # Subprocess orqali ishga tushirish
+        result = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            timeout=300,  # 5 daqiqa timeout
+            cwd='.'  # Current working directory
+        )
+        
+        if result.returncode == 0:
+            return {
+                'status': 'completed',
+                'output': result.stdout,
+                'ports': extract_nmap_ports(result.stdout),
+                'vulnerabilities': extract_nmap_vulns(result.stdout)
+            }
+        else:
+            return {
+                'status': 'failed',
+                'error': result.stderr,
+                'return_code': result.returncode
+            }
+            
+    except subprocess.TimeoutExpired:
+        return {
+            'status': 'timeout',
+            'error': 'Nmap scanning vaqti tugadi'
+        }
+    except Exception as e:
+        return {
+            'status': 'error',
+            'error': str(e)
+        }
+
+def run_sqlmap_scan(domain):
+    """SQLMap orqali domain scanning"""
+    try:
+        # Check if sqlmap tool exists
+        import os
+        sqlmap_path = 'tools/sqlmap/sqlmap.py'
+        if not os.path.exists(sqlmap_path):
+            return {
+                'status': 'error',
+                'error': 'SQLMap tool topilmadi. Iltimos, tools/sqlmap/ papkasini tekshiring.'
+            }
+        
+        # SQLMap command (basic scan)
+        cmd = [
+            'python', sqlmap_path,
+            '-u', f'http://{domain}',
+            '--batch',  # No user interaction
+            '--random-agent',  # Random user agent
+            '--level=1',  # Scan level
+            '--risk=1',   # Risk level
+            '--threads=3',  # Threads
+            '--timeout=30',  # Timeout
+            '--smart',  # Smart optimization
+            '--output-dir=scan_results'  # Output directory
+        ]
+        
+        # Subprocess orqali ishga tushirish
+        result = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            timeout=180,  # 3 daqiqa timeout
+            cwd='.'
+        )
+        
+        if result.returncode == 0:
+            return {
+                'status': 'completed',
+                'output': result.stdout,
+                'vulnerabilities': extract_sqlmap_vulns(result.stdout)
+            }
+        else:
+            return {
+                'status': 'failed',
+                'error': result.stderr,
+                'return_code': result.returncode
+            }
+            
+    except subprocess.TimeoutExpired:
+        return {
+            'status': 'timeout',
+            'error': 'SQLMap scanning vaqti tugadi'
+        }
+    except Exception as e:
+        return {
+            'status': 'error',
+            'error': str(e)
+        }
+
+def run_gobuster_scan(domain):
+    """Gobuster orqali domain scanning"""
+    try:
+        # Check if gobuster tool exists
+        import os
+        gobuster_path = 'tools/gobuster/gobuster.exe'
+        if not os.path.exists(gobuster_path):
+            return {
+                'status': 'error',
+                'error': 'Gobuster tool topilmadi. Iltimos, tools/gobuster/ papkasini tekshiring.'
+            }
+        
+        # Check if wordlist exists
+        wordlist_path = 'tools/params/common-files.txt'
+        if not os.path.exists(wordlist_path):
+            return {
+                'status': 'error',
+                'error': 'Wordlist fayli topilmadi. Iltimos, tools/params/common-files.txt ni tekshiring.'
+            }
+        
+        # Gobuster command
+        cmd = [
+            gobuster_path,
+            'dir',
+            '-u', f'http://{domain}',
+            '-w', wordlist_path,  # Wordlist
+            '-t', '10',  # Threads
+            '--timeout=10s',  # Timeout
+            '--random-agent'  # Random user agent
+        ]
+        
+        # Subprocess orqali ishga tushirish
+        result = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            timeout=120,  # 2 daqiqa timeout
+            cwd='.'
+        )
+        
+        if result.returncode == 0:
+            return {
+                'status': 'completed',
+                'output': result.stdout,
+                'directories': extract_gobuster_dirs(result.stdout)
+            }
+        else:
+            return {
+                'status': 'failed',
+                'error': result.stderr,
+                'return_code': result.returncode
+            }
+            
+    except subprocess.TimeoutExpired:
+        return {
+            'status': 'timeout',
+            'error': 'Gobuster scanning vaqti tugadi'
+        }
+    except Exception as e:
+        return {
+            'status': 'error',
+            'error': str(e)
+        }
+
+def run_xsstrike_scan(domain):
+    """XSStrike orqali domain scanning"""
+    try:
+        # Check if xsstrike tool exists
+        import os
+        xsstrike_path = 'tools/XSStrike/xsstrike.py'
+        if not os.path.exists(xsstrike_path):
+            return {
+                'status': 'error',
+                'error': 'XSStrike tool topilmadi. Iltimos, tools/XSStrike/ papkasini tekshiring.'
+            }
+        
+        # XSStrike command
+        cmd = [
+            'python', xsstrike_path,
+            '--url', f'http://{domain}',
+            '--blind',  # Blind XSS detection
+            '--skip-dom',  # Skip DOM XSS
+            '--threads', '5',  # Threads
+            '--timeout', '30'  # Timeout
+        ]
+        
+        # Subprocess orqali ishga tushirish
+        result = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            timeout=120,  # 2 daqiqa timeout
+            cwd='.'
+        )
+        
+        if result.returncode == 0:
+            return {
+                'status': 'completed',
+                'output': result.stdout,
+                'xss_vulnerabilities': extract_xsstrike_vulns(result.stdout)
+            }
+        else:
+            return {
+                'status': 'failed',
+                'error': result.stderr,
+                'return_code': result.returncode
+            }
+            
+    except subprocess.TimeoutExpired:
+        return {
+            'status': 'timeout',
+            'error': 'XSStrike scanning vaqti tugadi'
+        }
+    except Exception as e:
+        return {
+            'status': 'error',
+            'error': str(e)
+        }
+
+def extract_nmap_ports(output):
+    """Nmap output dan port ma'lumotlarini ajratib olish"""
+    ports = []
+    try:
+        lines = output.split('\n')
+        for line in lines:
+            if 'open' in line and 'tcp' in line:
+                parts = line.split()
+                if len(parts) >= 3:
+                    port = parts[0].split('/')[0]
+                    service = parts[2] if len(parts) > 2 else 'unknown'
+                    ports.append({
+                        'port': port,
+                        'service': service,
+                        'state': 'open'
+                    })
+    except Exception as e:
+        print(f"Port extraction xatolik: {e}")
+    return ports
+
+def extract_nmap_vulns(output):
+    """Nmap output dan vulnerability ma'lumotlarini ajratib olish"""
+    vulns = []
+    try:
+        lines = output.split('\n')
+        for line in lines:
+            if 'VULNERABLE' in line or 'CVE' in line:
+                vulns.append(line.strip())
+    except Exception as e:
+        print(f"Vulnerability extraction xatolik: {e}")
+    return vulns
+
+def extract_sqlmap_vulns(output):
+    """SQLMap output dan vulnerability ma'lumotlarini ajratib olish"""
+    vulns = []
+    try:
+        lines = output.split('\n')
+        for line in lines:
+            if 'vulnerable' in line.lower() or 'injection' in line.lower():
+                vulns.append(line.strip())
+    except Exception as e:
+        print(f"SQLMap vulnerability extraction xatolik: {e}")
+    return vulns
+
+def extract_gobuster_dirs(output):
+    """Gobuster output dan directory ma'lumotlarini ajratib olish"""
+    dirs = []
+    try:
+        lines = output.split('\n')
+        for line in lines:
+            if 'Found:' in line:
+                parts = line.split()
+                if len(parts) >= 2:
+                    dirs.append(parts[1])
+    except Exception as e:
+        print(f"Directory extraction xatolik: {e}")
+    return dirs
+
+def extract_xsstrike_vulns(output):
+    """XSStrike output dan XSS vulnerability ma'lumotlarini ajratib olish"""
+    vulns = []
+    try:
+        lines = output.split('\n')
+        for line in lines:
+            if 'vulnerable' in line.lower() or 'xss' in line.lower():
+                vulns.append(line.strip())
+    except Exception as e:
+        print(f"XSStrike vulnerability extraction xatolik: {e}")
+    return vulns
 
 @csrf_exempt
 def save_domains(request):

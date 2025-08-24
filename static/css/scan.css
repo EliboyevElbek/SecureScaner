@@ -3572,331 +3572,401 @@
     box-shadow: 0 4px 8px rgba(0,0,0,0.3);
 } 
 
-/* Progress Section Styles */
-.progress-section {
-    margin: 20px 0;
-    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-    border: 1px solid #00ff00;
-    box-shadow: 0 8px 32px rgba(0, 255, 0, 0.1);
+/* Tool Scanning Results Styles */
+.tool-results {
+    margin-top: 1.5rem;
+    padding: 1.5rem;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 12px;
+    border: 1px solid rgba(0, 255, 0, 0.2);
 }
 
-.progress-container {
-    padding: 20px;
-}
-
-.progress-item {
-    margin-bottom: 20px;
-    background: linear-gradient(135deg, #0f0f23 0%, #1a1a2e 100%);
-    border: 1px solid #00ff00;
-    border-radius: 10px;
-    overflow: hidden;
-}
-
-.progress-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 15px 20px;
-    background: linear-gradient(90deg, #00ff00 0%, #00cc00 100%);
-    color: #000;
-}
-
-.progress-header h3 {
-    margin: 0;
+.tool-results h4 {
+    color: #00ff00;
     font-size: 18px;
-    font-weight: 600;
-}
-
-.progress-content {
-    padding: 20px;
-}
-
-.progress-bar {
-    width: 100%;
-    height: 20px;
-    background: #2a2a3e;
-    border-radius: 10px;
-    overflow: hidden;
-    margin-bottom: 15px;
-}
-
-.progress-fill {
-    height: 100%;
-    background: linear-gradient(90deg, #00ff00 0%, #00cc00 100%);
-    border-radius: 10px;
-    transition: width 0.5s ease;
-}
-
-.progress-info {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 15px;
-}
-
-.current-tool {
-    color: #00ff00;
-    font-weight: 500;
-}
-
-.progress-percentage {
-    color: #00ff00;
-    font-weight: 600;
-    font-size: 18px;
-}
-
-.progress-actions {
+    margin-bottom: 1.5rem;
     text-align: center;
+    text-shadow: 0 0 10px rgba(0, 255, 0, 0.5);
 }
 
-.tool-progress {
-    padding: 20px;
-    background: #0f0f23;
-    border-top: 1px solid #00ff00;
-}
-
-.tool-progress h4 {
-    color: #00ff00;
-    margin-bottom: 15px;
-    text-align: center;
-}
-
-.tool-list {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-    gap: 15px;
-}
-
-.tool-item {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 10px 15px;
-    background: #1a1a2e;
-    border: 1px solid #00ff00;
+.tool-result {
+    margin-bottom: 1.5rem;
+    padding: 1rem;
+    background: rgba(0, 0, 0, 0.4);
     border-radius: 8px;
-}
-
-.tool-name {
-    color: #fff;
-    font-weight: 500;
-}
-
-.tool-status {
-    color: #00ff00;
-    font-size: 14px;
-}
-
-.tool-duration {
-    color: #888;
-    font-size: 12px;
-}
-
-/* Tool Results Styles */
-.tool-results-section {
-    margin-top: 20px;
-    padding: 20px;
-    background: #0f0f23;
-    border: 1px solid #00ff00;
-    border-radius: 8px;
-}
-
-.tool-results-section h4 {
-    color: #00ff00;
-    margin-bottom: 15px;
-    text-align: center;
-    font-size: 16px;
-}
-
-.tool-results-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 15px;
-}
-
-.tool-result-item {
-    background: #1a1a2e;
-    border: 1px solid #00ff00;
-    border-radius: 8px;
-    padding: 15px;
+    border-left: 3px solid #00ff00;
     transition: all 0.3s ease;
 }
 
-.tool-result-item:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 20px rgba(0, 255, 0, 0.2);
+.tool-result:hover {
+    background: rgba(0, 0, 0, 0.6);
+    border-left-color: #00cc00;
+    transform: translateX(5px);
 }
 
-.tool-header {
+.tool-result h5 {
+    color: #ffffff;
+    font-size: 16px;
+    margin-bottom: 1rem;
     display: flex;
-    justify-content: space-between;
     align-items: center;
-    margin-bottom: 10px;
-    padding-bottom: 10px;
-    border-bottom: 1px solid #00ff00;
+    gap: 0.5rem;
 }
 
-.tool-name {
-    color: #fff;
-    font-weight: 600;
+.tool-result h5::before {
+    content: '';
+    width: 8px;
+    height: 8px;
+    background: #00ff00;
+    border-radius: 50%;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(1.2); }
+    100% { opacity: 1; transform: scale(1); }
+}
+
+.ports-info, .vulnerabilities-info, .directories-info {
+    margin-bottom: 1rem;
+}
+
+.ports-info strong, .vulnerabilities-info strong, .directories-info strong {
+    color: #00ff00;
     font-size: 14px;
+    display: block;
+    margin-bottom: 0.5rem;
+}
+
+.ports-info ul, .vulnerabilities-info ul, .directories-info ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.ports-info li, .vulnerabilities-info li, .directories-info li {
+    background: rgba(255, 255, 255, 0.1);
+    padding: 0.5rem 0.75rem;
+    margin-bottom: 0.5rem;
+    border-radius: 6px;
+    border-left: 3px solid #ff6b6b;
+    color: #ffffff;
+    font-size: 13px;
+    transition: all 0.2s ease;
+}
+
+.ports-info li:hover, .vulnerabilities-info li:hover, .directories-info li:hover {
+    background: rgba(255, 255, 255, 0.15);
+    transform: translateX(3px);
 }
 
 .tool-status {
-    font-size: 12px;
-    padding: 4px 8px;
-    border-radius: 4px;
-    font-weight: 500;
+    display: inline-block;
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    text-align: center;
+    min-width: 120px;
 }
 
-.tool-success {
+.tool-completed {
     background: rgba(0, 255, 0, 0.2);
     color: #00ff00;
-    border: 1px solid #00ff00;
+    border: 1px solid rgba(0, 255, 0, 0.3);
 }
 
-.tool-error {
-    background: rgba(255, 0, 0, 0.2);
-    color: #ff0000;
-    border: 1px solid #ff0000;
+.tool-failed {
+    background: rgba(255, 107, 107, 0.2);
+    color: #ff6b6b;
+    border: 1px solid rgba(255, 107, 107, 0.3);
 }
 
 .tool-timeout {
-    background: rgba(255, 165, 0, 0.2);
-    color: #ffa500;
-    border: 1px solid #ffa500;
-}
-
-.tool-unknown {
-    background: rgba(128, 128, 128, 0.2);
-    color: #888;
-    border: 1px solid #888;
-}
-
-.tool-details p {
-    margin: 5px 0;
-    font-size: 12px;
-    color: #ccc;
+    background: rgba(255, 193, 7, 0.2);
+    color: #ffc107;
+    border: 1px solid rgba(255, 193, 7, 0.3);
 }
 
 .tool-error {
-    color: #ff0000;
-    font-weight: 500;
+    background: rgba(220, 53, 69, 0.2);
+    color: #dc3545;
+    border: 1px solid rgba(220, 53, 69, 0.3);
 }
 
-/* Status Badge Styles */
-.status-badge {
-    padding: 6px 12px;
+.tool-safe {
+    background: rgba(0, 255, 0, 0.2);
+    color: #00ff00;
+    border: 1px solid rgba(0, 255, 0, 0.3);
+}
+
+/* Nmap specific styles */
+.nmap-result {
+    border-left-color: #4ecdc4;
+}
+
+.nmap-result h5::before {
+    background: #4ecdc4;
+}
+
+/* SQLMap specific styles */
+.sqlmap-result {
+    border-left-color: #ff6b6b;
+}
+
+.sqlmap-result h5::before {
+    background: #ff6b6b;
+}
+
+/* Gobuster specific styles */
+.gobuster-result {
+    border-left-color: #feca57;
+}
+
+.gobuster-result h5::before {
+    background: #feca57;
+}
+
+/* XSStrike specific styles */
+.xsstrike-result {
+    border-left-color: #ff9ff3;
+}
+
+.xsstrike-result h5::before {
+    background: #ff9ff3;
+}
+
+/* Responsive design for tool results */
+@media (max-width: 768px) {
+    .tool-results {
+        padding: 1rem;
+    }
+    
+    .tool-result {
+        padding: 0.75rem;
+    }
+    
+    .tool-result h5 {
+        font-size: 14px;
+    }
+    
+    .ports-info li, .vulnerabilities-info li, .directories-info li {
+        font-size: 12px;
+        padding: 0.4rem 0.6rem;
+    }
+    
+    .tool-status {
+        min-width: 100px;
+        font-size: 12px;
+        padding: 0.4rem 0.8rem;
+    }
+} 
+
+/* Scan Progress Overlay Styles */
+.scan-progress-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.9);
+    backdrop-filter: blur(10px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    opacity: 0;
+    transform: scale(0.9);
+    transition: all 0.3s ease;
+}
+
+.scan-progress-content {
+    background: linear-gradient(135deg, rgba(0, 0, 0, 0.95), rgba(0, 0, 0, 0.85));
+    border: 2px solid rgba(0, 255, 0, 0.3);
     border-radius: 20px;
-    font-size: 12px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}
-
-.status-scanning {
-    background: rgba(0, 255, 0, 0.2);
-    color: #00ff00;
-    border: 1px solid #00ff00;
-}
-
-.status-completed {
-    background: rgba(0, 255, 0, 0.2);
-    color: #00ff00;
-    border: 1px solid #00ff00;
-}
-
-.status-failed {
-    background: rgba(255, 0, 0, 0.2);
-    color: #ff0000;
-    border: 1px solid #ff0000;
-}
-
-/* Results Section Styles */
-.results-section {
-    margin-top: 20px;
-    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-    border: 1px solid #00ff00;
-    box-shadow: 0 8px 32px rgba(0, 255, 0, 0.1);
-}
-
-.results-summary {
-    padding: 20px;
-    background: #0f0f23;
-    border-bottom: 1px solid #00ff00;
-}
-
-.results-summary p {
-    margin: 10px 0;
-    color: #fff;
-    font-size: 16px;
-}
-
-.results-summary strong {
-    color: #00ff00;
-}
-
-.results-list {
-    padding: 20px;
-}
-
-.result-item {
-    margin-bottom: 20px;
-    background: linear-gradient(135deg, #0f0f23 0%, #1a1a2e 100%);
-    border: 1px solid #00ff00;
-    border-radius: 10px;
+    padding: 2.5rem;
+    max-width: 600px;
+    width: 90%;
+    text-align: center;
+    box-shadow: 0 20px 60px rgba(0, 255, 0, 0.2);
+    position: relative;
     overflow: hidden;
 }
 
-.result-header {
+.scan-progress-content::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, #00ff00, #00cc00, #00ff00);
+    animation: progressBar 2s linear infinite;
+}
+
+@keyframes progressBar {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+}
+
+.progress-header h3 {
+    color: #00ff00;
+    font-size: 28px;
+    margin-bottom: 1rem;
+    text-shadow: 0 0 20px rgba(0, 255, 0, 0.5);
+    font-family: 'Orbitron', monospace;
+}
+
+.progress-header p {
+    color: #ffffff;
+    font-size: 16px;
+    margin-bottom: 2rem;
+    opacity: 0.9;
+}
+
+.progress-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.stat-item {
+    background: rgba(0, 255, 0, 0.1);
+    padding: 1rem;
+    border-radius: 12px;
+    border: 1px solid rgba(0, 255, 0, 0.2);
+    transition: all 0.3s ease;
+}
+
+.stat-item:hover {
+    background: rgba(0, 255, 0, 0.15);
+    transform: translateY(-3px);
+    box-shadow: 0 8px 25px rgba(0, 255, 0, 0.2);
+}
+
+.stat-label {
+    display: block;
+    color: #00ff00;
+    font-size: 12px;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.stat-value {
+    display: block;
+    color: #ffffff;
+    font-size: 18px;
+    font-weight: 700;
+    font-family: 'Orbitron', monospace;
+}
+
+.tools-progress {
+    margin-bottom: 2rem;
+}
+
+.tools-progress h4 {
+    color: #00ff00;
+    font-size: 18px;
+    margin-bottom: 1.5rem;
+    text-shadow: 0 0 10px rgba(0, 255, 0, 0.3);
+}
+
+.tool-progress-item {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 15px 20px;
-    background: linear-gradient(90deg, #00ff00 0%, #00cc00 100%);
-    color: #000;
+    background: rgba(255, 255, 255, 0.05);
+    padding: 1rem;
+    margin-bottom: 0.75rem;
+    border-radius: 8px;
+    border-left: 3px solid #00ff00;
+    transition: all 0.3s ease;
 }
 
-.result-header h3 {
-    margin: 0;
-    font-size: 18px;
-    font-weight: 600;
+.tool-progress-item:hover {
+    background: rgba(255, 255, 255, 0.08);
+    transform: translateX(5px);
 }
 
-.result-details {
-    padding: 20px;
-}
-
-.detail-row {
-    margin: 10px 0;
-    color: #fff;
+.tool-name {
+    color: #ffffff;
     font-size: 14px;
+    font-weight: 500;
 }
 
-.detail-row strong {
+.tool-status {
+    color: #00ff00;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 0.25rem 0.75rem;
+    background: rgba(0, 255, 0, 0.1);
+    border-radius: 12px;
+    border: 1px solid rgba(0, 255, 0, 0.2);
+}
+
+.progress-note {
+    background: rgba(0, 255, 0, 0.05);
+    padding: 1rem;
+    border-radius: 8px;
+    border: 1px solid rgba(0, 255, 0, 0.1);
+}
+
+.progress-note p {
+    color: #ffffff;
+    font-size: 13px;
+    line-height: 1.5;
+    margin: 0;
+    opacity: 0.9;
+}
+
+.progress-note strong {
     color: #00ff00;
 }
 
-/* Responsive Design */
+/* Responsive design for progress overlay */
 @media (max-width: 768px) {
-    .tool-results-grid {
-        grid-template-columns: 1fr;
+    .scan-progress-content {
+        padding: 2rem 1.5rem;
+        margin: 1rem;
     }
     
-    .tool-list {
-        grid-template-columns: 1fr;
+    .progress-header h3 {
+        font-size: 24px;
     }
     
-    .progress-header {
+    .progress-header p {
+        font-size: 14px;
+    }
+    
+    .progress-stats {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+    
+    .stat-item {
+        padding: 0.75rem;
+    }
+    
+    .stat-value {
+        font-size: 16px;
+    }
+    
+    .tool-progress-item {
         flex-direction: column;
-        gap: 10px;
+        gap: 0.5rem;
         text-align: center;
     }
     
-    .progress-info {
-        flex-direction: column;
-        gap: 10px;
-        text-align: center;
+    .tool-name {
+        font-size: 13px;
+    }
+    
+    .tool-status {
+        font-size: 11px;
     }
 } 
 

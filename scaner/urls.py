@@ -14,7 +14,6 @@ urlpatterns = [
     path('scaner/get-domain-tool-config/', views.get_domain_tool_config, name='get_domain_tool_config'),
     path('scaner/save-domain-tool-config/', views.save_domain_tool_config, name='save_domain_tool_config'),
     path('scaner/get-domain-tools-preview/', views.get_domain_tools_preview, name='get_domain_tools_preview'),
-    path('scaner/scan-progress/', views.scan_progress, name='scan_progress'),
     path('api/scan-details/<int:scan_id>/', views.viewScanDetails, name='scan_details'),
     path('tools/', views.tools, name='tools'),
     path('tools/<str:tool_name>/', views.tool_detail, name='tool_detail'),
