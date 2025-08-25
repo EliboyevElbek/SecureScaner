@@ -20,7 +20,6 @@ class DomainScan(models.Model):
     dns_records = models.JSONField(default=dict, verbose_name="DNS yozuvlari")
     ssl_info = models.JSONField(default=dict, verbose_name="SSL ma'lumotlari")
     security_headers = models.JSONField(default=dict, verbose_name="Xavfsizlik sarlavhalari")
-    tool_results = models.JSONField(default=dict, verbose_name="Tool tahlil natijalari")
     error_message = models.TextField(blank=True, null=True, verbose_name="Xatolik xabari")
     
     class Meta:

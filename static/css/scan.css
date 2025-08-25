@@ -2702,7 +2702,8 @@
     border-radius: 20px;
     width: 90%;
     max-width: 1200px;
-    max-height: 90vh;
+    max-height: 95vh;
+    min-height: 700px;
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8);
     overflow: hidden;
     position: relative;
@@ -2722,7 +2723,7 @@
 /* Header Section */
 .edit-modal-header-compact {
     background: linear-gradient(135deg, rgba(0, 0, 0, 0.95), rgba(20, 20, 20, 0.95));
-    padding: 1.5rem;
+    padding: 1.2rem;
     border-bottom: 1px solid #333333;
     display: flex;
     justify-content: space-between;
@@ -2738,26 +2739,26 @@
 
 .edit-modal-icon-compact {
     position: relative;
-    width: 40px;
-    height: 40px;
+    width: 32px;
+    height: 32px;
     display: flex;
     align-items: center;
     justify-content: center;
     background: linear-gradient(135deg, rgba(0, 255, 0, 0.1), rgba(0, 204, 0, 0.1));
     border: 2px solid #00ff00;
-    border-radius: 10px;
-    padding: 0.4rem;
+    border-radius: 8px;
+    padding: 0.3rem;
 }
 
 .domain-favicon-compact {
-    width: 28px;
-    height: 28px;
-    border-radius: 6px;
+    width: 22px;
+    height: 22px;
+    border-radius: 5px;
     object-fit: cover;
 }
 
 .icon-emoji-compact {
-    font-size: 28px;
+    font-size: 22px;
     color: #00ff00;
 }
 
@@ -2766,16 +2767,16 @@
 }
 
 .edit-modal-title-compact {
-    font-size: 1.5rem;
+    font-size: 1.2rem;
     font-weight: 700;
     color: #ffffff;
-    margin: 0 0 0.4rem 0;
+    margin: 0 0 0.3rem 0;
     text-shadow: 0 0 10px rgba(0, 255, 0, 0.3);
     font-family: 'Inter', sans-serif;
 }
 
 .edit-modal-subtitle-compact {
-    font-size: 1rem;
+    font-size: 0.85rem;
     color: #00ff00;
     margin: 0;
     font-weight: 500;
@@ -2806,9 +2807,9 @@
 
 /* Body Section */
 .edit-modal-body-compact {
-    padding: 1.5rem;
+    padding: 1.2rem;
     background: rgba(20, 20, 20, 0.95);
-    max-height: 60vh;
+    max-height: 70vh;
     overflow-y: auto;
     scrollbar-width: thin;
     scrollbar-color: #00ff00 #333333;
@@ -2833,15 +2834,15 @@
 }
 
 .input-field-group-compact {
-    margin-bottom: 1.5rem;
+    margin-bottom: 1.2rem;
 }
 
 .input-label-compact {
     display: block;
     color: #00ff00;
     font-weight: 600;
-    margin-bottom: 0.8rem;
-    font-size: 1rem;
+    margin-bottom: 0.6rem;
+    font-size: 0.9rem;
     font-family: 'Inter', sans-serif;
 }
 
@@ -2851,13 +2852,13 @@
 
 .input-field-compact {
     width: 100%;
-    padding: 1rem;
+    padding: 0.8rem;
     border: 2px solid #333333;
     background: rgba(0, 0, 0, 0.8);
     color: #ffffff;
     font-family: 'Inter', sans-serif;
-    font-size: 1rem;
-    border-radius: 10px;
+    font-size: 0.9rem;
+    border-radius: 8px;
     transition: all 0.3s ease;
     box-sizing: border-box;
 }
@@ -2876,18 +2877,18 @@
 
 /* Tools Preview Section */
 .tools-preview-section {
-    margin: 1.5rem 0;
-    padding: 1rem;
+    margin: 1rem 0;
+    padding: 0.8rem;
     background: rgba(0, 0, 0, 0.3);
     border: 1px solid #333333;
-    border-radius: 12px;
+    border-radius: 10px;
 }
 
 .tools-preview-title {
     color: #00ff00;
-    font-size: 1.1rem;
+    font-size: 1rem;
     font-weight: 600;
-    margin: 0 0 1rem 0;
+    margin: 0 0 0.8rem 0;
     font-family: 'Inter', sans-serif;
     text-shadow: 0 0 5px rgba(0, 255, 0, 0.3);
 }
@@ -3370,11 +3371,11 @@
 }
 
 .edit-modal-actions-compact .btn {
-    min-width: 140px;
-    padding: 1rem 2rem;
-    font-size: 1rem;
+    min-width: 100px;
+    padding: 0.6rem 1.2rem;
+    font-size: 0.8rem;
     font-weight: 600;
-    border-radius: 12px;
+    border-radius: 8px;
     transition: all 0.3s ease;
     border: 2px solid transparent;
     font-family: 'Inter', sans-serif;
@@ -3439,6 +3440,8 @@
     .edit-modal-actions-compact .btn {
         min-width: auto;
         width: 100%;
+        padding: 0.5rem 1rem;
+        font-size: 0.75rem;
     }
     
     .edit-modal-title-section-compact {
@@ -3476,12 +3479,12 @@
     }
     
     .domain-favicon-compact {
-        width: 28px;
-        height: 28px;
+        width: 22px;
+        height: 22px;
     }
     
     .icon-emoji-compact {
-        font-size: 28px;
+        font-size: 22px;
     }
 } 
 
