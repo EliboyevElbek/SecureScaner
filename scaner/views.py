@@ -1,5 +1,5 @@
 from django.shortcuts import render, get_object_or_404
-from django.http import JsonResponse
+from django.http import JsonResponse, StreamingHttpResponse
 from django.views.decorators.csrf import csrf_exempt
 import re
 import json
@@ -1459,5 +1459,265 @@ def run_xsstrike_scan_with_command(domain, command):
             'error': str(e),
             'command_used': command
         }
+
+def stream_tool_output(request, domain, tool_type):
+    """Real-time tool output streaming using Server-Sent Events"""
+    def event_stream():
+        try:
+            # Get tool command from KeshDomain
+            kesh_domain = KeshDomain.objects.filter(domain_name=domain).first()
+            if not kesh_domain or not kesh_domain.tool_commands:
+                yield f"data: {json.dumps({'error': 'Tool buyruqlari topilmadi'})}\n\n"
+                return
+            
+            # Find the specific tool command
+            tool_command = None
+            for cmd in kesh_domain.tool_commands:
+                if tool_type in cmd:
+                    tool_command = cmd[tool_type]
+                    break
+            
+            if not tool_command:
+                yield f"data: {json.dumps({'error': f'{tool_type} buyrugi topilmadi'})}\n\n"
+                return
+            
+            # Execute tool with real-time output
+            if tool_type == 'nmap':
+                yield from stream_nmap_output(domain, tool_command)
+            elif tool_type == 'sqlmap':
+                yield from stream_sqlmap_output(domain, tool_command)
+            elif tool_type == 'gobuster':
+                yield from stream_gobuster_output(domain, tool_command)
+            elif tool_type == 'xsstrike':
+                yield from stream_xsstrike_output(domain, tool_command)
+            else:
+                yield f"data: {json.dumps({'error': f'{tool_type} tool qo\'llab-quvvatlanmaydi'})}\n\n"
+                
+        except Exception as e:
+            yield f"data: {json.dumps({'error': f'Xatolik: {str(e)}'})}\n\n"
+    
+    response = StreamingHttpResponse(
+        streaming_content=event_stream(),
+        content_type='text/event-stream'
+    )
+    response['Cache-Control'] = 'no-cache'
+    response['X-Accel-Buffering'] = 'no'
+    return response
+
+def stream_nmap_output(domain, command):
+    """Stream Nmap output in real-time"""
+    try:
+        import os
+        nmap_path = 'tools/nmap/nmap.exe'
+        if not os.path.exists(nmap_path):
+            yield f"data: {json.dumps({'error': 'Nmap tool topilmadi. Iltimos, tools/nmap/ papkasini tekshiring.'})}\n\n"
+            return
+        
+        # Parse command and replace domain
+        cmd_parts = command.split()
+        cmd_parts = [part if part != 'my-courses.uz' else domain for part in cmd_parts]
+        full_cmd = [nmap_path] + cmd_parts[1:]
+        
+        yield f"data: {json.dumps({'status': 'starting', 'message': f'Nmap ishga tushirilmoqda: {" ".join(full_cmd)}'})}\n\n"
+        
+        # Start subprocess with real-time output
+        process = subprocess.Popen(
+            full_cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            cwd='.',
+            bufsize=0,
+            universal_newlines=True
+        )
+        
+        # Stream output in real-time using polling
+        while True:
+            # Check if process is still running
+            if process.poll() is not None:
+                break
+            
+            # Try to read from stdout
+            if process.stdout:
+                # Read available output
+                line = process.stdout.readline()
+                if line:
+                    yield f"data: {json.dumps({'output': line.strip()})}\n\n"
+                else:
+                    # Small delay to prevent busy waiting
+                    time.sleep(0.1)
+        
+        # Check for errors
+        return_code = process.poll()
+        if return_code != 0:
+            stderr_output = process.stderr.read()
+            yield f"data: {json.dumps({'error': f'Nmap xatolik bilan tugadi (kod: {return_code}): {stderr_output}'})}\n\n"
+        else:
+            yield f"data: {json.dumps({'status': 'completed', 'message': 'Nmap muvaffaqiyatli tugadi'})}\n\n"
+            
+    except Exception as e:
+        yield f"data: {json.dumps({'error': f'Nmap xatolik: {str(e)}'})}\n\n"
+
+def stream_sqlmap_output(domain, command):
+    """Stream SQLMap output in real-time"""
+    try:
+        import os
+        sqlmap_path = 'tools/sqlmap/sqlmap.py'
+        if not os.path.exists(sqlmap_path):
+            yield f"data: {json.dumps({'error': 'SQLMap tool topilmadi. Iltimos, tools/sqlmap/ papkasini tekshiring.'})}\n\n"
+            return
+        
+        # Parse command and replace domain
+        cmd_parts = command.split()
+        cmd_parts = [part if part != 'my-courses.uz' else domain for part in cmd_parts]
+        full_cmd = ['python', sqlmap_path] + cmd_parts[1:]
+        
+        yield f"data: {json.dumps({'status': 'starting', 'message': f'SQLMap ishga tushirilmoqda: {" ".join(full_cmd)}'})}\n\n"
+        
+        # Start subprocess with real-time output
+        process = subprocess.Popen(
+            full_cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            cwd='.',
+            bufsize=0,
+            universal_newlines=True
+        )
+        
+        # Stream output in real-time using polling
+        while True:
+            # Check if process is still running
+            if process.poll() is not None:
+                break
+            
+            # Try to read from stdout
+            if process.stdout:
+                # Read available output
+                line = process.stdout.readline()
+                if line:
+                    yield f"data: {json.dumps({'output': line.strip()})}\n\n"
+                else:
+                    # Small delay to prevent busy waiting
+                    time.sleep(0.1)
+        
+        # Check for errors
+        return_code = process.poll()
+        if return_code != 0:
+            stderr_output = process.stderr.read()
+            yield f"data: {json.dumps({'error': f'SQLMap xatolik bilan tugadi (kod: {return_code}): {stderr_output}'})}\n\n"
+        else:
+            yield f"data: {json.dumps({'status': 'completed', 'message': 'SQLMap muvaffaqiyatli tugadi'})}\n\n"
+            
+    except Exception as e:
+        yield f"data: {json.dumps({'error': f'SQLMap xatolik: {str(e)}'})}\n\n"
+
+def stream_gobuster_output(domain, command):
+    """Stream Gobuster output in real-time"""
+    try:
+        import os
+        gobuster_path = 'tools/gobuster/gobuster.exe'
+        if not os.path.exists(gobuster_path):
+            yield f"data: {json.dumps({'error': 'Gobuster tool topilmadi. Iltimos, tools/gobuster/ papkasini tekshiring.'})}\n\n"
+            return
+        
+        # Parse command and replace domain
+        cmd_parts = command.split()
+        cmd_parts = [part if part != 'my-courses.uz' else domain for part in cmd_parts]
+        full_cmd = [gobuster_path] + cmd_parts[1:]
+        
+        yield f"data: {json.dumps({'status': 'starting', 'message': f'Gobuster ishga tushirilmoqda: {" ".join(full_cmd)}'})}\n\n"
+        
+        # Start subprocess with real-time output
+        process = subprocess.Popen(
+            full_cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            cwd='.',
+            bufsize=0,
+            universal_newlines=True
+        )
+        
+        # Stream output in real-time using polling
+        while True:
+            # Check if process is still running
+            if process.poll() is not None:
+                break
+            
+            # Try to read from stdout
+            if process.stdout:
+                # Read available output
+                line = process.stdout.readline()
+                if line:
+                    yield f"data: {json.dumps({'output': line.strip()})}\n\n"
+                else:
+                    # Small delay to prevent busy waiting
+                    time.sleep(0.1)
+        
+        # Check for errors
+        return_code = process.poll()
+        if return_code != 0:
+            stderr_output = process.stderr.read()
+            yield f"data: {json.dumps({'error': f'Gobuster xatolik bilan tugadi (kod: {return_code}): {stderr_output}'})}\n\n"
+        else:
+            yield f"data: {json.dumps({'status': 'completed', 'message': 'Gobuster muvaffaqiyatli tugadi'})}\n\n"
+            
+    except Exception as e:
+        yield f"data: {json.dumps({'error': f'Gobuster xatolik: {str(e)}'})}\n\n"
+
+def stream_xsstrike_output(domain, command):
+    """Stream XSStrike output in real-time"""
+    try:
+        import os
+        xsstrike_path = 'tools/XSStrike/xsstrike.py'
+        if not os.path.exists(xsstrike_path):
+            yield f"data: {json.dumps({'error': 'XSStrike tool topilmadi. Iltimos, tools/XSStrike/ papkasini tekshiring.'})}\n\n"
+            return
+        
+        # Parse command and replace domain
+        cmd_parts = command.split()
+        cmd_parts = [part if part != 'my-courses.uz' else domain for part in cmd_parts]
+        full_cmd = ['python', xsstrike_path] + cmd_parts[1:]
+        
+        yield f"data: {json.dumps({'status': 'starting', 'message': f'XSStrike ishga tushirilmoqda: {" ".join(full_cmd)}'})}\n\n"
+        
+        # Start subprocess with real-time output
+        process = subprocess.Popen(
+            full_cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            cwd='.',
+            bufsize=0,
+            universal_newlines=True
+        )
+        
+        # Stream output in real-time using polling
+        while True:
+            # Check if process is still running
+            if process.poll() is not None:
+                break
+            
+            # Try to read from stdout
+            if process.stdout:
+                # Read available output
+                line = process.stdout.readline()
+                if line:
+                    yield f"data: {json.dumps({'output': line.strip()})}\n\n"
+                else:
+                    # Small delay to prevent busy waiting
+                    time.sleep(0.1)
+        
+        # Check for errors
+        return_code = process.poll()
+        if return_code != 0:
+            stderr_output = process.stderr.read()
+            yield f"data: {json.dumps({'error': f'XSStrike xatolik bilan tugadi (kod: {return_code}): {stderr_output}'})}\n\n"
+        else:
+            yield f"data: {json.dumps({'status': 'completed', 'message': 'XSStrike muvaffaqiyatli tugadi'})}\n\n"
+            
+    except Exception as e:
+        yield f"data: {json.dumps({'error': f'XSStrike xatolik: {str(e)}'})}\n\n"
 
 

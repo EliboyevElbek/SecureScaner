@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Real-Time Tool Output Test</title>
+    <style>
+        body {
+            font-family: 'Courier New', monospace;
+            background: #000;
+            color: #00ff00;
+            margin: 20px;
+        }
+        .test-container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .test-button {
+            background: #00ff00;
+            color: #000;
+            border: none;
+            padding: 10px 20px;
+            margin: 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-family: inherit;
+        }
+        .test-button:hover {
+            background: #00cc00;
+        }
+        .output-container {
+            background: rgba(0, 0, 0, 0.8);
+            border: 2px solid #00ff00;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+            height: 400px;
+            overflow-y: auto;
+        }
+        .output-log {
+            font-family: 'Courier New', monospace;
+            white-space: pre-wrap;
+            margin: 0;
+        }
+        .status {
+            color: #ffff00;
+            font-weight: bold;
+        }
+        .error {
+            color: #ff4444;
+        }
+        .success {
+            color: #44ff44;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>🔍 Real-Time Tool Output Test</h1>
+        <p>Bu sahifa real-time streaming funksionalligini test qilish uchun yaratilgan.</p>
+        
+        <div class="test-controls">
+            <h3>Test Tugmalari:</h3>
+            <button class="test-button" onclick="testNmap()">Test Nmap</button>
+            <button class="test-button" onclick="testSQLMap()">Test SQLMap</button>
+            <button class="test-button" onclick="testGobuster()">Test Gobuster</button>
+            <button class="test-button" onclick="testXSStrike()">Test XSStrike</button>
+            <button class="test-button" onclick="clearOutput()">Tozalash</button>
+        </div>
+        
+        <div class="output-container">
+            <pre class="output-log" id="outputLog">Real-time output bu yerda ko'rsatiladi...</pre>
+        </div>
+        
+        <div class="status-info">
+            <p><strong>Holat:</strong> <span id="status">Tayyor</span></p>
+            <p><strong>Ulangan tool:</strong> <span id="currentTool">Hech qaysi</span></p>
+        </div>
+    </div>
+
+    <script>
+        let currentEventSource = null;
+        
+        function appendOutput(text, type = 'info') {
+            const outputLog = document.getElementById('outputLog');
+            const timestamp = new Date().toLocaleTimeString('uz-UZ');
+            const timestampText = `[${timestamp}] `;
+            
+            let formattedText = '';
+            switch (type) {
+                case 'error':
+                    formattedText = `${timestampText}❌ ${text}\n`;
+                    break;
+                case 'success':
+                    formattedText = `${timestampText}✅ ${text}\n`;
+                    break;
+                case 'info':
+                    formattedText = `${timestampText}ℹ️ ${text}\n`;
+                    break;
+                default:
+                    formattedText = `${timestampText}${text}\n`;
+            }
+            
+            outputLog.textContent += formattedText;
+            outputLog.scrollTop = outputLog.scrollHeight;
+        }
+        
+        function updateStatus(status, tool = '') {
+            document.getElementById('status').textContent = status;
+            document.getElementById('currentTool').textContent = tool;
+        }
+        
+        function cleanupStreaming() {
+            if (currentEventSource) {
+                currentEventSource.close();
+                currentEventSource = null;
+                updateStatus('Ulanish yopildi');
+            }
+        }
+        
+        function startToolStreaming(domain, toolType) {
+            cleanupStreaming();
+            
+            updateStatus('Ulanish ochilmoqda...', toolType);
+            appendOutput(`${toolType} uchun real-time streaming boshlanmoqda...`, 'info');
+            
+            try {
+                const eventSource = new EventSource(`/scaner/stream-tool-output/${domain}/${toolType}/`);
+                currentEventSource = eventSource;
+                
+                eventSource.onopen = function(event) {
+                    updateStatus('Ulangan', toolType);
+                    appendOutput(`${toolType} ga ulanish muvaffaqiyatli ochildi`, 'success');
+                };
+                
+                eventSource.onmessage = function(event) {
+                    try {
+                        const data = JSON.parse(event.data);
+                        console.log('Received data:', data);
+                        
+                        if (data.error) {
+                            appendOutput(`❌ Xatolik: ${data.error}`, 'error');
+                            eventSource.close();
+                            updateStatus('Xatolik', '');
+                        } else if (data.status === 'starting') {
+                            appendOutput(`🚀 ${data.message}`, 'info');
+                        } else if (data.status === 'completed') {
+                            appendOutput(`✅ ${data.message}`, 'success');
+                            eventSource.close();
+                            updateStatus('Tugallandi', '');
+                        } else if (data.output) {
+                            appendOutput(data.output, 'output');
+                        }
+                    } catch (e) {
+                        console.error('Error parsing data:', e);
+                        appendOutput(`❌ Ma'lumotlarni o'qishda xatolik: ${e.message}`, 'error');
+                    }
+                };
+                
+                eventSource.onerror = function(event) {
+                    console.error('EventSource error:', event);
+                    appendOutput('❌ Ulanish xatolik yuz berdi', 'error');
+                    updateStatus('Xatolik', '');
+                    eventSource.close();
+                };
+                
+            } catch (e) {
+                appendOutput(`❌ Streaming boshlashda xatolik: ${e.message}`, 'error');
+                updateStatus('Xatolik', '');
+            }
+        }
+        
+        function testNmap() {
+            appendOutput('Nmap test boshlanmoqda...', 'info');
+            startToolStreaming('test.com', 'nmap');
+        }
+        
+        function testSQLMap() {
+            appendOutput('SQLMap test boshlanmoqda...', 'info');
+            startToolStreaming('test.com', 'sqlmap');
+        }
+        
+        function testGobuster() {
+            appendOutput('Gobuster test boshlanmoqda...', 'info');
+            startToolStreaming('test.com', 'gobuster');
+        }
+        
+        function testXSStrike() {
+            appendOutput('XSStrike test boshlanmoqda...', 'info');
+            startToolStreaming('test.com', 'xsstrike');
+        }
+        
+        function clearOutput() {
+            document.getElementById('outputLog').textContent = '';
+            appendOutput('Output tozalandi', 'info');
+        }
+        
+        // Sahifa yopilganda streaming'ni tozalash
+        window.addEventListener('beforeunload', cleanupStreaming);
+        
+        appendOutput('Test sahifasi yuklandi. Real-time streaming funksionalligini test qilish uchun tugmalardan birini bosing.', 'info');
+    </script>
+</body>
+</html>

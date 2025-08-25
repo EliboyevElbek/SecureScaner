@@ -1402,6 +1402,8 @@ function showDomainProgress(index) {
 function closeProgressModal() {
     const modal = document.querySelector('.custom-modal');
     if (modal) {
+        // Cleanup tool streaming before closing
+        cleanupToolStreaming();
         modal.remove();
     }
 }
@@ -1412,8 +1414,8 @@ function getAvailableToolsForDomain(domain) {
     // Get available tools from localStorage or default tools
     const availableTools = [];
     
-    // Check for saved tool parameters
-    const tools = ['sqlmap', 'nmap', 'xsstrike', 'gobuster', 'nikto', 'dirb', 'wpscan', 'joomscan', 'drupalscan', 'w3af', 'openvas', 'nessus'];
+    // Check for saved tool parameters - faqat asosiy 4 ta tool
+    const tools = ['sqlmap', 'nmap', 'xsstrike', 'gobuster'];
     tools.forEach(toolType => {
         const savedParams = getToolParamsFromStorage(domain, toolType);
         console.log(`${toolType} saved params:`, savedParams);
@@ -1445,15 +1447,7 @@ function getToolDisplayName(toolType) {
         'nmap': 'Nmap',
         'sqlmap': 'SQLMap',
         'xsstrike': 'XSStrike',
-        'gobuster': 'Gobuster',
-        'nikto': 'Nikto',
-        'dirb': 'Dirb',
-        'wpscan': 'WPScan',
-        'joomscan': 'JoomScan',
-        'drupalscan': 'DrupalScan',
-        'w3af': 'W3AF',
-        'openvas': 'OpenVAS',
-        'nessus': 'Nessus'
+        'gobuster': 'Gobuster'
     };
     return displayNames[toolType] || toolType;
 }
@@ -1463,15 +1457,7 @@ function getToolIcon(toolType) {
         'nmap': '🔍',
         'sqlmap': '💉',
         'xsstrike': '🕷️',
-        'gobuster': '📁',
-        'nikto': '🔧',
-        'dirb': '📂',
-        'wpscan': '📝',
-        'joomscan': '🌐',
-        'drupalscan': '🔍',
-        'w3af': '🕵️',
-        'openvas': '🛡️',
-        'nessus': '🔒'
+        'gobuster': '📁'
     };
     return icons[toolType] || '⚙️';
 }
@@ -1559,15 +1545,298 @@ function showToolDetails(toolName, toolIndex) {
     const domainName = modal.querySelector('h4').textContent;
     console.log(`Domain: ${domainName}`);
     
-    // Get tool results from localStorage or simulate them
-    const toolResults = getToolResults(domainName, toolName);
-    console.log(`Tool results for ${toolName}:`, toolResults);
+    // Check if tool is already running or completed
+    if (window.currentEventSource && window.currentToolResultsWindow) {
+        console.log(`Tool ${toolName} already running, just updating display`);
+        // Update tool name in existing window
+        updateToolWindowTitle(toolName);
+        return;
+    }
     
-    // Create or update tool results section
-    updateToolResults(toolName, toolResults);
+    // Check if tool is already completed (from scan results)
+    const completedResults = getCompletedToolResults(domainName, toolName);
+    if (completedResults && completedResults.status === 'completed') {
+        console.log(`Tool ${toolName} already completed, showing results`);
+        showCompletedToolResults(toolName, completedResults);
+        return;
+    }
+    
+    // Create or update tool results section for real-time output
+    createToolResultsSection(toolName);
+    
+    // Start real-time streaming
+    startToolStreaming(domainName, toolName);
     
     // Highlight the selected tool
     highlightSelectedTool(toolIndex);
+}
+
+function getCompletedToolResults(domain, toolName) {
+    // Try to get completed results from localStorage or scan history
+    const resultsKey = `completed_tool_results_${domain}_${toolName}`;
+    const savedResults = localStorage.getItem(resultsKey);
+    
+    if (savedResults) {
+        try {
+            return JSON.parse(savedResults);
+        } catch (e) {
+            console.error('Error parsing saved results:', e);
+        }
+    }
+    
+    // Check if we have recent scan results
+    const scanResultsKey = `scan_results_${domain}`;
+    const scanResults = localStorage.getItem(scanResultsKey);
+    
+    if (scanResults) {
+        try {
+            const scanData = JSON.parse(scanResults);
+            if (scanData.tool_results && scanData.tool_results[toolName]) {
+                return scanData.tool_results[toolName];
+            }
+        } catch (e) {
+            console.error('Error parsing scan results:', e);
+        }
+    }
+    
+    return null;
+}
+
+function showCompletedToolResults(toolName, results) {
+    // Create window for completed results
+    createToolResultsSection(toolName);
+    
+    // Show completed results
+    const outputLog = document.getElementById('toolOutputLog');
+    if (outputLog) {
+        outputLog.textContent = '';
+        
+        // Add completion message
+        const timestamp = new Date().toLocaleTimeString('uz-UZ');
+        outputLog.textContent = `[${timestamp}] ✅ ${toolName} allaqachon tugallangan\n\n`;
+        
+        // Add results
+        if (results.output) {
+            outputLog.textContent += results.output;
+        }
+        
+        // Update status
+        updateToolStatus('completed', 'Tugallandi');
+    }
+}
+
+function saveCompletedToolResults(domain, toolName, results) {
+    const resultsKey = `completed_tool_results_${domain}_${toolName}`;
+    localStorage.setItem(resultsKey, JSON.stringify(results));
+    console.log(`Completed results saved for ${domain} - ${toolName}`);
+}
+
+function getCurrentOutput() {
+    const outputLog = document.getElementById('toolOutputLog');
+    if (outputLog) {
+        return outputLog.textContent;
+    }
+    return '';
+}
+
+function updateToolWindowTitle(toolName) {
+    if (window.currentToolResultsWindow) {
+        const titleElement = window.currentToolResultsWindow.querySelector('.tool-results-window-title h3');
+        const iconElement = window.currentToolResultsWindow.querySelector('.tool-results-window-title .tool-icon');
+        
+        if (titleElement) {
+            titleElement.textContent = `${getToolDisplayName(toolName)} Real-Time Output`;
+        }
+        
+        if (iconElement) {
+            iconElement.textContent = getToolIcon(toolName);
+        }
+    }
+}
+
+function createToolResultsSection(toolName) {
+    // Check if tool results window already exists
+    if (window.currentToolResultsWindow) {
+        console.log('Tool results window already exists, updating title');
+        updateToolWindowTitle(toolName);
+        return;
+    }
+    
+    // Modal'ni yopish
+    closeProgressModal();
+    
+    // Yangi tool results oynasini yaratish
+    const toolResultsWindow = document.createElement('div');
+    toolResultsWindow.className = 'tool-results-window';
+    toolResultsWindow.innerHTML = `
+        <div class="tool-results-window-content">
+            <div class="tool-results-window-header">
+                <div class="tool-results-window-title">
+                    <span class="tool-icon">${getToolIcon(toolName)}</span>
+                    <h3>${getToolDisplayName(toolName)} Real-Time Output</h3>
+                </div>
+                <div class="tool-results-window-controls">
+                    <button class="btn btn-small btn-secondary" onclick="closeToolResultsWindow()">Yopish</button>
+                </div>
+            </div>
+            
+            <div class="tool-results-window-body">
+                <div class="tool-output-container">
+                    <pre class="tool-output-log" id="toolOutputLog"></pre>
+                </div>
+            </div>
+            
+            <div class="tool-results-window-footer">
+                <div class="tool-status">
+                    <span class="status-indicator" id="toolStatus">Ulanish ochilmoqda...</span>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(toolResultsWindow);
+    
+    // Show window with animation
+    setTimeout(() => {
+        toolResultsWindow.style.opacity = '1';
+        toolResultsWindow.style.transform = 'scale(1)';
+    }, 10);
+    
+    // Store reference for cleanup
+    window.currentToolResultsWindow = toolResultsWindow;
+}
+
+function startToolStreaming(domain, toolName) {
+    // Check if already streaming
+    if (window.currentEventSource) {
+        console.log(`Already streaming for ${toolName}, stopping previous stream`);
+        cleanupToolStreaming();
+    }
+    
+    console.log(`Starting real-time streaming for ${toolName} on ${domain}`);
+    
+    // Update status
+    updateToolStatus('connecting', 'Ulanish ochilmoqda...');
+    
+    // Create EventSource for Server-Sent Events
+    const eventSource = new EventSource(`/scaner/stream-tool-output/${domain}/${toolName}/`);
+    
+    eventSource.onopen = function(event) {
+        updateToolStatus('connected', 'Ulangan');
+        appendToolOutput(`${toolName} ga ulanish muvaffaqiyatli ochildi`, 'success');
+    };
+    
+    eventSource.onmessage = function(event) {
+        try {
+            const data = JSON.parse(event.data);
+            console.log('Received streaming data:', data);
+            
+            if (data.error) {
+                appendToolOutput(`❌ Xatolik: ${data.error}`, 'error');
+                updateToolStatus('error', 'Xatolik');
+                eventSource.close();
+            } else if (data.status === 'starting') {
+                appendToolOutput(`🚀 ${data.message}`, 'info');
+                updateToolStatus('running', 'Ishga tushirilmoqda...');
+            } else if (data.status === 'completed') {
+                appendToolOutput(`✅ ${data.message}`, 'success');
+                updateToolStatus('completed', 'Tugallandi');
+                
+                // Save completed results
+                saveCompletedToolResults(domain, toolName, {
+                    status: 'completed',
+                    output: getCurrentOutput(),
+                    timestamp: new Date().toISOString()
+                });
+                
+                eventSource.close();
+            } else if (data.output) {
+                appendToolOutput(data.output, 'output');
+                updateToolStatus('running', 'Ishlayapti...');
+            }
+        } catch (e) {
+            console.error('Error parsing streaming data:', e);
+            appendToolOutput(`❌ Ma'lumotlarni o'qishda xatolik: ${e.message}`, 'error');
+            updateToolStatus('error', 'Xatolik');
+        }
+    };
+    
+    eventSource.onerror = function(event) {
+        console.error('EventSource error:', event);
+        appendToolOutput('❌ Ulanish xatolik yuz berdi', 'error');
+        updateToolStatus('error', 'Ulanish xatolik');
+        eventSource.close();
+    };
+    
+    // Store eventSource for cleanup
+    window.currentEventSource = eventSource;
+}
+
+function closeToolResultsWindow() {
+    if (window.currentToolResultsWindow) {
+        // Cleanup streaming
+        cleanupToolStreaming();
+        
+        // Remove window
+        window.currentToolResultsWindow.remove();
+        window.currentToolResultsWindow = null;
+    }
+}
+
+function updateToolStatus(status, message = '') {
+    const statusIndicator = document.getElementById('toolStatus');
+    if (statusIndicator) {
+        statusIndicator.textContent = message || status;
+        statusIndicator.className = `status-indicator ${status}`;
+    }
+}
+
+function appendToolOutput(text, type = 'output') {
+    const outputLog = document.getElementById('toolOutputLog');
+    if (!outputLog) return;
+    
+    // Add timestamp
+    const timestamp = new Date().toLocaleTimeString('uz-UZ');
+    const timestampText = `[${timestamp}] `;
+    
+    // Format based on type
+    let formattedText = '';
+    switch (type) {
+        case 'error':
+            formattedText = `${timestampText}❌ ${text}\n`;
+            break;
+        case 'success':
+            formattedText = `${timestampText}✅ ${text}\n`;
+            break;
+        case 'info':
+            formattedText = `${timestampText}ℹ️ ${text}\n`;
+            break;
+        default:
+            formattedText = `${timestampText}${text}\n`;
+    }
+    
+    // Append to output (qayta yozish emas, qo'shish)
+    outputLog.textContent += formattedText;
+    
+    // Auto-scroll to bottom
+    outputLog.scrollTop = outputLog.scrollHeight;
+}
+
+function clearToolOutput() {
+    const outputLog = document.getElementById('toolOutputLog');
+    if (outputLog) {
+        outputLog.textContent = '';
+        // Clear dan keyin boshlang'ich xabar qo'shish
+        appendToolOutput('Output tozalandi. Yangi natijalar kutilmoqda...', 'info');
+    }
+}
+
+// Cleanup function for when modal is closed
+function cleanupToolStreaming() {
+    if (window.currentEventSource) {
+        window.currentEventSource.close();
+        window.currentEventSource = null;
+    }
 }
 
 function getToolResults(domain, toolName) {
