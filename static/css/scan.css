@@ -4457,3 +4457,77 @@
         flex-direction: column;
     }
 }
+
+/* Log Message Styles for Real-time Tool Output */
+.log-message {
+    padding: 8px 12px;
+    margin: 4px 0;
+    border-radius: 6px;
+    font-family: 'Courier New', monospace;
+    font-size: 14px;
+    font-weight: 500;
+    border-left: 4px solid;
+    animation: fadeInUp 0.3s ease;
+}
+
+.log-message.success {
+    background: rgba(0, 255, 0, 0.1);
+    border-left-color: #00ff00;
+    color: #00ff00;
+    text-shadow: 0 0 5px rgba(0, 255, 0, 0.3);
+}
+
+.log-message.error {
+    background: rgba(255, 0, 0, 0.1);
+    border-left-color: #ff0000;
+    color: #ff6666;
+    text-shadow: 0 0 5px rgba(255, 0, 0, 0.3);
+}
+
+.log-message.info {
+    background: rgba(0, 150, 255, 0.1);
+    border-left-color: #0096ff;
+    color: #66b3ff;
+    text-shadow: 0 0 5px rgba(0, 150, 255, 0.3);
+}
+
+.log-line {
+    padding: 4px 12px;
+    margin: 2px 0;
+    font-family: 'Courier New', monospace;
+    font-size: 13px;
+    color: #cccccc;
+    background: rgba(255, 255, 255, 0.02);
+    border-radius: 4px;
+    border-left: 2px solid #333333;
+    animation: fadeInLeft 0.2s ease;
+    word-wrap: break-word;
+    white-space: pre-wrap;
+}
+
+.log-line:hover {
+    background: rgba(255, 255, 255, 0.05);
+    border-left-color: #555555;
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes fadeInLeft {
+    from {
+        opacity: 0;
+        transform: translateX(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}

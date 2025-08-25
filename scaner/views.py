@@ -1467,6 +1467,7 @@ def run_xsstrike_scan_with_command(domain, command):
             'command_used': command
         }
 
+@csrf_exempt
 def stream_tool_output(request, domain, tool_type):
     """Real-time tool output streaming using Server-Sent Events"""
     def event_stream():
@@ -1754,6 +1755,241 @@ def stream_xsstrike_output(domain, command):
             
     except Exception as e:
         yield f"data: {json.dumps({'error': f'XSStrike xatolik: {str(e)}'})}\n\n"
+
+@csrf_exempt
+def stream_tool_output_realtime(request, domain, tool_type):
+    """Real-time tool output streaming using StreamingHttpResponse"""
+    def stream():
+        try:
+            # Avval bazadan mavjud natijalarni tekshirish
+            domain_scan = DomainScan.objects.filter(
+                domain_name=domain, 
+                status='completed'
+            ).first()
+            
+            if domain_scan and domain_scan.raw_tool_output:
+                # Mavjud natijalar bor - ularni ko'rsatish
+                tool_output = domain_scan.raw_tool_output.get(tool_type, '')
+                
+                if tool_output:
+                    yield f"<div class='log-message success'>✅ {tool_type} natijasi mavjud</div>\n"
+                    
+                    # Natijalarni qatorlar bo'lib ko'rsatish
+                    for line in tool_output.split('\n'):
+                        if line.strip():
+                            yield f"<div class='log-line'>{line.strip()}</div>\n"
+                    
+                    yield f"<div class='log-message success'>✅ {tool_type} natijasi ko'rsatildi</div>\n"
+                    return
+                else:
+                    yield f"<div class='log-message error'>❌ {tool_type} uchun natija topilmadi</div>\n"
+                    return
+            
+            # Agar natija yo'q bo'lsa, tool'ni ishga tushirish
+            kesh_domain = KeshDomain.objects.filter(domain_name=domain).first()
+            if not kesh_domain or not kesh_domain.tool_commands:
+                yield f"<div class='log-message error'>❌ Tool buyruqlari topilmadi</div>\n"
+                return
+            
+            # Find the specific tool command
+            tool_command = None
+            for cmd in kesh_domain.tool_commands:
+                if tool_type in cmd:
+                    tool_command = cmd[tool_type]
+                    break
+            
+            if not tool_command:
+                yield f"<div class='log-message error'>❌ {tool_type} buyrugi topilmadi</div>\n"
+                return
+            
+            # Execute tool with real-time output
+            if tool_type == 'nmap':
+                yield from stream_nmap_output_realtime(domain, tool_command)
+            elif tool_type == 'sqlmap':
+                yield from stream_sqlmap_output_realtime(domain, tool_command)
+            elif tool_type == 'gobuster':
+                yield from stream_gobuster_output_realtime(domain, tool_command)
+            elif tool_type == 'xsstrike':
+                yield from stream_xsstrike_output_realtime(domain, tool_command)
+            else:
+                yield f"<div class='log-message error'>❌ {tool_type} tool qo'llab-quvvatlanmaydi</div>\n"
+                
+        except Exception as e:
+            yield f"<div class='log-message error'>❌ Xatolik: {str(e)}</div>\n"
+    
+    return StreamingHttpResponse(stream(), content_type="text/html")
+
+def stream_nmap_output_realtime(domain, command):
+    """Stream Nmap output in real-time using StreamingHttpResponse"""
+    try:
+        import os
+        nmap_path = 'tools/nmap/nmap.exe'
+        if not os.path.exists(nmap_path):
+            yield f"<div class='log-message error'>❌ Nmap tool topilmadi. Iltimos, tools/nmap/ papkasini tekshiring.</div>\n"
+            return
+        
+        # Parse command and replace domain
+        cmd_parts = command.split()
+        cmd_parts = [part if part != 'my-courses.uz' else domain for part in cmd_parts]
+        full_cmd = [nmap_path] + cmd_parts[1:]
+        
+        yield f"<div class='log-message info'>🚀 Nmap ishga tushirilmoqda: {' '.join(full_cmd)}</div>\n"
+        
+        # Start subprocess with real-time output
+        process = subprocess.Popen(
+            full_cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            bufsize=1
+        )
+        
+        # Real-time output oqish
+        for line in process.stdout:
+            if line:
+                yield f"<div class='log-line'>{line.strip()}</div>\n"
+        
+        # Process tugashini kutish
+        process.wait()
+        
+        # Natijani tekshirish
+        return_code = process.returncode
+        if return_code != 0:
+            yield f"<div class='log-message error'>❌ Nmap xatolik bilan tugadi (kod: {return_code})</div>\n"
+        else:
+            yield f"<div class='log-message success'>✅ Nmap muvaffaqiyatli tugadi</div>\n"
+            
+    except Exception as e:
+        yield f"<div class='log-message error'>❌ Nmap xatolik: {str(e)}</div>\n"
+
+def stream_sqlmap_output_realtime(domain, command):
+    """Stream SQLMap output in real-time using StreamingHttpResponse"""
+    try:
+        import os
+        sqlmap_path = 'tools/sqlmap/sqlmap.py'
+        if not os.path.exists(sqlmap_path):
+            yield f"<div class='log-message error'>❌ SQLMap tool topilmadi. Iltimos, tools/sqlmap/ papkasini tekshiring.</div>\n"
+            return
+        
+        # Parse command and replace domain
+        cmd_parts = command.split()
+        cmd_parts = [part if part != 'my-courses.uz' else domain for part in cmd_parts]
+        full_cmd = ['python', sqlmap_path] + cmd_parts[1:]
+        
+        yield f"<div class='log-message info'>🚀 SQLMap ishga tushirilmoqda: {' '.join(full_cmd)}</div>\n"
+        
+        # Start subprocess with real-time output
+        process = subprocess.Popen(
+            full_cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            bufsize=1
+        )
+        
+        # Real-time output oqish
+        for line in process.stdout:
+            if line:
+                yield f"<div class='log-line'>{line.strip()}</div>\n"
+        
+        # Process tugashini kutish
+        process.wait()
+        
+        # Natijani tekshirish
+        return_code = process.returncode
+        if return_code != 0:
+            yield f"<div class='log-message error'>❌ SQLMap xatolik bilan tugadi (kod: {return_code})</div>\n"
+        else:
+            yield f"<div class='log-message success'>✅ SQLMap muvaffaqiyatli tugadi</div>\n"
+            
+    except Exception as e:
+        yield f"<div class='log-message error'>❌ SQLMap xatolik: {str(e)}</div>\n"
+
+def stream_gobuster_output_realtime(domain, command):
+    """Stream Gobuster output in real-time using StreamingHttpResponse"""
+    try:
+        import os
+        gobuster_path = 'tools/gobuster/gobuster.exe'
+        if not os.path.exists(gobuster_path):
+            yield f"<div class='log-message error'>❌ Gobuster tool topilmadi. Iltimos, tools/gobuster/ papkasini tekshiring.</div>\n"
+            return
+        
+        # Parse command and replace domain
+        cmd_parts = command.split()
+        cmd_parts = [part if part != 'my-courses.uz' else domain for part in cmd_parts]
+        full_cmd = [gobuster_path] + cmd_parts[1:]
+        
+        yield f"<div class='log-message info'>🚀 Gobuster ishga tushirilmoqda: {' '.join(full_cmd)}</div>\n"
+        
+        # Start subprocess with real-time output
+        process = subprocess.Popen(
+            full_cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            bufsize=1
+        )
+        
+        # Real-time output oqish
+        for line in process.stdout:
+            if line:
+                yield f"<div class='log-line'>{line.strip()}</div>\n"
+        
+        # Process tugashini kutish
+        process.wait()
+        
+        # Natijani tekshirish
+        return_code = process.returncode
+        if return_code != 0:
+            yield f"<div class='log-message error'>❌ Gobuster xatolik bilan tugadi (kod: {return_code})</div>\n"
+        else:
+            yield f"<div class='log-message success'>✅ Gobuster muvaffaqiyatli tugadi</div>\n"
+            
+    except Exception as e:
+        yield f"<div class='log-message error'>❌ Gobuster xatolik: {str(e)}</div>\n"
+
+def stream_xsstrike_output_realtime(domain, command):
+    """Stream XSStrike output in real-time using StreamingHttpResponse"""
+    try:
+        import os
+        xsstrike_path = 'tools/XSStrike/xsstrike.py'
+        if not os.path.exists(xsstrike_path):
+            yield f"<div class='log-message error'>❌ XSStrike tool topilmadi. Iltimos, tools/XSStrike/ papkasini tekshiring.</div>\n"
+            return
+        
+        # Parse command and replace domain
+        cmd_parts = command.split()
+        cmd_parts = [part if part != 'my-courses.uz' else domain for part in cmd_parts]
+        full_cmd = ['python', xsstrike_path] + cmd_parts[1:]
+        
+        yield f"<div class='log-message info'>🚀 XSStrike ishga tushirilmoqda: {' '.join(full_cmd)}</div>\n"
+        
+        # Start subprocess with real-time output
+        process = subprocess.Popen(
+            full_cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            bufsize=1
+        )
+        
+        # Real-time output oqish
+        for line in process.stdout:
+            if line:
+                yield f"<div class='log-line'>{line.strip()}</div>\n"
+        
+        # Process tugashini kutish
+        process.wait()
+        
+        # Natijani tekshirish
+        return_code = process.returncode
+        if return_code != 0:
+            yield f"<div class='log-message error'>❌ XSStrike xatolik bilan tugadi (kod: {return_code})</div>\n"
+        else:
+            yield f"<div class='log-message success'>✅ XSStrike muvaffaqiyatli tugadi</div>\n"
+            
+    except Exception as e:
+        yield f"<div class='log-message error'>❌ XSStrike xatolik: {str(e)}</div>\n"
 
 @csrf_exempt
 def scan_details_api(request, scan_id):

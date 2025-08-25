@@ -1476,7 +1476,7 @@ function renderAvailableTools(tools) {
                 </div>
                 <div class="tool-action-section">
                     <button class="btn btn-small btn-info" onclick="showToolDetails('${tool.name}', ${index})">
-                        🔍 Batafsil
+                        📊 Logni kuzatish
                     </button>
                 </div>
             </div>
@@ -1556,8 +1556,8 @@ function showToolDetails(toolName, toolIndex) {
     // Create or update tool results section for real-time output
     createToolResultsSection(toolName);
     
-    // Start real-time streaming
-    startToolStreaming(domainName, toolName);
+    // Start real-time streaming using new endpoint
+    startToolStreamingRealtime(domainName, toolName);
     
     // Highlight the selected tool
     highlightSelectedTool(toolIndex);
@@ -1751,6 +1751,11 @@ function cleanupToolStreaming() {
     if (window.currentEventSource) {
         window.currentEventSource.close();
         window.currentEventSource = null;
+    }
+    
+    if (window.currentStreamingIframe) {
+        window.currentStreamingIframe.remove();
+        window.currentStreamingIframe = null;
     }
 }
 
@@ -2929,7 +2934,7 @@ function hideFieldError(input) {
     }
 } 
 
-function createToolResultsSection(domainName, toolName) {
+function createToolResultsSectionOld(domainName, toolName) {
     // Check if already exists
     if (document.getElementById('toolResultsSection')) {
         document.getElementById('toolResultsSection').remove();
@@ -2941,7 +2946,7 @@ function createToolResultsSection(domainName, toolName) {
     
     toolResultsSection.innerHTML = `
         <div class="tool-results-header">
-            <h3>${toolName.toUpperCase()} Natijalari - ${domainName}</h3>
+            <h3>${toolName ? toolName.toUpperCase() : 'TOOL'} Natijalari - ${domainName}</h3>
             <div class="tool-status">
                 <span>Holat:</span>
                 <span id="toolStatus" class="status-indicator">Tayyor</span>
@@ -2958,7 +2963,7 @@ function createToolResultsSection(domainName, toolName) {
         </div>
         
         <div class="tool-actions">
-            <button class="btn btn-primary" onclick="startToolStreaming('${domainName}', '${toolName}')">
+            <button class="btn btn-primary" onclick="startToolStreaming('${domainName}', '${toolName || 'unknown'}')">
                 🔍 Natijani ko'rish
             </button>
         </div>
@@ -2980,6 +2985,88 @@ function closeToolResultsSection() {
         // Remove section
         window.currentToolResultsSection.remove();
         window.currentToolResultsSection = null;
+    }
+}
+
+function closeToolResultsWindow() {
+    if (window.currentToolResultsWindow) {
+        // Cleanup streaming
+        cleanupToolStreaming();
+        
+        // Remove window
+        window.currentToolResultsWindow.remove();
+        window.currentToolResultsWindow = null;
+    }
+}
+
+function startToolStreamingRealtime(domain, toolName) {
+    // Check if already streaming
+    if (window.currentEventSource) {
+        console.log(`Already streaming for ${toolName}, stopping previous stream`);
+        cleanupToolStreaming();
+    }
+    
+    console.log(`Starting real-time streaming for ${toolName} on ${domain}`);
+    
+    // Update status
+    updateToolStatus('connecting', 'Ulanish ochilmoqda...');
+    
+    // Create iframe for real-time streaming
+    const toolOutputLog = document.getElementById('toolOutputLog');
+    if (toolOutputLog) {
+        // Create iframe for streaming
+        const iframe = document.createElement('iframe');
+        iframe.src = `/scaner/stream-tool-output-realtime/${domain}/${toolName}/`;
+        iframe.style.width = '100%';
+        iframe.style.height = '400px';
+        iframe.style.border = 'none';
+        iframe.style.backgroundColor = '#1a1a1a';
+        
+        // Clear previous content
+        toolOutputLog.innerHTML = '';
+        toolOutputLog.appendChild(iframe);
+        
+        // Update status
+        updateToolStatus('running', 'Ishlayapti...');
+        
+        // Store iframe reference for cleanup
+        window.currentStreamingIframe = iframe;
+    } else {
+        console.error('toolOutputLog elementi topilmadi!');
+        // Fallback: create a new div for iframe
+        const iframeContainer = document.createElement('div');
+        iframeContainer.id = 'toolOutputLog';
+        iframeContainer.style.width = '100%';
+        iframeContainer.style.height = '400px';
+        iframeContainer.style.backgroundColor = '#1a1a1a';
+        iframeContainer.style.border = '1px solid #333';
+        iframeContainer.style.borderRadius = '8px';
+        iframeContainer.style.padding = '10px';
+        
+        // Create iframe
+        const iframe = document.createElement('iframe');
+        iframe.src = `/scaner/stream-tool-output-realtime/${domain}/${toolName}/`;
+        iframe.style.width = '100%';
+        iframe.style.height = '100%';
+        iframe.style.border = 'none';
+        iframe.style.backgroundColor = '#1a1a1a';
+        
+        iframeContainer.appendChild(iframe);
+        
+        // Add to current tool results window
+        if (window.currentToolResultsWindow) {
+            const body = window.currentToolResultsWindow.querySelector('.tool-results-window-body');
+            if (body) {
+                body.innerHTML = '';
+                body.appendChild(iframeContainer);
+            }
+        }
+        
+        // Update status
+        updateToolStatus('running', 'Ishlayapti...');
+        
+        // Store iframe reference for cleanup
+        window.currentStreamingIframe = iframe;
     }
 }
 
