@@ -8,7 +8,7 @@ import requests
 import urllib3
 import subprocess
 import time
-from .models import DomainScan, Tool, KeshDomain, DomainToolConfiguration, ScanSession
+from .models import DomainScan, Tool, KeshDomain, DomainToolConfiguration, ScanSession, ScanProcess
 import threading
 import queue
 from concurrent.futures import ThreadPoolExecutor
@@ -16,6 +16,13 @@ from django.utils import timezone
 
 # SSL warnings ni o'chirish
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
+# Global process manager
+process_manager = {
+    'processes': {},  # domain_tool -> process
+    'output_queues': {},  # domain_tool -> queue
+    'lock': threading.Lock()
+}
 
 # Create your views here.
 
@@ -420,6 +427,124 @@ def perform_domain_scan(domain):
             'status': 'failed',
             'error': str(e)
         }
+
+def start_background_tool_scan(domain, tool_type, command):
+    """Tool'ni background'da ishga tushirish"""
+    process_key = f"{domain}_{tool_type}"
+    
+    with process_manager['lock']:
+        if process_key in process_manager['processes']:
+            # Process allaqachon ishlayapti
+            return False
+        
+        # Yangi output queue yaratish
+        output_queue = queue.Queue()
+        process_manager['output_queues'][process_key] = output_queue
+        
+        # ScanProcess yaratish
+        scan_process = ScanProcess.objects.create(
+            domain_name=domain,
+            tool_type=tool_type,
+            status='running'
+        )
+        
+        # Background thread yaratish
+        thread = threading.Thread(
+            target=run_tool_in_background,
+            args=(domain, tool_type, command, output_queue, scan_process)
+        )
+        thread.daemon = True
+        thread.start()
+        
+        process_manager['processes'][process_key] = {
+            'thread': thread,
+            'scan_process': scan_process,
+            'process': None
+        }
+        
+        return True
+
+def run_tool_in_background(domain, tool_type, command, output_queue, scan_process):
+    """Background'da tool'ni ishga tushirish"""
+    try:
+        # Tool path'ni aniqlash
+        if tool_type == 'nmap':
+            tool_path = 'tools/nmap/nmap.exe'
+            full_cmd = [tool_path] + command.split()[1:]
+        elif tool_type == 'sqlmap':
+            tool_path = 'tools/sqlmap/sqlmap.py'
+            full_cmd = ['python', tool_path] + command.split()[1:]
+        elif tool_type == 'gobuster':
+            tool_path = 'tools/gobuster/gobuster.exe'
+            full_cmd = [tool_path] + command.split()[1:]
+        elif tool_type == 'xsstrike':
+            tool_path = 'tools/XSStrike/xsstrike.py'
+            full_cmd = ['python', tool_path] + command.split()[1:]
+        else:
+            raise ValueError(f"Unknown tool type: {tool_type}")
+        
+        # Domain ni almashtirish
+        full_cmd = [part if part != 'my-courses.uz' else domain for part in full_cmd]
+        
+        # Subprocess'ni ishga tushirish
+        process = subprocess.Popen(
+            full_cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            bufsize=1,
+            universal_newlines=True
+        )
+        
+        # Process ID'ni saqlash
+        scan_process.process_id = process.pid
+        scan_process.save()
+        
+        # Process manager'ga process'ni qo'shish
+        process_key = f"{domain}_{tool_type}"
+        with process_manager['lock']:
+            if process_key in process_manager['processes']:
+                process_manager['processes'][process_key]['process'] = process
+        
+        # Output'ni real-time o'qish
+        for line in process.stdout:
+            if line:
+                line = line.strip()
+                # Output'ni buffer'ga saqlash
+                scan_process.add_output(line)
+                # Queue'ga yuborish (real-time streaming uchun)
+                output_queue.put(line)
+        
+        # Process tugashini kutish
+        process.wait()
+        
+        # Natijani tekshirish
+        if process.returncode == 0:
+            scan_process.complete(success=True)
+        else:
+            scan_process.complete(success=False)
+            scan_process.error_message = f"Process xatolik bilan tugadi (kod: {process.returncode})"
+            scan_process.save()
+        
+        # Process manager'dan olib tashlash
+        with process_manager['lock']:
+            if process_key in process_manager['processes']:
+                del process_manager['processes'][process_key]
+            if process_key in process_manager['output_queues']:
+                del process_manager['output_queues'][process_key]
+                
+    except Exception as e:
+        scan_process.complete(success=False)
+        scan_process.error_message = str(e)
+        scan_process.save()
+        
+        # Process manager'dan olib tashlash
+        process_key = f"{domain}_{tool_type}"
+        with process_manager['lock']:
+            if process_key in process_manager['processes']:
+                del process_manager['processes'][process_key]
+            if process_key in process_manager['output_queues']:
+                del process_manager['output_queues'][process_key]
 
 def perform_tool_scans(domain):
     """Domain uchun tool scanning natijalarini background'da ishga tushirish"""
