@@ -1578,56 +1578,61 @@ function updateToolWindowTitle(toolName) {
     }
 }
 
-function createToolResultsSection(toolName) {
-    // Check if tool results window already exists
-    if (window.currentToolResultsWindow) {
-        console.log('Tool results window already exists, updating title');
-        updateToolWindowTitle(toolName);
-        return;
+function createToolResultsSection(domainName, toolName) {
+    // Check if already exists
+    if (document.getElementById('toolResultsSection')) {
+        document.getElementById('toolResultsSection').remove();
     }
     
-    // Modal'ni yopish
-    closeProgressModal();
+    const toolResultsSection = document.createElement('div');
+    toolResultsSection.id = 'toolResultsSection';
+    toolResultsSection.className = 'tool-results-section';
     
-    // Yangi tool results oynasini yaratish
-    const toolResultsWindow = document.createElement('div');
-    toolResultsWindow.className = 'tool-results-window';
-    toolResultsWindow.innerHTML = `
-        <div class="tool-results-window-content">
-            <div class="tool-results-window-header">
-                <div class="tool-results-window-title">
-                    <span class="tool-icon">${getToolIcon(toolName)}</span>
-                    <h3>${getToolDisplayName(toolName)} Real-Time Output</h3>
-                </div>
-                <div class="tool-results-window-controls">
-                    <button class="btn btn-small btn-secondary" onclick="closeToolResultsWindow()">Yopish</button>
-                </div>
+    toolResultsSection.innerHTML = `
+        <div class="tool-results-header">
+            <h3>${toolName.toUpperCase()} Natijalari - ${domainName}</h3>
+            <div class="tool-status">
+                <span>Holat:</span>
+                <span id="toolStatus" class="status-indicator">Tayyor</span>
             </div>
-            
-            <div class="tool-results-window-body">
-                <div class="tool-output-container">
-                    <pre class="tool-output-log" id="toolOutputLog"></pre>
-                </div>
+            <button class="btn btn-small" onclick="closeToolResultsSection()">Yopish</button>
+        </div>
+        
+        <div class="tool-output-container">
+            <div class="tool-output-header">
+                <span>Natija:</span>
+                <button class="btn btn-small" onclick="clearToolOutput()">Tozalash</button>
             </div>
-            
-            <div class="tool-results-window-footer">
-                <div class="tool-status">
-                    <span class="status-indicator" id="toolStatus">Ulanish ochilmoqda...</span>
-                </div>
-            </div>
+            <textarea id="toolOutputLog" class="tool-output-log" readonly placeholder="Tool natijasi shu yerda ko'rsatiladi..."></textarea>
+        </div>
+        
+        <div class="tool-actions">
+            <button class="btn btn-primary" onclick="startToolStreaming('${domainName}', '${toolName}')">
+                🔍 Natijani ko'rish
+            </button>
+            <button class="btn btn-warning" onclick="stopToolProcess('${domainName}', '${toolName}')" style="display: none;" id="stopToolBtn">
+                ⏹️ To'xtatish
+            </button>
         </div>
     `;
     
-    document.body.appendChild(toolResultsWindow);
+    // Add to page
+    const scanContainer = document.querySelector('.scan-container');
+    scanContainer.appendChild(toolResultsSection);
     
-    // Show window with animation
-    setTimeout(() => {
-        toolResultsWindow.style.opacity = '1';
-        toolResultsWindow.style.transform = 'scale(1)';
-    }, 10);
-    
-    // Store reference for cleanup
-    window.currentToolResultsWindow = toolResultsWindow;
+    // Store reference
+    window.currentToolResultsSection = toolResultsSection;
+}
+
+function closeToolResultsSection() {
+    if (window.currentToolResultsSection) {
+        // Cleanup streaming
+        cleanupToolStreaming();
+        
+        // Remove section
+        window.currentToolResultsSection.remove();
+        window.currentToolResultsSection = null;
+    }
 }
 
 function startToolStreaming(domain, toolName) {
@@ -1669,6 +1674,8 @@ function startToolStreaming(domain, toolName) {
             } else if (data.output) {
                 appendToolOutput(data.output, 'output');
                 updateToolStatus('running', 'Ishlayapti...');
+            } else if (data.interactive) {
+                appendToolOutput(`🤖 ${data.interactive}`, 'info');
             }
         } catch (e) {
             console.error('Error parsing streaming data:', e);
@@ -1711,28 +1718,27 @@ function appendToolOutput(text, type = 'output') {
     const outputLog = document.getElementById('toolOutputLog');
     if (!outputLog) return;
     
-    // Add timestamp
-    const timestamp = new Date().toLocaleTimeString('uz-UZ');
-    const timestampText = `[${timestamp}] `;
-    
     // Format based on type
     let formattedText = '';
     switch (type) {
         case 'error':
-            formattedText = `${timestampText}❌ ${text}\n`;
+            formattedText = `❌ ${text}\n`;
             break;
         case 'success':
-            formattedText = `${timestampText}✅ ${text}\n`;
+            formattedText = `✅ ${text}\n`;
             break;
         case 'info':
-            formattedText = `${timestampText}ℹ️ ${text}\n`;
+            formattedText = `ℹ️ ${text}\n`;
+            break;
+        case 'output':
+            formattedText = `${text}\n`;
             break;
         default:
-            formattedText = `${timestampText}${text}\n`;
+            formattedText = `${text}\n`;
     }
     
-    // Append to output (qayta yozish emas, qo'shish)
-    outputLog.textContent += formattedText;
+    // Append to output log
+    outputLog.value += formattedText;
     
     // Auto-scroll to bottom
     outputLog.scrollTop = outputLog.scrollHeight;
@@ -1741,9 +1747,7 @@ function appendToolOutput(text, type = 'output') {
 function clearToolOutput() {
     const outputLog = document.getElementById('toolOutputLog');
     if (outputLog) {
-        outputLog.textContent = '';
-        // Clear dan keyin boshlang'ich xabar qo'shish
-        appendToolOutput('Output tozalandi. Yangi natijalar kutilmoqda...', 'info');
+        outputLog.value = '';
     }
 }
 
@@ -2929,5 +2933,113 @@ function hideFieldError(input) {
         errorDiv.remove();
     }
 } 
+
+function createToolResultsSection(domainName, toolName) {
+    // Check if already exists
+    if (document.getElementById('toolResultsSection')) {
+        document.getElementById('toolResultsSection').remove();
+    }
+    
+    const toolResultsSection = document.createElement('div');
+    toolResultsSection.id = 'toolResultsSection';
+    toolResultsSection.className = 'tool-results-section';
+    
+    toolResultsSection.innerHTML = `
+        <div class="tool-results-header">
+            <h3>${toolName.toUpperCase()} Natijalari - ${domainName}</h3>
+            <div class="tool-status">
+                <span>Holat:</span>
+                <span id="toolStatus" class="status-indicator">Tayyor</span>
+            </div>
+            <button class="btn btn-small" onclick="closeToolResultsSection()">Yopish</button>
+        </div>
+        
+        <div class="tool-output-container">
+            <div class="tool-output-header">
+                <span>Natija:</span>
+                <button class="btn btn-small" onclick="clearToolOutput()">Tozalash</button>
+            </div>
+            <textarea id="toolOutputLog" class="tool-output-log" readonly placeholder="Tool natijasi shu yerda ko'rsatiladi..."></textarea>
+        </div>
+        
+        <div class="tool-actions">
+            <button class="btn btn-primary" onclick="startToolStreaming('${domainName}', '${toolName}')">
+                🔍 Natijani ko'rish
+            </button>
+            <button class="btn btn-warning" onclick="stopToolProcess('${domainName}', '${toolName}')" style="display: none;" id="stopToolBtn">
+                ⏹️ To'xtatish
+            </button>
+        </div>
+    `;
+    
+    // Add to page
+    const scanContainer = document.querySelector('.scan-container');
+    scanContainer.appendChild(toolResultsSection);
+    
+    // Store reference
+    window.currentToolResultsSection = toolResultsSection;
+} 
+
+function closeToolResultsSection() {
+    if (window.currentToolResultsSection) {
+        // Cleanup streaming
+        cleanupToolStreaming();
+        
+        // Remove section
+        window.currentToolResultsSection.remove();
+        window.currentToolResultsSection = null;
+    }
+}
+
+function stopToolProcess(domain, toolName) {
+    if (confirm(`${toolName} process'ini to'xtatishni xohlaysizmi?`)) {
+        // Stop button'ni yashirish
+        const stopBtn = document.getElementById('stopToolBtn');
+        if (stopBtn) {
+            stopBtn.style.display = 'none';
+        }
+        
+        // Status'ni yangilash
+        updateToolStatus('stopping', 'To\'xtatilmoqda...');
+        
+        // Backend'ga to'xtatish so'rovini yuborish
+        fetch(`/scaner/stop-tool-process/${domain}/${toolName}/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                updateToolStatus('stopped', 'To\'xtatildi');
+                appendToolOutput(`✅ ${toolName} process to'xtatildi`, 'success');
+            } else {
+                updateToolStatus('error', 'To\'xtatishda xatolik');
+                appendToolOutput(`❌ ${toolName} process to'xtatishda xatolik: ${data.error}`, 'error');
+            }
+        })
+        .catch(error => {
+            updateToolStatus('error', 'To\'xtatishda xatolik');
+            appendToolOutput(`❌ ${toolName} process to'xtatishda xatolik: ${error.message}`, 'error');
+        });
+    }
+}
+
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
 
  
