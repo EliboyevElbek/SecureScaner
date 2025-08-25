@@ -34,7 +34,7 @@ class DomainScanAdmin(admin.ModelAdmin):
     list_display = ['domain_name', 'status', 'ip_address', 'scan_date', 'get_duration']
     list_filter = ['status', 'scan_date']
     search_fields = ['domain_name', 'ip_address']
-    readonly_fields = ['scan_date', 'scan_result', 'dns_records', 'ssl_info', 'security_headers']
+    readonly_fields = ['scan_date', 'scan_result', 'dns_records', 'ssl_info', 'security_headers', 'tool_results']
     date_hierarchy = 'scan_date'
     
     fieldsets = (
@@ -42,7 +42,7 @@ class DomainScanAdmin(admin.ModelAdmin):
             'fields': ('domain_name', 'status', 'scan_date')
         }),
         ('Tahlil natijalari', {
-            'fields': ('ip_address', 'dns_records', 'ssl_info', 'security_headers', 'scan_result')
+            'fields': ('ip_address', 'dns_records', 'ssl_info', 'security_headers', 'tool_results', 'scan_result')
         }),
         ('Xatolik ma\'lumotlari', {
             'fields': ('error_message',),
