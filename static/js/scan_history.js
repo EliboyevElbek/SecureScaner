@@ -79,6 +79,9 @@ function showScanDetailsModal(scanData) {
                 <li><strong>Strict-Transport-Security:</strong> ${scanData.security_headers?.strict_transport_security || 'N/A'}</li>
                 <li><strong>Content-Security-Policy:</strong> ${scanData.security_headers?.content_security_policy || 'N/A'}</li>
             </ul>
+            
+            <h4>Tool tahlil natijalari</h4>
+            ${renderToolResults(scanData.tool_results)}
         </div>
     `;
     
@@ -92,6 +95,47 @@ function showScanDetailsModal(scanData) {
     
     modalBody.innerHTML = modalContent;
     modal.style.display = 'flex';
+}
+
+function renderToolResults(toolResults) {
+    if (!toolResults || Object.keys(toolResults).length === 0) {
+        return '<p>Tool tahlil natijalari mavjud emas</p>';
+    }
+    
+    let html = '<div class="tool-results">';
+    
+    for (const [toolName, result] of Object.entries(toolResults)) {
+        if (toolName === 'error') {
+            html += `<div class="tool-result error"><strong>Xatolik:</strong> ${result}</div>`;
+            continue;
+        }
+        
+        html += `<div class="tool-result ${toolName}">`;
+        html += `<h5>${toolName.toUpperCase()}</h5>`;
+        
+        if (result && typeof result === 'object') {
+            if (result.status === 'error') {
+                html += `<p class="error">Xatolik: ${result.error || 'Noma\'lum xatolik'}</p>`;
+            } else if (result.status === 'completed') {
+                html += `<p class="success">✅ Tahlil tugallandi</p>`;
+                if (result.output) {
+                    html += `<pre class="tool-output">${result.output}</pre>`;
+                }
+            } else {
+                html += `<p>Holat: ${result.status || 'Noma\'lum'}</p>`;
+                if (result.output) {
+                    html += `<pre class="tool-output">${result.output}</pre>`;
+                }
+            }
+        } else {
+            html += `<p>Natija: ${result}</p>`;
+        }
+        
+        html += '</div>';
+    }
+    
+    html += '</div>';
+    return html;
 }
 
 function closeModal() {

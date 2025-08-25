@@ -6,6 +6,8 @@ import json
 import socket
 import requests
 import urllib3
+import subprocess
+import time
 from .models import DomainScan, Tool, KeshDomain, DomainToolConfiguration, ScanSession
 
 # SSL warnings ni o'chirish
@@ -107,7 +109,20 @@ def scan(request):
                     KeshDomain.objects.all().delete()
                     print(f"Tahlil tugagandan so'ng {deleted_count} ta domain KeshDomain bazasidan o'chirildi")
                     
-                    print(f"Yangi tahlil qilingan domainlar: {[r['domain'] for r in scan_results if r['status'] == 'completed']}")
+                    # DomainScan bazasiga saqlangan domainlarni ko'rsatish
+                    completed_domains = [r['domain'] for r in scan_results if r['status'] == 'completed']
+                    print(f"DomainScan bazasiga saqlangan domainlar: {completed_domains}")
+                    
+                    # Bazadagi ma'lumotlarni tekshirish
+                    for domain in completed_domains:
+                        try:
+                            domain_scan = DomainScan.objects.filter(domain_name=domain, status='completed').first()
+                            if domain_scan:
+                                print(f"✅ {domain} - DomainScan bazasida mavjud (ID: {domain_scan.id})")
+                            else:
+                                print(f"❌ {domain} - DomainScan bazasida topilmadi!")
+                        except Exception as e:
+                            print(f"❌ {domain} - Bazada tekshirishda xatolik: {e}")
                     
                 except Exception as e:
                     print(f"KeshDomain o'chirishda xatolik: {e}")
@@ -182,8 +197,8 @@ def scan_history(request):
         context = {
             'new_scans': new_scans,
             'old_scans': old_scans,
-            'new_count': new_scans.count(),
-            'old_count': old_scans.count(),
+            'new_count': len(new_scans) if isinstance(new_scans, list) else new_scans.count(),
+            'old_count': len(old_scans) if isinstance(old_scans, list) else old_scans.count(),
             'total_count': all_scans.count()
         }
         
@@ -215,6 +230,7 @@ def viewScanDetails(request, scan_id):
             'dns_records': scan.dns_records,
             'ssl_info': scan.ssl_info,
             'security_headers': scan.security_headers,
+            'tool_results': scan.tool_results,
             'scan_result': scan.scan_result,
             'error_message': scan.error_message,
             'duration': scan.get_duration()
@@ -350,20 +366,27 @@ def perform_domain_scan(domain):
         # Xavfsizlik sarlavhalarini olish
         security_headers = get_security_headers(domain)
         
+        # Tool scanning natijalarini olish (KeshDomain bazasidagi buyruqlar bilan)
+        tool_results = perform_tool_scans(domain)
+        
         # Natijalarni saqlash
         scan.scan_result = {
             'ip_address': ip_address,
             'dns_records': dns_records,
             'ssl_info': ssl_info,
             'security_headers': security_headers,
-            'scan_duration': '0.5 soniya'
+            'tool_results': tool_results,
+            'scan_duration': '2-5 soniya'
         }
         
         scan.dns_records = dns_records
         scan.ssl_info = ssl_info
         scan.security_headers = security_headers
+        scan.tool_results = tool_results
         scan.status = 'completed'
         scan.save()
+        
+        print(f"DomainScan bazasiga {domain} ma'lumotlari saqlandi. ID: {scan.id}")
         
         return {
             'domain': domain,
@@ -372,6 +395,7 @@ def perform_domain_scan(domain):
             'dns_records': dns_records,
             'ssl_info': ssl_info,
             'security_headers': security_headers,
+            'tool_results': tool_results,
             'scan_id': scan.id,
             'scan_date': scan.scan_date.isoformat()
         }
@@ -382,6 +406,9 @@ def perform_domain_scan(domain):
             scan.status = 'failed'
             scan.error_message = str(e)
             scan.save()
+            print(f"❌ {domain} - Xatolik bilan DomainScan bazasiga saqlandi (ID: {scan.id})")
+        else:
+            print(f"❌ {domain} - Scan yaratilmagan, xatolik: {e}")
         
         print(f"Domain tahlilida xatolik {domain}: {e}")
         return {
@@ -389,6 +416,61 @@ def perform_domain_scan(domain):
             'status': 'failed',
             'error': str(e)
         }
+
+def perform_tool_scans(domain):
+    """Domain uchun tool scanning natijalarini olish (KeshDomain bazasidagi buyruqlar bilan)"""
+    tool_results = {}
+    
+    try:
+        # KeshDomain bazasidan tool buyruqlarini olish
+        try:
+            kesh_domain = KeshDomain.objects.filter(domain_name=domain).first()
+            if kesh_domain and kesh_domain.tool_commands:
+                print(f"KeshDomain bazasidan {domain} uchun tool buyruqlari topildi")
+                print(f"Tool buyruqlari: {kesh_domain.tool_commands}")
+                
+                # Har bir tool uchun buyruqni ishga tushirish
+                for tool_command in kesh_domain.tool_commands:
+                    for tool_type, command in tool_command.items():
+                        try:
+                            print(f"Tool {tool_type} uchun buyruq: {command}")
+                            
+                            if tool_type == 'nmap':
+                                result = run_nmap_scan_with_command(domain, command)
+                                tool_results['nmap'] = result
+                                print(f"Nmap natijasi: {result}")
+                            elif tool_type == 'sqlmap':
+                                result = run_sqlmap_scan_with_command(domain, command)
+                                tool_results['sqlmap'] = result
+                                print(f"SQLMap natijasi: {result}")
+                            elif tool_type == 'gobuster':
+                                result = run_gobuster_scan_with_command(domain, command)
+                                tool_results['gobuster'] = result
+                                print(f"Gobuster natijasi: {result}")
+                            elif tool_type == 'xsstrike':
+                                result = run_xsstrike_scan_with_command(domain, command)
+                                tool_results['xsstrike'] = result
+                                print(f"XSStrike natijasi: {result}")
+                        except Exception as e:
+                            print(f"{tool_type} scanning xatolik {domain}: {e}")
+                            tool_results[tool_type] = {
+                                'status': 'error',
+                                'error': f'{tool_type} tool xatolik: {str(e)}'
+                            }
+            else:
+                print(f"KeshDomain bazasida {domain} uchun tool buyruqlari topilmadi")
+                tool_results['error'] = 'Tool buyruqlari topilmadi'
+                
+        except Exception as e:
+            print(f"KeshDomain bazasidan ma'lumot olishda xatolik {domain}: {e}")
+            tool_results['error'] = str(e)
+        
+    except Exception as e:
+        print(f"Tool scanning xatolik {domain}: {e}")
+        tool_results['error'] = str(e)
+    
+    print(f"Final tool_results: {tool_results}")
+    return tool_results
 
 def get_dns_info(domain):
     """DNS ma'lumotlarini olish"""
@@ -624,6 +706,17 @@ def save_domains(request):
                     print(f"Domain {domain}: created={created}, tool_commands={kesh_domain.tool_commands}")
                     
                     if created:
+                        # Yangi yaratilgan domain uchun default tool buyruqlarini saqlash
+                        default_tool_commands = [
+                            {"sqlmap": f"sqlmap -u https://{domain}"},
+                            {"nmap": f"nmap {domain}"},
+                            {"xsstrike": f"xsstrike -u https://{domain}"},
+                            {"gobuster": f"gobuster dir -u https://{domain} -w wordlist.txt"}
+                        ]
+                        kesh_domain.tool_commands = default_tool_commands
+                        kesh_domain.save()
+                        print(f"Default tool commands saved for {domain}: {default_tool_commands}")
+                        
                         saved_domains.append(domain)
                     else:
                         # Domain allaqachon mavjud
@@ -1067,3 +1160,304 @@ def extract_parameters_from_command(full_command, base_command):
             return params_part.split()
     
     return []
+
+@csrf_exempt
+def get_domains(request):
+    """Barcha KeshDomain'larni olish"""
+    if request.method == 'GET':
+        try:
+            domains = KeshDomain.objects.all().order_by('-created_at')
+            
+            domains_data = []
+            for domain in domains:
+                domains_data.append({
+                    'domain_name': domain.domain_name,
+                    'tool_commands': domain.tool_commands,
+                    'created_at': domain.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+                    'updated_at': domain.updated_at.strftime('%Y-%m-%d %H:%M:%S'),
+                    'is_active': domain.is_active
+                })
+            
+            return JsonResponse({
+                'success': True,
+                'domains': domains_data,
+                'total_count': len(domains_data)
+            })
+                
+        except Exception as e:
+            return JsonResponse({'error': f'Xatolik yuz berdi: {str(e)}'}, status=500)
+    
+    return JsonResponse({'error': 'Faqat GET so\'rov qabul qilinadi'}, status=405)
+
+def run_nmap_scan_with_command(domain, command):
+    """KeshDomain bazasidagi buyruq bilan Nmap scanning"""
+    try:
+        # Check if nmap tool exists
+        import os
+        nmap_path = 'tools/nmap/nmap.exe'
+        if not os.path.exists(nmap_path):
+            return {
+                'status': 'error',
+                'error': 'Nmap tool topilmadi. Iltimos, tools/nmap/ papkasini tekshiring.'
+            }
+        
+        # Command ni parse qilish va domain ni almashtirish
+        # command format: "nmap my-courses.uz" yoki "nmap -sS -sV my-courses.uz"
+        cmd_parts = command.split()
+        # Domain ni almashtirish
+        cmd_parts = [part if part != 'my-courses.uz' else domain for part in cmd_parts]
+        
+        # Nmap path ni qo'shish
+        full_cmd = [nmap_path] + cmd_parts[1:]  # nmap.exe + arguments
+        
+        print(f"Nmap command: {' '.join(full_cmd)}")
+        
+        # Subprocess'ni Popen bilan ishga tushirish
+        process = subprocess.Popen(
+            full_cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            cwd='.'
+        )
+        
+        # Natijani kutish
+        try:
+            stdout, stderr = process.communicate(timeout=300)  # 5 daqiqa
+            
+            if process.returncode == 0:
+                return {
+                    'status': 'completed',
+                    'output': stdout,
+                    'command_used': command
+                }
+            else:
+                return {
+                    'status': 'failed',
+                    'error': stderr,
+                    'return_code': process.returncode,
+                    'command_used': command
+                }
+                
+        except subprocess.TimeoutExpired:
+            # Vaqt tugaganda process'ni to'xtatish
+            process.terminate()
+            
+            return {
+                'status': 'timeout',
+                'error': 'Nmap scanning vaqti tugadi',
+                'command_used': command
+            }
+        
+    except Exception as e:
+        return {
+            'status': 'error',
+            'error': str(e),
+            'command_used': command
+        }
+
+def run_sqlmap_scan_with_command(domain, command):
+    """KeshDomain bazasidagi buyruq bilan SQLMap scanning"""
+    try:
+        # Check if sqlmap tool exists
+        import os
+        sqlmap_path = 'tools/sqlmap/sqlmap.py'
+        if not os.path.exists(sqlmap_path):
+            return {
+                'status': 'error',
+                'error': 'SQLMap tool topilmadi. Iltimos, tools/sqlmap/ papkasini tekshiring.'
+            }
+        
+        # Command ni parse qilish va domain ni almashtirish
+        # command format: "sqlmap -u https://my-courses.uz"
+        cmd_parts = command.split()
+        # Domain ni almashtirish
+        cmd_parts = [part if part != 'my-courses.uz' else domain for part in cmd_parts]
+        
+        # Python va sqlmap path ni qo'shish
+        full_cmd = ['python', sqlmap_path] + cmd_parts[1:]  # python sqlmap.py + arguments
+        
+        print(f"SQLMap command: {' '.join(full_cmd)}")
+        
+        # Subprocess'ni Popen bilan ishga tushirish
+        process = subprocess.Popen(
+            full_cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            cwd='.'
+        )
+        
+        # Natijani kutish
+        try:
+            stdout, stderr = process.communicate(timeout=180)  # 3 daqiqa
+            
+            if process.returncode == 0:
+                return {
+                    'status': 'completed',
+                    'output': stdout,
+                    'command_used': command
+                }
+            else:
+                return {
+                    'status': 'failed',
+                    'error': stderr,
+                    'return_code': process.returncode,
+                    'command_used': command
+                }
+                
+        except subprocess.TimeoutExpired:
+            # Vaqt tugaganda process'ni to'xtatish
+            process.terminate()
+            
+            return {
+                'status': 'timeout',
+                'error': 'SQLMap scanning vaqti tugadi',
+                'command_used': command
+            }
+        
+    except Exception as e:
+        return {
+            'status': 'error',
+            'error': str(e),
+            'command_used': command
+        }
+
+def run_gobuster_scan_with_command(domain, command):
+    """KeshDomain bazasidagi buyruq bilan Gobuster scanning"""
+    try:
+        # Check if gobuster tool exists
+        import os
+        gobuster_path = 'tools/gobuster/gobuster.exe'
+        if not os.path.exists(gobuster_path):
+            return {
+                'status': 'error',
+                'error': 'Gobuster tool topilmadi. Iltimos, tools/gobuster/ papkasini tekshiring.'
+            }
+        
+        # Command ni parse qilish va domain ni almashtirish
+        # command format: "gobuster dir -u https://my-courses.uz -w wordlist.txt"
+        cmd_parts = command.split()
+        # Domain ni almashtirish
+        cmd_parts = [part if part != 'my-courses.uz' else domain for part in cmd_parts]
+        
+        # Wordlist ni to'g'ri path bilan almashtirish
+        cmd_parts = [part if part != 'wordlist.txt' else 'tools/gobuster/common-files.txt' for part in cmd_parts]
+        
+        # Gobuster path ni qo'shish
+        full_cmd = [gobuster_path] + cmd_parts[1:]  # gobuster.exe + arguments
+        
+        print(f"Gobuster command: {' '.join(full_cmd)}")
+        
+        # Subprocess'ni Popen bilan ishga tushirish
+        process = subprocess.Popen(
+            full_cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            cwd='.'
+        )
+        
+        # Natijani kutish
+        try:
+            stdout, stderr = process.communicate(timeout=180)  # 3 daqiqa
+            
+            if process.returncode == 0:
+                return {
+                    'status': 'completed',
+                    'output': stdout,
+                    'command_used': command
+                }
+            else:
+                return {
+                    'status': 'failed',
+                    'error': stderr,
+                    'return_code': process.returncode,
+                    'command_used': command
+                }
+                
+        except subprocess.TimeoutExpired:
+            # Vaqt tugaganda process'ni to'xtatish
+            process.terminate()
+            
+            return {
+                'status': 'timeout',
+                'error': 'Gobuster scanning vaqti tugadi',
+                'command_used': command
+            }
+        
+    except Exception as e:
+        return {
+            'status': 'error',
+            'error': str(e),
+            'command_used': command
+        }
+
+def run_xsstrike_scan_with_command(domain, command):
+    """KeshDomain bazasidagi buyruq bilan XSStrike scanning"""
+    try:
+        # Check if xsstrike tool exists
+        import os
+        xsstrike_path = 'tools/XSStrike/xsstrike.py'
+        if not os.path.exists(xsstrike_path):
+            return {
+                'status': 'error',
+                'error': 'XSStrike tool topilmadi. Iltimos, tools/XSStrike/ papkasini tekshiring.'
+            }
+        
+        # Command ni parse qilish va domain ni almashtirish
+        # command format: "xsstrike -u https://my-courses.uz"
+        cmd_parts = command.split()
+        # Domain ni almashtirish
+        cmd_parts = [part if part != 'my-courses.uz' else domain for part in cmd_parts]
+        
+        # Python va xsstrike path ni qo'shish
+        full_cmd = ['python', xsstrike_path] + cmd_parts[1:]  # python xsstrike.py + arguments
+        
+        print(f"XSStrike command: {' '.join(full_cmd)}")
+        
+        # Subprocess'ni Popen bilan ishga tushirish
+        process = subprocess.Popen(
+            full_cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            cwd='.'
+        )
+        
+        # Natijani kutish
+        try:
+            stdout, stderr = process.communicate(timeout=180)  # 3 daqiqa
+            
+            if process.returncode == 0:
+                return {
+                    'status': 'completed',
+                    'output': stdout,
+                    'command_used': command
+                }
+            else:
+                return {
+                    'status': 'failed',
+                    'error': stderr,
+                    'return_code': process.returncode,
+                    'command_used': command
+                }
+                
+        except subprocess.TimeoutExpired:
+            # Vaqt tugaganda process'ni to'xtatish
+            process.terminate()
+            
+            return {
+                'status': 'timeout',
+                'error': 'XSStrike scanning vaqti tugadi',
+                'command_used': command
+            }
+        
+    except Exception as e:
+        return {
+            'status': 'error',
+            'error': str(e),
+            'command_used': command
+        }
+
+

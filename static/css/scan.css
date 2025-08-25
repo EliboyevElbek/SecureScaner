@@ -3572,4 +3572,79 @@
     box-shadow: 0 4px 8px rgba(0,0,0,0.3);
 } 
 
- 
+/* Tool Results stillari */
+.tool-results {
+    margin-top: 1rem;
+    padding: 1rem;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 8px;
+    border: 1px solid #333;
+}
+
+.tool-result {
+    margin-bottom: 1.5rem;
+    padding: 1rem;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 6px;
+    border-left: 3px solid #00ff00;
+}
+
+.tool-result h5 {
+    color: #00ff00;
+    margin: 0 0 0.5rem 0;
+    font-size: 16px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.tool-result.success {
+    border-left-color: #28a745;
+}
+
+.tool-result.error {
+    border-left-color: #dc3545;
+}
+
+.tool-result.nmap {
+    border-left-color: #007bff;
+}
+
+.tool-result.sqlmap {
+    border-left-color: #ff6b35;
+}
+
+.tool-result.gobuster {
+    border-left-color: #6f42c1;
+}
+
+.tool-result.xsstrike {
+    border-left-color: #fd7e14;
+}
+
+.tool-output {
+    background: rgba(0, 0, 0, 0.7);
+    color: #00ff00;
+    padding: 1rem;
+    border-radius: 4px;
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+    line-height: 1.4;
+    max-height: 200px;
+    overflow-y: auto;
+    border: 1px solid #333;
+    margin-top: 0.5rem;
+}
+
+.tool-result p {
+    margin: 0.5rem 0;
+    color: #ffffff;
+}
+
+.tool-result .error {
+    color: #dc3545;
+}
+
+.tool-result .success {
+    color: #28a745;
+}

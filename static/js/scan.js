@@ -164,10 +164,8 @@ function prepareDomains() {
             // Show success notification with backend response
             showNotification(data.message, 'success');
             
-            // Har bir domain uchun default tool buyruqlarini bazaga saqlash
-            newDomains.forEach(domain => {
-                saveDefaultToolCommands(domain);
-            });
+            // Har bir domain uchun tool buyruqlari allaqachon backend da saqlangan
+            console.log('Tool buyruqlari allaqachon backend da saqlangan');
             
             // Yangi domainlar uchun input field'larni tozalash
             clearInputFieldsForNewDomains(newDomains);
