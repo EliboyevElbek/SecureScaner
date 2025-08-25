@@ -960,17 +960,17 @@
     background: rgba(0, 0, 0, 0.95);
     border: 2px solid #333333;
     border-radius: 16px;
-    padding: 2rem;
-    max-width: 500px;
+    padding: 1.5rem;
+    max-width: 1050px;
     width: 90%;
     box-shadow: 0 20px 40px rgba(0, 0, 0, 0.8);
-        text-align: center;
+    text-align: left;
     }
     
 .custom-modal-header h3 {
     color: #ffffff;
-    margin: 0 0 1rem 0;
-    font-size: 1.5rem;
+    margin: 0 0 0.75rem 0;
+    font-size: 1.25rem;
     text-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
 }
 
@@ -995,6 +995,25 @@
 
 .custom-modal-actions .btn {
     min-width: 120px;
+}
+
+/* O'chirish modal oynasi uchun alohida stillar */
+.custom-modal.delete-modal .custom-modal-content {
+    text-align: center;
+    max-width: 500px;
+}
+
+.custom-modal.delete-modal .custom-modal-header h3 {
+    text-align: center;
+}
+
+.custom-modal.delete-modal .custom-modal-body p {
+    text-align: center;
+    margin: 0 0 1.5rem 0;
+}
+
+.custom-modal.delete-modal .custom-modal-actions {
+    justify-content: center;
 }
 
 /* Edit Domain Page Styles */
@@ -3647,4 +3666,370 @@
 
 .tool-result .success {
     color: #28a745;
+}
+
+/* Domain Progress Modal stillari */
+.domain-progress-info {
+    padding: 1rem 0;
+}
+
+.domain-progress-header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid #333;
+}
+
+.domain-favicon-progress {
+    width: 32px;
+    height: 32px;
+    border-radius: 4px;
+}
+
+.icon-emoji-progress {
+    font-size: 24px;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 255, 0, 0.1);
+    border-radius: 4px;
+}
+
+.domain-progress-header h4 {
+    color: #00ff00;
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.progress-status {
+    margin-bottom: 1.5rem;
+}
+
+.status-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.status-icon {
+    font-size: 18px;
+    color: #00ff00;
+}
+
+.status-text {
+    color: #ffffff;
+    font-weight: 500;
+}
+
+.progress-percentage {
+    color: #00ff00;
+    font-weight: 600;
+    font-family: 'Orbitron', monospace;
+    margin-left: auto;
+}
+
+.progress-bar {
+    width: 100%;
+    height: 8px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #00ff00, #00cc00);
+    border-radius: 4px;
+    transition: width 0.5s ease;
+    box-shadow: 0 0 10px rgba(0, 255, 0, 0.5);
+}
+
+.tools-progress h5 {
+    color: #00ff00;
+    margin: 0 0 0.75rem 0;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.tools-progress {
+    max-height: 300px;
+    overflow-y: auto;
+    padding-right: 0.5rem;
+}
+
+.tools-progress::-webkit-scrollbar {
+    width: 8px;
+}
+
+.tools-progress::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+}
+
+.tools-progress::-webkit-scrollbar-thumb {
+    background: rgba(0, 255, 0, 0.5);
+    border-radius: 4px;
+}
+
+.tools-progress::-webkit-scrollbar-thumb:hover {
+    background: rgba(0, 255, 0, 0.7);
+}
+
+.tool-progress-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 6px;
+    margin-bottom: 0.5rem;
+    border-left: 3px solid #333;
+}
+
+.tool-name {
+    color: #ffffff;
+    font-weight: 500;
+}
+
+.tool-status {
+    padding: 0.25rem 0.75rem;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.tool-status.pending {
+    background: rgba(255, 193, 7, 0.2);
+    color: #ffc107;
+    border: 1px solid #ffc107;
+}
+
+.tool-status.completed {
+    background: rgba(40, 167, 69, 0.2);
+    color: #28a745;
+    border: 1px solid #28a745;
+}
+
+.tool-status.error {
+    background: rgba(220, 53, 69, 0.2);
+    color: #dc3545;
+    border: 1px solid #dc3545;
+}
+
+/* Tool Row stillari - yangi format */
+.tool-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 0.75rem;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 6px;
+    margin-bottom: 0.4rem;
+    border: 1px solid #333;
+    transition: all 0.3s ease;
+}
+
+.tool-row:hover {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: #00ff00;
+    transform: translateX(3px);
+}
+
+.tool-name-section {
+    display: flex;
+    align-items: center;
+    flex: 1;
+}
+
+.tool-name {
+    color: #ffffff;
+    font-weight: 500;
+    font-size: 14px;
+}
+
+.tool-action-section {
+    display: flex;
+    justify-content: flex-end;
+    min-width: 100px;
+}
+
+.no-tools {
+    color: #888;
+    font-style: italic;
+    text-align: center;
+    padding: 1rem;
+}
+
+.tools-status {
+    margin-top: 1.5rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid #333;
+}
+
+/* Tool Actions stillari */
+.tool-actions {
+    margin-top: 0.75rem;
+    display: flex;
+    justify-content: flex-end;
+}
+
+.tool-actions .btn {
+    font-size: 11px;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+}
+
+/* Tool Result Detail stillari */
+.tool-results-section {
+    margin-top: 1.5rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid #333;
+}
+
+.tool-result-detail {
+    background: rgba(0, 0, 0, 0.4);
+    border-radius: 8px;
+    padding: 1rem;
+    border: 1px solid #333;
+    margin-bottom: 1rem;
+}
+
+.tool-result-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid #444;
+}
+
+.tool-result-header h6 {
+    color: #00ff00;
+    margin: 0;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.tool-result-status {
+    padding: 0.25rem 0.75rem;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.tool-result-status.completed {
+    background: rgba(40, 167, 69, 0.2);
+    color: #28a745;
+    border: 1px solid #28a745;
+}
+
+.tool-result-status.failed {
+    background: rgba(220, 53, 69, 0.2);
+    color: #dc3545;
+    border: 1px solid #dc3545;
+}
+
+.tool-result-status.running {
+    background: rgba(0, 123, 255, 0.2);
+    color: #007bff;
+    border: 1px solid #007bff;
+}
+
+.tool-result-status.pending {
+    background: rgba(255, 193, 7, 0.2);
+    color: #ffc107;
+    border: 1px solid #ffc107;
+}
+
+.tool-result-status.unknown {
+    background: rgba(108, 117, 125, 0.2);
+    color: #6c757d;
+    border: 1px solid #6c757d;
+}
+
+.tool-result-content {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.tool-result-info {
+    background: rgba(255, 255, 255, 0.05);
+    padding: 0.75rem;
+    border-radius: 6px;
+    border-left: 3px solid #00ff00;
+}
+
+.tool-result-info p {
+    margin: 0.25rem 0;
+    color: #ffffff;
+    font-size: 12px;
+}
+
+.tool-result-info code {
+    background: rgba(0, 0, 0, 0.5);
+    color: #00ff00;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-family: 'Courier New', monospace;
+    font-size: 11px;
+}
+
+.tool-result-output h6 {
+    color: #00ff00;
+    margin: 0 0 0.5rem 0;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.tool-output-log {
+    background: rgba(0, 0, 0, 0.8);
+    color: #00ff00;
+    padding: 1rem;
+    border-radius: 6px;
+    font-family: 'Courier New', monospace;
+    font-size: 11px;
+    line-height: 1.4;
+    max-height: 300px;
+    overflow-y: auto;
+    border: 1px solid #333;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+
+/* Selected tool highlight */
+.tool-info-item.selected {
+    border-left-color: #00ff00 !important;
+    background: rgba(0, 255, 0, 0.1) !important;
+    transform: translateX(5px);
+}
+
+/* Progress Button stillari */
+.progress-btn {
+    transition: all 0.3s ease;
+    animation: fadeIn 0.5s ease-in;
+}
+
+.progress-btn:hover {
+    transform: scale(1.05);
+    box-shadow: 0 4px 15px rgba(0, 123, 255, 0.4);
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-5px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }

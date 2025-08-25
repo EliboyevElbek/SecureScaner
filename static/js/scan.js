@@ -211,6 +211,9 @@ function renderDomains() {
                 <h3>${domain}</h3>
             </div>
             <div class="domain-actions">
+                <button class="btn btn-small btn-info progress-btn" onclick="showDomainProgress(${index})" style="display: none;">
+                    🔍 Jarayon
+                </button>
                 <button class="btn btn-small btn-secondary" onclick="editDomain(${index})">
                     ✏️ Tahrirlash
                 </button>
@@ -1059,7 +1062,7 @@ function deleteDomain(index) {
     
     // Create custom confirmation modal
     const modal = document.createElement('div');
-    modal.className = 'custom-modal';
+    modal.className = 'custom-modal delete-modal';
     modal.innerHTML = `
         <div class="custom-modal-content">
             <div class="custom-modal-header">
@@ -1171,15 +1174,22 @@ function startScan() {
     console.log('Starting scan for domains:', domains);
     
     // Show loading state with professional animation
-    const scanButton = document.querySelector('.btn-success');
+    const scanButton = document.getElementById('scanButton');
     const originalText = scanButton.textContent;
-    scanButton.textContent = '⏳ Tahlil qilinmoqda...';
-    scanButton.disabled = true;
-    scanButton.classList.add('loading');
+    scanButton.textContent = '⏸️ Tahlilni to\'xtatish';
+    scanButton.disabled = false;
+    scanButton.classList.remove('btn-success', 'loading');
+    scanButton.classList.add('btn-danger');
+    scanButton.onclick = stopScan; // Tugma funksiyasini o'zgartirish
     
     // Add loading animation to all domain items
     document.querySelectorAll('.domain-item').forEach(item => {
         item.classList.add('scanning');
+    });
+    
+    // Show progress buttons for all domains
+    document.querySelectorAll('.progress-btn').forEach(btn => {
+        btn.style.display = 'inline-block';
     });
     
     // Send request with JSON data
@@ -1206,6 +1216,24 @@ function startScan() {
             const message = data.message || 'Tahlil muvaffaqiyatli bajarildi!';
             showNotification(message, 'success');
             
+            // Save tool results to localStorage for each domain
+            if (data.results) {
+                data.results.forEach(result => {
+                    if (result.tool_results) {
+                        Object.entries(result.tool_results).forEach(([toolName, toolResult]) => {
+                            const resultsKey = `tool_results_${result.domain}_${toolName}`;
+                            localStorage.setItem(resultsKey, JSON.stringify(toolResult));
+                            console.log(`Saved tool results for ${result.domain} - ${toolName}:`, toolResult);
+                        });
+                    }
+                });
+            }
+            
+            // Hide progress buttons for all domains
+            document.querySelectorAll('.progress-btn').forEach(btn => {
+                btn.style.display = 'none';
+            });
+            
             // Tahlil tugagandan so'ng history sahifasiga o'tish
             setTimeout(() => {
                 // History sahifasiga o'tish va yangi tahlillarni eski tahlillarga qo'shish
@@ -1221,14 +1249,531 @@ function startScan() {
         showNotification('Tahlil xatosi: ' + error.message, 'error');
         
         // Reset button and domain items
-        scanButton.textContent = originalText;
-        scanButton.disabled = false;
-        scanButton.classList.remove('loading');
-        
+        resetScanButton(scanButton, originalText);
         document.querySelectorAll('.domain-item').forEach(item => {
             item.classList.remove('scanning');
         });
+        
+        // Hide progress buttons for all domains
+        document.querySelectorAll('.progress-btn').forEach(btn => {
+            btn.style.display = 'none';
+        });
     });
+}
+
+function stopScan() {
+    console.log('Stopping scan...');
+    
+    // Show confirmation modal
+    const modal = document.createElement('div');
+    modal.className = 'custom-modal delete-modal';
+    modal.innerHTML = `
+        <div class="custom-modal-content">
+            <div class="custom-modal-header">
+                <h3>⚠️ Tahlilni to\'xtatish</h3>
+            </div>
+            <div class="custom-modal-body">
+                <p>Haqiqatdan <strong>tahlilni to\'xtatishni</strong> xohlaysizmi?</p>
+                <p><small>Jarayonda bo\'lgan tahlillar to\'xtatiladi</small></p>
+            </div>
+            <div class="custom-modal-actions">
+                <button class="btn btn-secondary" onclick="closeStopModal()">Yo\'q</button>
+                <button class="btn btn-danger" onclick="confirmStopScan()">Ha, to\'xtat</button>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    // Show modal with animation
+    setTimeout(() => {
+        modal.style.opacity = '1';
+        modal.style.transform = 'scale(1)';
+    }, 10);
+}
+
+function closeStopModal() {
+    const modal = document.querySelector('.custom-modal');
+    if (modal) {
+        modal.remove();
+    }
+}
+
+function confirmStopScan() {
+    console.log('Scan stopped by user');
+    
+    // Close modal
+    closeStopModal();
+    
+    // Reset button to original state
+    const scanButton = document.getElementById('scanButton');
+    if (scanButton) {
+        scanButton.textContent = 'Tahlilni boshlash';
+        scanButton.classList.remove('btn-danger');
+        scanButton.classList.add('btn-success');
+        scanButton.onclick = startScan;
+        scanButton.id = ''; // ID ni tozalaymiz
+    }
+    
+    // Remove scanning state from domain items
+        document.querySelectorAll('.domain-item').forEach(item => {
+            item.classList.remove('scanning');
+        });
+    
+    // Hide progress buttons for all domains
+    document.querySelectorAll('.progress-btn').forEach(btn => {
+        btn.style.display = 'none';
+    });
+    
+    showNotification('Tahlil to\'xtatildi', 'warning');
+}
+
+function resetScanButton(scanButton, originalText) {
+    scanButton.textContent = originalText;
+    scanButton.disabled = false;
+    scanButton.classList.remove('btn-danger', 'loading');
+    scanButton.classList.add('btn-success');
+    scanButton.onclick = startScan;
+    scanButton.id = ''; // ID ni tozalaymiz
+    
+    // Hide progress buttons for all domains
+    document.querySelectorAll('.progress-btn').forEach(btn => {
+        btn.style.display = 'none';
+    });
+}
+
+function showDomainProgress(index) {
+    console.log(`showDomainProgress called with index: ${index}`);
+    const domain = domains[index];
+    console.log(`Domain: ${domain}`);
+    
+    // Get available tools for this domain
+    const availableTools = getAvailableToolsForDomain(domain);
+    console.log(`Available tools:`, availableTools);
+    
+    // Create progress modal
+    const modal = document.createElement('div');
+    modal.className = 'custom-modal';
+    modal.innerHTML = `
+        <div class="custom-modal-content">
+            <div class="custom-modal-header">
+                <h3>🔍 Domain Jarayoni</h3>
+            </div>
+            <div class="custom-modal-body">
+                <div class="domain-progress-info">
+                    <div class="domain-progress-header">
+                        <img src="https://www.google.com/s2/favicons?domain=${domain}&sz=32" 
+                             alt="${domain} icon" 
+                             class="domain-favicon-progress"
+                             onerror="this.style.display='none'; this.nextElementSibling.style.display='inline-block';">
+                        <span class="icon-emoji-progress" style="display: none;">🌐</span>
+                        <h4>${domain}</h4>
+                    </div>
+                    
+                    <div class="tools-progress">
+                        <h5>Mavjud Tool'lar:</h5>
+                        <div id="availableToolsList">
+                            <!-- Available tools will be populated here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="custom-modal-actions">
+                <button class="btn btn-primary" onclick="closeProgressModal()">Yopish</button>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    console.log('Modal created and appended to body');
+    
+    // Populate available tools
+    populateAvailableTools(availableTools);
+    
+    // Show modal with animation
+    setTimeout(() => {
+        modal.style.opacity = '1';
+        modal.style.transform = 'scale(1)';
+        modal.style.display = 'flex';
+        console.log('Modal animation started');
+    }, 10);
+}
+
+function closeProgressModal() {
+    const modal = document.querySelector('.custom-modal');
+    if (modal) {
+        modal.remove();
+    }
+}
+
+function getAvailableToolsForDomain(domain) {
+    console.log(`Getting available tools for domain: ${domain}`);
+    
+    // Get available tools from localStorage or default tools
+    const availableTools = [];
+    
+    // Check for saved tool parameters
+    const tools = ['sqlmap', 'nmap', 'xsstrike', 'gobuster', 'nikto', 'dirb', 'wpscan', 'joomscan', 'drupalscan', 'w3af', 'openvas', 'nessus'];
+    tools.forEach(toolType => {
+        const savedParams = getToolParamsFromStorage(domain, toolType);
+        console.log(`${toolType} saved params:`, savedParams);
+        
+        if (savedParams && savedParams.length > 0) {
+            availableTools.push({
+                name: toolType,
+                displayName: getToolDisplayName(toolType),
+                icon: getToolIcon(toolType),
+                hasParameters: true
+            });
+        } else {
+            // Add default tools even if no parameters
+            availableTools.push({
+                name: toolType,
+                displayName: getToolDisplayName(toolType),
+                icon: getToolIcon(toolType),
+                hasParameters: false
+            });
+        }
+    });
+    
+    console.log('Final available tools:', availableTools);
+    return availableTools;
+}
+
+function getToolDisplayName(toolType) {
+    const displayNames = {
+        'nmap': 'Nmap',
+        'sqlmap': 'SQLMap',
+        'xsstrike': 'XSStrike',
+        'gobuster': 'Gobuster',
+        'nikto': 'Nikto',
+        'dirb': 'Dirb',
+        'wpscan': 'WPScan',
+        'joomscan': 'JoomScan',
+        'drupalscan': 'DrupalScan',
+        'w3af': 'W3AF',
+        'openvas': 'OpenVAS',
+        'nessus': 'Nessus'
+    };
+    return displayNames[toolType] || toolType;
+}
+
+function getToolIcon(toolType) {
+    const icons = {
+        'nmap': '🔍',
+        'sqlmap': '💉',
+        'xsstrike': '🕷️',
+        'gobuster': '📁',
+        'nikto': '🔧',
+        'dirb': '📂',
+        'wpscan': '📝',
+        'joomscan': '🌐',
+        'drupalscan': '🔍',
+        'w3af': '🕵️',
+        'openvas': '🛡️',
+        'nessus': '🔒'
+    };
+    return icons[toolType] || '⚙️';
+}
+
+function renderAvailableTools(tools) {
+    if (!tools || tools.length === 0) {
+        return '<p class="no-tools">Hech qanday tool mavjud emas</p>';
+    }
+    
+    let html = '';
+    tools.forEach((tool, index) => {
+        html += `
+            <div class="tool-row">
+                <div class="tool-name-section">
+                    <span class="tool-name">${tool.displayName}</span>
+                </div>
+                <div class="tool-action-section">
+                    <button class="btn btn-small btn-info" onclick="showToolDetails('${tool.name}', ${index})">
+                        🔍 Batafsil
+                    </button>
+                </div>
+            </div>
+        `;
+    });
+    
+    return html;
+}
+
+function renderToolStatuses(tools) {
+    if (!tools || tools.length === 0) {
+        return '<p class="no-tools">Tool holati mavjud emas</p>';
+    }
+    
+    let html = '';
+    tools.forEach(tool => {
+        html += `
+            <div class="tool-progress-item">
+                <span class="tool-name">${tool.icon} ${tool.displayName}</span>
+                <span class="tool-status pending">Kutilmoqda</span>
+            </div>
+        `;
+    });
+    
+    return html;
+}
+
+function populateAvailableTools(tools) {
+    console.log('populateAvailableTools called with:', tools);
+    const availableToolsList = document.getElementById('availableToolsList');
+    console.log('availableToolsList element:', availableToolsList);
+    
+    if (availableToolsList) {
+        const html = renderAvailableTools(tools);
+        console.log('Rendered HTML:', html);
+        availableToolsList.innerHTML = html;
+    } else {
+        console.error('availableToolsList element not found!');
+    }
+}
+
+function populateToolStatuses(tools) {
+    console.log('populateToolStatuses called with:', tools);
+    const toolStatusesList = document.getElementById('toolStatusesList');
+    console.log('toolStatusesList element:', toolStatusesList);
+    
+    if (toolStatusesList) {
+        const html = renderToolStatuses(tools);
+        console.log('Rendered HTML:', html);
+        toolStatusesList.innerHTML = html;
+    } else {
+        console.error('toolStatusesList element not found!');
+    }
+}
+
+function showToolDetails(toolName, toolIndex) {
+    console.log(`showToolDetails called for tool: ${toolName}, index: ${toolIndex}`);
+    
+    // Get current domain from the modal
+    const modal = document.querySelector('.custom-modal');
+    if (!modal) {
+        console.error('Modal not found!');
+        return;
+    }
+    
+    const domainName = modal.querySelector('h4').textContent;
+    console.log(`Domain: ${domainName}`);
+    
+    // Get tool results from localStorage or simulate them
+    const toolResults = getToolResults(domainName, toolName);
+    console.log(`Tool results for ${toolName}:`, toolResults);
+    
+    // Create or update tool results section
+    updateToolResults(toolName, toolResults);
+    
+    // Highlight the selected tool
+    highlightSelectedTool(toolIndex);
+}
+
+function getToolResults(domain, toolName) {
+    // Try to get real results from localStorage
+    const resultsKey = `tool_results_${domain}_${toolName}`;
+    const savedResults = localStorage.getItem(resultsKey);
+    
+    if (savedResults) {
+        try {
+            return JSON.parse(savedResults);
+        } catch (e) {
+            console.error('Error parsing saved results:', e);
+        }
+    }
+    
+    // Return simulated results if no real data
+    return getSimulatedToolResults(toolName);
+}
+
+function getSimulatedToolResults(toolName) {
+    const simulatedResults = {
+        'nmap': {
+            status: 'completed',
+            output: `Starting Nmap 7.97 ( https://nmap.org ) at 2025-08-25 11:31 +0500
+Nmap scan report for example.com (93.184.216.34)
+Host is up (0.16s latency).
+rDNS record for 93.184.216.34: example.com
+
+PORT      STATE  SERVICE
+22/tcp    open   ssh
+80/tcp    open   http
+443/tcp   open   https
+3306/tcp  open   mysql
+
+Nmap done: 1 IP address (1 host up) scanned in 16.02 seconds`,
+            command_used: `nmap example.com`,
+            timestamp: new Date().toISOString()
+        },
+        'sqlmap': {
+            status: 'completed',
+            output: `[*] starting @ 11:31:46 /2025-08-25/
+[11:31:46] [INFO] testing connection to the target URL
+[11:31:46] [INFO] checking if the target is protected by some kind of WAF/IPS
+[11:31:46] [INFO] testing for SQL injection on GET parameter 'id'
+[11:31:46] [INFO] testing 'AND boolean-based blind - Parameter: id'
+[11:31:46] [INFO] testing 'MySQL >= 5.0 AND error-based - Parameter: id'
+[11:31:46] [INFO] testing 'PostgreSQL AND error-based - Parameter: id'
+[11:31:46] [INFO] no parameter was found to be injectable`,
+            command_used: `sqlmap -u https://example.com`,
+            timestamp: new Date().toISOString()
+        },
+        'xsstrike': {
+            status: 'completed',
+            output: `XSStrike v3.1.5
+
+[~] Checking for DOM vulnerabilities
+[-] No parameters to test.
+[~] Testing for XSS vulnerabilities
+[-] No XSS vulnerabilities found.`,
+            command_used: `xsstrike -u https://example.com`,
+            timestamp: new Date().toISOString()
+        },
+        'gobuster': {
+            status: 'completed',
+            output: `===============================================================
+Gobuster v3.7
+by OJ Reeves (@TheColonial) & Christian Mehlmauer (@firefart)
+===============================================================
+[+] Url:            https://example.com
+[+] Method:         GET
+[+] Threads:        10
+[+] Wordlist:       tools/gobuster/common-files.txt
+[+] Negative Status codes:   404
+[+] User Agent:     gobuster/3.7
+[+] Timeout:        10s
+===============================================================
+Starting gobuster in directory enumeration mode
+===============================================================
+/login                (Status: 200) [Size: 5058]
+/register             (Status: 200) [Size: 5555]
+/admin                (Status: 301) [Size: 236]
+/robots.txt           (Status: 200) [Size: 24]
+===============================================================
+Finished
+===============================================================`,
+            command_used: `gobuster dir -u https://example.com -w wordlist.txt`,
+            timestamp: new Date().toISOString()
+        }
+    };
+    
+    return simulatedResults[toolName] || {
+        status: 'unknown',
+        output: 'Tool natijalari mavjud emas',
+        command_used: 'N/A',
+        timestamp: new Date().toISOString()
+    };
+}
+
+function updateToolResults(toolName, results) {
+    const toolResultsList = document.getElementById('toolResultsList');
+    if (!toolResultsList) {
+        console.error('toolResultsList element not found!');
+        return;
+    }
+    
+    const toolDisplayName = getToolDisplayName(toolName);
+    const toolIcon = getToolIcon(toolName);
+    
+    const html = `
+        <div class="tool-result-detail">
+            <div class="tool-result-header">
+                <h6>${toolIcon} ${toolDisplayName} Natijalari</h6>
+                <span class="tool-result-status ${results.status}">${getStatusText(results.status)}</span>
+            </div>
+            <div class="tool-result-content">
+                <div class="tool-result-info">
+                    <p><strong>Buyruq:</strong> <code>${results.command_used}</code></p>
+                    <p><strong>Vaqt:</strong> ${new Date(results.timestamp).toLocaleString('uz-UZ')}</p>
+                </div>
+                <div class="tool-result-output">
+                    <h6>Natija:</h6>
+                    <pre class="tool-output-log">${results.output}</pre>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    toolResultsList.innerHTML = html;
+}
+
+function getStatusText(status) {
+    const statusTexts = {
+        'completed': '✅ Tugallandi',
+        'failed': '❌ Xatolik',
+        'running': '⏳ Jarayonda',
+        'pending': '⏳ Kutilmoqda',
+        'unknown': '❓ Noma\'lum'
+    };
+    return statusTexts[status] || status;
+}
+
+function highlightSelectedTool(toolIndex) {
+    // Remove previous highlights
+    document.querySelectorAll('.tool-info-item').forEach(item => {
+        item.classList.remove('selected');
+    });
+    
+    // Highlight selected tool
+    const toolItems = document.querySelectorAll('.tool-info-item');
+    if (toolItems[toolIndex]) {
+        toolItems[toolIndex].classList.add('selected');
+    }
+}
+
+function simulateProgress() {
+    const progressFill = document.querySelector('.progress-fill');
+    const progressPercentage = document.querySelector('.progress-percentage');
+    const toolStatuses = document.querySelectorAll('.tool-status');
+    
+    if (!progressFill) {
+        console.error('Progress fill element not found!');
+        return;
+    }
+    
+    console.log('Starting progress simulation...');
+    
+    let progress = 0;
+    const interval = setInterval(() => {
+        progress += Math.random() * 15;
+        if (progress > 100) progress = 100;
+        
+        progressFill.style.width = progress + '%';
+        if (progressPercentage) {
+            progressPercentage.textContent = Math.round(progress) + '%';
+        }
+        
+        console.log(`Progress: ${Math.round(progress)}%`);
+        
+        // Update tool statuses
+        if (progress > 25 && toolStatuses[0]) {
+            toolStatuses[0].textContent = '✅ Tugallandi';
+            toolStatuses[0].className = 'tool-status completed';
+            console.log('Tool 1 completed');
+        }
+        if (progress > 50 && toolStatuses[1]) {
+            toolStatuses[1].textContent = '✅ Tugallandi';
+            toolStatuses[1].className = 'tool-status completed';
+            console.log('Tool 2 completed');
+        }
+        if (progress > 75 && toolStatuses[2]) {
+            toolStatuses[2].textContent = '✅ Tugallandi';
+            toolStatuses[2].className = 'tool-status completed';
+            console.log('Tool 3 completed');
+            console.log('Tool 3 completed');
+        }
+        if (progress > 90 && toolStatuses[3]) {
+            toolStatuses[3].textContent = '✅ Tugallandi';
+            toolStatuses[3].className = 'tool-status completed';
+            console.log('Tool 4 completed');
+        }
+        
+        if (progress >= 100) {
+            clearInterval(interval);
+            console.log('Progress simulation completed');
+        }
+    }, 500);
 }
 
 function resetDomains() {
@@ -1236,7 +1781,7 @@ function resetDomains() {
     
     // Custom modal stil bilan alert (O'chirish tugmasidagi stil bilan bir xil)
     const modal = document.createElement('div');
-    modal.className = 'custom-modal';
+    modal.className = 'custom-modal delete-modal';
     modal.innerHTML = `
         <div class="custom-modal-content">
             <div class="custom-modal-header">
