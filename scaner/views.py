@@ -1518,42 +1518,43 @@ def stream_nmap_output(domain, command):
         cmd_parts = [part if part != 'my-courses.uz' else domain for part in cmd_parts]
         full_cmd = [nmap_path] + cmd_parts[1:]
         
-        yield f"data: {json.dumps({'status': 'starting', 'message': f'Nmap ishga tushirilmoqda: {" ".join(full_cmd)}'})}\n\n"
+        yield f"data: {json.dumps({'status': 'starting', 'message': f'🚀 Nmap ishga tushirilmoqda: {" ".join(full_cmd)}'})}\n\n"
         
-        # Start subprocess with real-time output
+        # Start subprocess with real-time output and interactive input
         process = subprocess.Popen(
             full_cmd,
+            stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
             text=True,
-            cwd='.',
-            bufsize=0,
+            bufsize=1,
             universal_newlines=True
         )
         
-        # Stream output in real-time using polling
-        while True:
-            # Check if process is still running
-            if process.poll() is not None:
-                break
-            
-            # Try to read from stdout
-            if process.stdout:
-                # Read available output
-                line = process.stdout.readline()
-                if line:
-                    yield f"data: {json.dumps({'output': line.strip()})}\n\n"
-                else:
-                    # Small delay to prevent busy waiting
-                    time.sleep(0.1)
+        # Real-time output oqish va interaktiv savollarga javob berish
+        for line in process.stdout:
+            if line:
+                # Output ni real-time ko'rsatish
+                yield f"data: {json.dumps({'output': line.strip()})}\n\n"
+                
+                # Interaktiv savollarga avtomatik javob berish
+                if "[y/N]" in line or "[Y/n]" in line or "Continue?" in line:
+                    try:
+                        process.stdin.write("y\n")
+                        process.stdin.flush()
+                        yield f"data: {json.dumps({'interactive': 'Avtomatik javob: Ha'})}\n\n"
+                    except:
+                        pass
         
-        # Check for errors
-        return_code = process.poll()
+        # Process tugashini kutish
+        process.wait()
+        
+        # Natijani tekshirish
+        return_code = process.returncode
         if return_code != 0:
-            stderr_output = process.stderr.read()
-            yield f"data: {json.dumps({'error': f'Nmap xatolik bilan tugadi (kod: {return_code}): {stderr_output}'})}\n\n"
+            yield f"data: {json.dumps({'error': f'Nmap xatolik bilan tugadi (kod: {return_code})'})}\n\n"
         else:
-            yield f"data: {json.dumps({'status': 'completed', 'message': 'Nmap muvaffaqiyatli tugadi'})}\n\n"
+            yield f"data: {json.dumps({'status': 'completed', 'message': '✅ ✅ Nmap muvaffaqiyatli tugadi'})}\n\n"
             
     except Exception as e:
         yield f"data: {json.dumps({'error': f'Nmap xatolik: {str(e)}'})}\n\n"
@@ -1572,42 +1573,43 @@ def stream_sqlmap_output(domain, command):
         cmd_parts = [part if part != 'my-courses.uz' else domain for part in cmd_parts]
         full_cmd = ['python', sqlmap_path] + cmd_parts[1:]
         
-        yield f"data: {json.dumps({'status': 'starting', 'message': f'SQLMap ishga tushirilmoqda: {" ".join(full_cmd)}'})}\n\n"
+        yield f"data: {json.dumps({'status': 'starting', 'message': f'🚀 SQLMap ishga tushirilmoqda: {" ".join(full_cmd)}'})}\n\n"
         
-        # Start subprocess with real-time output
+        # Start subprocess with real-time output and interactive input
         process = subprocess.Popen(
             full_cmd,
+            stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
             text=True,
-            cwd='.',
-            bufsize=0,
+            bufsize=1,
             universal_newlines=True
         )
         
-        # Stream output in real-time using polling
-        while True:
-            # Check if process is still running
-            if process.poll() is not None:
-                break
-            
-            # Try to read from stdout
-            if process.stdout:
-                # Read available output
-                line = process.stdout.readline()
-                if line:
-                    yield f"data: {json.dumps({'output': line.strip()})}\n\n"
-                else:
-                    # Small delay to prevent busy waiting
-                    time.sleep(0.1)
+        # Real-time output oqish va interaktiv savollarga javob berish
+        for line in process.stdout:
+            if line:
+                # Output ni real-time ko'rsatish
+                yield f"data: {json.dumps({'output': line.strip()})}\n\n"
+                
+                # Interaktiv savollarga avtomatik javob berish
+                if "[y/N]" in line or "[Y/n]" in line or "Continue?" in line or "Do you want to" in line:
+                    try:
+                        process.stdin.write("y\n")
+                        process.stdin.flush()
+                        yield f"data: {json.dumps({'interactive': 'Avtomatik javob: Ha'})}\n\n"
+                    except:
+                        pass
         
-        # Check for errors
-        return_code = process.poll()
+        # Process tugashini kutish
+        process.wait()
+        
+        # Natijani tekshirish
+        return_code = process.returncode
         if return_code != 0:
-            stderr_output = process.stderr.read()
-            yield f"data: {json.dumps({'error': f'SQLMap xatolik bilan tugadi (kod: {return_code}): {stderr_output}'})}\n\n"
+            yield f"data: {json.dumps({'error': f'SQLMap xatolik bilan tugadi (kod: {return_code})'})}\n\n"
         else:
-            yield f"data: {json.dumps({'status': 'completed', 'message': 'SQLMap muvaffaqiyatli tugadi'})}\n\n"
+            yield f"data: {json.dumps({'status': 'completed', 'message': '✅ ✅ SQLMap muvaffaqiyatli tugadi'})}\n\n"
             
     except Exception as e:
         yield f"data: {json.dumps({'error': f'SQLMap xatolik: {str(e)}'})}\n\n"
@@ -1626,42 +1628,43 @@ def stream_gobuster_output(domain, command):
         cmd_parts = [part if part != 'my-courses.uz' else domain for part in cmd_parts]
         full_cmd = [gobuster_path] + cmd_parts[1:]
         
-        yield f"data: {json.dumps({'status': 'starting', 'message': f'Gobuster ishga tushirilmoqda: {" ".join(full_cmd)}'})}\n\n"
+        yield f"data: {json.dumps({'status': 'starting', 'message': f'🚀 Gobuster ishga tushirilmoqda: {" ".join(full_cmd)}'})}\n\n"
         
-        # Start subprocess with real-time output
+        # Start subprocess with real-time output and interactive input
         process = subprocess.Popen(
             full_cmd,
+            stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
             text=True,
-            cwd='.',
-            bufsize=0,
+            bufsize=1,
             universal_newlines=True
         )
         
-        # Stream output in real-time using polling
-        while True:
-            # Check if process is still running
-            if process.poll() is not None:
-                break
-            
-            # Try to read from stdout
-            if process.stdout:
-                # Read available output
-                line = process.stdout.readline()
-                if line:
-                    yield f"data: {json.dumps({'output': line.strip()})}\n\n"
-                else:
-                    # Small delay to prevent busy waiting
-                    time.sleep(0.1)
+        # Real-time output oqish va interaktiv savollarga javob berish
+        for line in process.stdout:
+            if line:
+                # Output ni real-time ko'rsatish
+                yield f"data: {json.dumps({'output': line.strip()})}\n\n"
+                
+                # Interaktiv savollarga avtomatik javob berish
+                if "[y/N]" in line or "[Y/n]" in line or "Continue?" in line:
+                    try:
+                        process.stdin.write("y\n")
+                        process.stdin.flush()
+                        yield f"data: {json.dumps({'interactive': 'Avtomatik javob: Ha'})}\n\n"
+                    except:
+                        pass
         
-        # Check for errors
-        return_code = process.poll()
+        # Process tugashini kutish
+        process.wait()
+        
+        # Natijani tekshirish
+        return_code = process.returncode
         if return_code != 0:
-            stderr_output = process.stderr.read()
-            yield f"data: {json.dumps({'error': f'Gobuster xatolik bilan tugadi (kod: {return_code}): {stderr_output}'})}\n\n"
+            yield f"data: {json.dumps({'error': f'Gobuster xatolik bilan tugadi (kod: {return_code})'})}\n\n"
         else:
-            yield f"data: {json.dumps({'status': 'completed', 'message': 'Gobuster muvaffaqiyatli tugadi'})}\n\n"
+            yield f"data: {json.dumps({'status': 'completed', 'message': '✅ ✅ Gobuster muvaffaqiyatli tugadi'})}\n\n"
             
     except Exception as e:
         yield f"data: {json.dumps({'error': f'Gobuster xatolik: {str(e)}'})}\n\n"
@@ -1680,44 +1683,77 @@ def stream_xsstrike_output(domain, command):
         cmd_parts = [part if part != 'my-courses.uz' else domain for part in cmd_parts]
         full_cmd = ['python', xsstrike_path] + cmd_parts[1:]
         
-        yield f"data: {json.dumps({'status': 'starting', 'message': f'XSStrike ishga tushirilmoqda: {" ".join(full_cmd)}'})}\n\n"
+        yield f"data: {json.dumps({'status': 'starting', 'message': f'🚀 XSStrike ishga tushirilmoqda: {" ".join(full_cmd)}'})}\n\n"
         
-        # Start subprocess with real-time output
+        # Start subprocess with real-time output and interactive input
         process = subprocess.Popen(
             full_cmd,
+            stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
             text=True,
-            cwd='.',
-            bufsize=0,
+            bufsize=1,
             universal_newlines=True
         )
         
-        # Stream output in real-time using polling
-        while True:
-            # Check if process is still running
-            if process.poll() is not None:
-                break
-            
-            # Try to read from stdout
-            if process.stdout:
-                # Read available output
-                line = process.stdout.readline()
-                if line:
-                    yield f"data: {json.dumps({'output': line.strip()})}\n\n"
-                else:
-                    # Small delay to prevent busy waiting
-                    time.sleep(0.1)
+        # Real-time output oqish va interaktiv savollarga javob berish
+        for line in process.stdout:
+            if line:
+                # Output ni real-time ko'rsatish
+                yield f"data: {json.dumps({'output': line.strip()})}\n\n"
+                
+                # Interaktiv savollarga avtomatik javob berish
+                if "[y/N]" in line or "[Y/n]" in line or "Continue?" in line or "Do you want to" in line:
+                    try:
+                        process.stdin.write("y\n")
+                        process.stdin.flush()
+                        yield f"data: {json.dumps({'interactive': 'Avtomatik javob: Ha'})}\n\n"
+                    except:
+                        pass
         
-        # Check for errors
-        return_code = process.poll()
+        # Process tugashini kutish
+        process.wait()
+        
+        # Natijani tekshirish
+        return_code = process.returncode
         if return_code != 0:
-            stderr_output = process.stderr.read()
-            yield f"data: {json.dumps({'error': f'XSStrike xatolik bilan tugadi (kod: {return_code}): {stderr_output}'})}\n\n"
+            yield f"data: {json.dumps({'error': f'XSStrike xatolik bilan tugadi (kod: {return_code})'})}\n\n"
         else:
-            yield f"data: {json.dumps({'status': 'completed', 'message': 'XSStrike muvaffaqiyatli tugadi'})}\n\n"
+            yield f"data: {json.dumps({'status': 'completed', 'message': '✅ ✅ XSStrike muvaffaqiyatli tugadi'})}\n\n"
             
     except Exception as e:
         yield f"data: {json.dumps({'error': f'XSStrike xatolik: {str(e)}'})}\n\n"
+
+@csrf_exempt
+def scan_details_api(request, scan_id):
+    """Scan details ni API orqali olish"""
+    try:
+        scan = get_object_or_404(DomainScan, id=scan_id)
+        
+        # Scan ma'lumotlarini JSON formatda qaytarish
+        scan_data = {
+            'id': scan.id,
+            'domain_name': scan.domain_name,
+            'status': scan.status,
+            'scan_date': scan.scan_date.isoformat(),
+            'ip_address': scan.ip_address,
+            'dns_records': scan.dns_records,
+            'ssl_info': scan.ssl_info,
+            'security_headers': scan.security_headers,
+            'tool_results': scan.tool_results,
+            'raw_tool_output': scan.raw_tool_output,
+            'error_message': scan.error_message,
+        }
+        
+        return JsonResponse({
+            'success': True,
+            'scan': scan_data
+        })
+        
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
 
 

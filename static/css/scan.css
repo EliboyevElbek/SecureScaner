@@ -4235,3 +4235,344 @@
     color: #4444ff;
     text-shadow: 0 0 5px rgba(68, 68, 255, 0.3);
 }
+
+/* Tool Output Styles */
+.raw-tool-output {
+    margin-top: 20px;
+}
+
+.tool-output-section {
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid #333;
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 16px;
+}
+
+.tool-output-section h5 {
+    color: #00ff00;
+    margin: 0 0 12px 0;
+    font-size: 16px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.tool-output-text {
+    background: rgba(0, 0, 0, 0.5);
+    border: 1px solid #444;
+    border-radius: 6px;
+    padding: 12px;
+    margin: 8px 0;
+    color: #00ff00;
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+    line-height: 1.4;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.tool-output-section code {
+    background: rgba(0, 255, 0, 0.1);
+    color: #00ff00;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-family: 'Courier New', monospace;
+    border: 1px solid rgba(0, 255, 0, 0.3);
+}
+
+.tool-output-section p {
+    margin: 8px 0;
+    color: #cccccc;
+}
+
+.tool-output-section .status-completed {
+    color: #00ff00;
+    font-weight: 600;
+}
+
+.tool-output-section .status-error {
+    color: #ff0000;
+    font-weight: 600;
+}
+
+.tool-output-section .status-running {
+    color: #ffa500;
+    font-weight: 600;
+}
+
+/* Modal improvements */
+.modal-content {
+    max-width: 90vw;
+    max-height: 90vh;
+    overflow-y: auto;
+}
+
+.modal-body {
+    max-height: 70vh;
+    overflow-y: auto;
+}
+
+/* Interactive Response Styles */
+.interactive-response {
+    background: rgba(0, 255, 255, 0.1);
+    border: 1px solid #00ffff;
+    border-radius: 6px;
+    padding: 8px 12px;
+    margin: 8px 0;
+    color: #00ffff;
+    font-weight: 600;
+    font-family: 'Courier New', monospace;
+    text-align: center;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.7; }
+    100% { opacity: 1; }
+}
+
+/* Tool Status Messages */
+.tool-status {
+    padding: 8px 12px;
+    margin: 8px 0;
+    border-radius: 6px;
+    font-weight: 600;
+    text-align: center;
+}
+
+.tool-status.starting {
+    background: rgba(255, 165, 0, 0.2);
+    border: 1px solid #ffa500;
+    color: #ffa500;
+}
+
+.tool-status.completed {
+    background: rgba(0, 255, 0, 0.2);
+    border: 1px solid #00ff00;
+    color: #00ff00;
+}
+
+.tool-status.error {
+    background: rgba(255, 0, 0, 0.2);
+    border: 1px solid #ff0000;
+    color: #ff0000;
+}
+
+/* Improved Tool Output */
+.tool-output-text {
+    background: rgba(0, 0, 0, 0.7);
+    border: 1px solid #444;
+    border-radius: 6px;
+    padding: 12px;
+    margin: 8px 0;
+    color: #00ff00;
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+    line-height: 1.4;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    max-height: 400px;
+    overflow-y: auto;
+    position: relative;
+}
+
+.tool-output-text::-webkit-scrollbar {
+    width: 8px;
+}
+
+.tool-output-text::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 4px;
+}
+
+.tool-output-text::-webkit-scrollbar-thumb {
+    background: rgba(0, 255, 0, 0.5);
+    border-radius: 4px;
+}
+
+.tool-output-text::-webkit-scrollbar-thumb:hover {
+    background: rgba(0, 255, 0, 0.7);
+}
+
+/* Terminal-like Tool Output */
+.terminal-container {
+    background: #000000;
+    border: 2px solid #00ff00;
+    border-radius: 8px;
+    padding: 16px;
+    margin: 16px 0;
+    font-family: 'Courier New', 'Consolas', 'Monaco', monospace;
+    position: relative;
+    box-shadow: 0 0 20px rgba(0, 255, 0, 0.3);
+}
+
+.terminal-header {
+    background: #00ff00;
+    color: #000000;
+    padding: 8px 16px;
+    margin: -16px -16px 16px -16px;
+    border-radius: 6px 6px 0 0;
+    font-weight: bold;
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.terminal-output {
+    background: #000000;
+    color: #00ff00;
+    padding: 12px;
+    border-radius: 4px;
+    font-size: 13px;
+    line-height: 1.4;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    max-height: 500px;
+    overflow-y: auto;
+    position: relative;
+}
+
+.terminal-output::-webkit-scrollbar {
+    width: 10px;
+}
+
+.terminal-output::-webkit-scrollbar-track {
+    background: #1a1a1a;
+    border-radius: 5px;
+}
+
+.terminal-output::-webkit-scrollbar-thumb {
+    background: #00ff00;
+    border-radius: 5px;
+    border: 1px solid #00aa00;
+}
+
+.terminal-output::-webkit-scrollbar-thumb:hover {
+    background: #00cc00;
+}
+
+/* Terminal cursor effect */
+.terminal-output::after {
+    content: '█';
+    color: #00ff00;
+    animation: blink 1s infinite;
+    margin-left: 2px;
+}
+
+@keyframes blink {
+    0%, 50% { opacity: 1; }
+    51%, 100% { opacity: 0; }
+}
+
+/* Tool-specific terminal colors */
+.terminal-nmap {
+    border-color: #ff6b35;
+    box-shadow: 0 0 20px rgba(255, 107, 53, 0.3);
+}
+
+.terminal-nmap .terminal-header {
+    background: #ff6b35;
+    color: #000000;
+}
+
+.terminal-sqlmap {
+    border-color: #ffd700;
+    box-shadow: 0 0 20px rgba(255, 215, 0, 0.3);
+}
+
+.terminal-sqlmap .terminal-header {
+    background: #ffd700;
+    color: #000000;
+}
+
+.terminal-gobuster {
+    border-color: #00bfff;
+    box-shadow: 0 0 20px rgba(0, 191, 255, 0.3);
+}
+
+.terminal-gobuster .terminal-header {
+    background: #00bfff;
+    color: #000000;
+}
+
+.terminal-xsstrike {
+    border-color: #ff1493;
+    box-shadow: 0 0 20px rgba(255, 20, 147, 0.3);
+}
+
+.terminal-xsstrike .terminal-header {
+    background: #ff1493;
+    color: #000000;
+}
+
+/* Interactive prompt styling */
+.interactive-prompt {
+    background: rgba(0, 255, 255, 0.1);
+    border: 1px solid #00ffff;
+    border-radius: 4px;
+    padding: 8px 12px;
+    margin: 8px 0;
+    color: #00ffff;
+    font-weight: bold;
+    font-family: 'Courier New', monospace;
+    text-align: center;
+    animation: pulse 2s infinite;
+    position: relative;
+}
+
+.interactive-prompt::before {
+    content: '>>> ';
+    color: #00ffff;
+    font-weight: bold;
+}
+
+/* Command line styling */
+.command-line {
+    background: rgba(0, 0, 0, 0.8);
+    border: 1px solid #333;
+    border-radius: 4px;
+    padding: 8px 12px;
+    margin: 8px 0;
+    color: #00ff00;
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+    position: relative;
+}
+
+.command-line::before {
+    content: '$ ';
+    color: #00ff00;
+    font-weight: bold;
+}
+
+/* Status messages with terminal style */
+.terminal-status {
+    background: #000000;
+    border: 1px solid #00ff00;
+    border-radius: 4px;
+    padding: 8px 12px;
+    margin: 8px 0;
+    color: #00ff00;
+    font-family: 'Courier New', monospace;
+    font-weight: bold;
+    text-align: center;
+}
+
+.terminal-status.starting {
+    border-color: #ffa500;
+    color: #ffa500;
+}
+
+.terminal-status.completed {
+    border-color: #00ff00;
+    color: #00ff00;
+}
+
+.terminal-status.error {
+    border-color: #ff0000;
+    color: #ff0000;
+}

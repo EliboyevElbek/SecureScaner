@@ -1545,19 +1545,11 @@ function showToolDetails(toolName, toolIndex) {
     const domainName = modal.querySelector('h4').textContent;
     console.log(`Domain: ${domainName}`);
     
-    // Check if tool is already running or completed
+    // Check if tool is already running
     if (window.currentEventSource && window.currentToolResultsWindow) {
         console.log(`Tool ${toolName} already running, just updating display`);
         // Update tool name in existing window
         updateToolWindowTitle(toolName);
-        return;
-    }
-    
-    // Check if tool is already completed (from scan results)
-    const completedResults = getCompletedToolResults(domainName, toolName);
-    if (completedResults && completedResults.status === 'completed') {
-        console.log(`Tool ${toolName} already completed, showing results`);
-        showCompletedToolResults(toolName, completedResults);
         return;
     }
     
@@ -1569,74 +1561,6 @@ function showToolDetails(toolName, toolIndex) {
     
     // Highlight the selected tool
     highlightSelectedTool(toolIndex);
-}
-
-function getCompletedToolResults(domain, toolName) {
-    // Try to get completed results from localStorage or scan history
-    const resultsKey = `completed_tool_results_${domain}_${toolName}`;
-    const savedResults = localStorage.getItem(resultsKey);
-    
-    if (savedResults) {
-        try {
-            return JSON.parse(savedResults);
-        } catch (e) {
-            console.error('Error parsing saved results:', e);
-        }
-    }
-    
-    // Check if we have recent scan results
-    const scanResultsKey = `scan_results_${domain}`;
-    const scanResults = localStorage.getItem(scanResultsKey);
-    
-    if (scanResults) {
-        try {
-            const scanData = JSON.parse(scanResults);
-            if (scanData.tool_results && scanData.tool_results[toolName]) {
-                return scanData.tool_results[toolName];
-            }
-        } catch (e) {
-            console.error('Error parsing scan results:', e);
-        }
-    }
-    
-    return null;
-}
-
-function showCompletedToolResults(toolName, results) {
-    // Create window for completed results
-    createToolResultsSection(toolName);
-    
-    // Show completed results
-    const outputLog = document.getElementById('toolOutputLog');
-    if (outputLog) {
-        outputLog.textContent = '';
-        
-        // Add completion message
-        const timestamp = new Date().toLocaleTimeString('uz-UZ');
-        outputLog.textContent = `[${timestamp}] ✅ ${toolName} allaqachon tugallangan\n\n`;
-        
-        // Add results
-        if (results.output) {
-            outputLog.textContent += results.output;
-        }
-        
-        // Update status
-        updateToolStatus('completed', 'Tugallandi');
-    }
-}
-
-function saveCompletedToolResults(domain, toolName, results) {
-    const resultsKey = `completed_tool_results_${domain}_${toolName}`;
-    localStorage.setItem(resultsKey, JSON.stringify(results));
-    console.log(`Completed results saved for ${domain} - ${toolName}`);
-}
-
-function getCurrentOutput() {
-    const outputLog = document.getElementById('toolOutputLog');
-    if (outputLog) {
-        return outputLog.textContent;
-    }
-    return '';
 }
 
 function updateToolWindowTitle(toolName) {
@@ -1741,14 +1665,6 @@ function startToolStreaming(domain, toolName) {
             } else if (data.status === 'completed') {
                 appendToolOutput(`✅ ${data.message}`, 'success');
                 updateToolStatus('completed', 'Tugallandi');
-                
-                // Save completed results
-                saveCompletedToolResults(domain, toolName, {
-                    status: 'completed',
-                    output: getCurrentOutput(),
-                    timestamp: new Date().toISOString()
-                });
-                
                 eventSource.close();
             } else if (data.output) {
                 appendToolOutput(data.output, 'output');

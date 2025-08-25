@@ -57,7 +57,7 @@ function showScanDetailsModal(scanData) {
             <p><strong>IP manzil:</strong> ${scanData.ip_address || 'N/A'}</p>
             <p><strong>Holat:</strong> ${scanData.status}</p>
             <p><strong>Sana:</strong> ${new Date(scanData.scan_date).toLocaleString('uz-UZ')}</p>
-            <p><strong>Davomiyligi:</strong> ${scanData.duration}</p>
+            <p><strong>Davomiyligi:</strong> ${scanData.get_duration || 'N/A'}</p>
             
             <h4>DNS ma'lumotlari</h4>
             <ul>
@@ -82,6 +82,9 @@ function showScanDetailsModal(scanData) {
             
             <h4>Tool tahlil natijalari</h4>
             ${renderToolResults(scanData.tool_results)}
+            
+            <h4>Raw Tool Output (Batafsil natijalar)</h4>
+            ${renderRawToolOutput(scanData.raw_tool_output)}
         </div>
     `;
     
@@ -136,6 +139,79 @@ function renderToolResults(toolResults) {
     
     html += '</div>';
     return html;
+}
+
+function renderRawToolOutput(rawOutput) {
+    if (!rawOutput || Object.keys(rawOutput).length === 0) {
+        return '<p>Raw tool output mavjud emas</p>';
+    }
+    
+    let html = '<div class="raw-tool-output">';
+    
+    for (const [toolName, output] of Object.entries(rawOutput)) {
+        const toolClass = `terminal-${toolName.toLowerCase()}`;
+        html += `<div class="terminal-container ${toolClass}">`;
+        html += `<div class="terminal-header">${toolName.toUpperCase()} TERMINAL</div>`;
+        html += `<div class="terminal-output">`;
+        
+        if (typeof output === 'string') {
+            // Agar output string bo'lsa (nmap natijasi kabi)
+            html += formatTerminalOutput(output);
+        } else if (typeof output === 'object') {
+            // Agar output object bo'lsa
+            if (output.command) {
+                html += `<div class="command-line">${output.command}</div>`;
+            }
+            if (output.output) {
+                html += formatTerminalOutput(output.output);
+            }
+            if (output.execution_time) {
+                html += `<div class="terminal-status">⏱️ Ishlash vaqti: ${output.execution_time}</div>`;
+            }
+            if (output.status) {
+                const statusClass = output.status === 'completed' ? 'completed' : 
+                                  output.status === 'error' ? 'error' : 'starting';
+                html += `<div class="terminal-status ${statusClass}">📊 Holat: ${output.status}</div>`;
+            }
+        }
+        
+        html += '</div>'; // terminal-output
+        html += '</div>'; // terminal-container
+    }
+    
+    html += '</div>';
+    return html;
+}
+
+function formatTerminalOutput(output) {
+    if (!output) return '';
+    
+    // Output ni qatorlarga ajratish
+    const lines = output.split('\n');
+    let formattedOutput = '';
+    
+    for (const line of lines) {
+        if (line.trim()) {
+            // Maxsus formatlarni aniqlash
+            if (line.includes('[y/N]') || line.includes('[Y/n]') || line.includes('Continue?')) {
+                formattedOutput += `<div class="interactive-prompt">${line}</div>`;
+            } else if (line.startsWith('PORT') || line.startsWith('Starting') || line.startsWith('Nmap scan')) {
+                formattedOutput += `<div style="color: #ffff00; font-weight: bold;">${line}</div>`;
+            } else if (line.includes('open') || line.includes('closed')) {
+                formattedOutput += `<div style="color: #00ff00;">${line}</div>`;
+            } else if (line.includes('error') || line.includes('Error') || line.includes('failed')) {
+                formattedOutput += `<div style="color: #ff0000;">${line}</div>`;
+            } else if (line.includes('✅') || line.includes('success')) {
+                formattedOutput += `<div style="color: #00ff00; font-weight: bold;">${line}</div>`;
+            } else if (line.includes('🚀')) {
+                formattedOutput += `<div style="color: #00bfff; font-weight: bold;">${line}</div>`;
+            } else {
+                formattedOutput += `<div>${line}</div>`;
+            }
+        }
+    }
+    
+    return formattedOutput;
 }
 
 function closeModal() {

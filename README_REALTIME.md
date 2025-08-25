@@ -83,3 +83,4 @@ Agar tool topilmasa, xatolik xabari ko'rsatiladi:
 ### Natija
 
 Endi foydalanuvchilar har bir tool'ning real-time natijalarini ko'ra oladi, xuddi terminalda ishlatgandek. Bu xavfsizlik tahlilida juda foydali, chunki natijalar darhol ko'rsatiladi va foydalanuvchi jarayonni kuzatib boradi.
+
