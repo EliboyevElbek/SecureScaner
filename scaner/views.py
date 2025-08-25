@@ -8,21 +8,10 @@ import requests
 import urllib3
 import subprocess
 import time
-from .models import DomainScan, Tool, KeshDomain, DomainToolConfiguration, ScanSession, ScanProcess
-import threading
-import queue
-from concurrent.futures import ThreadPoolExecutor
-from django.utils import timezone
+from .models import DomainScan, Tool, KeshDomain, DomainToolConfiguration, ScanSession
 
 # SSL warnings ni o'chirish
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-
-# Global process manager
-process_manager = {
-    'processes': {},  # domain_tool -> process
-    'output_queues': {},  # domain_tool -> queue
-    'lock': threading.Lock()
-}
 
 # Create your views here.
 
@@ -378,7 +367,7 @@ def perform_domain_scan(domain):
         security_headers = get_security_headers(domain)
         
         # Tool scanning natijalarini olish (KeshDomain bazasidagi buyruqlar bilan)
-        tool_results = perform_tool_scans(domain)
+        tool_results, raw_tool_output = perform_tool_scans(domain)
         
         # Natijalarni saqlash
         scan.scan_result = {
@@ -387,14 +376,15 @@ def perform_domain_scan(domain):
             'ssl_info': ssl_info,
             'security_headers': security_headers,
             'tool_results': tool_results,
-            'scan_duration': 'Background\'da ishlayapti'
+            'scan_duration': '2-5 soniya'
         }
         
         scan.dns_records = dns_records
         scan.ssl_info = ssl_info
         scan.security_headers = security_headers
         scan.tool_results = tool_results
-        scan.status = 'scanning'  # Endi 'scanning' holatida qoladi
+        scan.raw_tool_output = raw_tool_output # Raw output'ni saqlash
+        scan.status = 'completed'
         scan.save()
         
         print(f"DomainScan bazasiga {domain} ma'lumotlari saqlandi. ID: {scan.id}")
@@ -428,127 +418,10 @@ def perform_domain_scan(domain):
             'error': str(e)
         }
 
-def start_background_tool_scan(domain, tool_type, command):
-    """Tool'ni background'da ishga tushirish"""
-    process_key = f"{domain}_{tool_type}"
-    
-    with process_manager['lock']:
-        if process_key in process_manager['processes']:
-            # Process allaqachon ishlayapti
-            return False
-        
-        # Yangi output queue yaratish
-        output_queue = queue.Queue()
-        process_manager['output_queues'][process_key] = output_queue
-        
-        # ScanProcess yaratish
-        scan_process = ScanProcess.objects.create(
-            domain_name=domain,
-            tool_type=tool_type,
-            status='running'
-        )
-        
-        # Background thread yaratish
-        thread = threading.Thread(
-            target=run_tool_in_background,
-            args=(domain, tool_type, command, output_queue, scan_process)
-        )
-        thread.daemon = True
-        thread.start()
-        
-        process_manager['processes'][process_key] = {
-            'thread': thread,
-            'scan_process': scan_process,
-            'process': None
-        }
-        
-        return True
-
-def run_tool_in_background(domain, tool_type, command, output_queue, scan_process):
-    """Background'da tool'ni ishga tushirish"""
-    try:
-        # Tool path'ni aniqlash
-        if tool_type == 'nmap':
-            tool_path = 'tools/nmap/nmap.exe'
-            full_cmd = [tool_path] + command.split()[1:]
-        elif tool_type == 'sqlmap':
-            tool_path = 'tools/sqlmap/sqlmap.py'
-            full_cmd = ['python', tool_path] + command.split()[1:]
-        elif tool_type == 'gobuster':
-            tool_path = 'tools/gobuster/gobuster.exe'
-            full_cmd = [tool_path] + command.split()[1:]
-        elif tool_type == 'xsstrike':
-            tool_path = 'tools/XSStrike/xsstrike.py'
-            full_cmd = ['python', tool_path] + command.split()[1:]
-        else:
-            raise ValueError(f"Unknown tool type: {tool_type}")
-        
-        # Domain ni almashtirish
-        full_cmd = [part if part != 'my-courses.uz' else domain for part in full_cmd]
-        
-        # Subprocess'ni ishga tushirish
-        process = subprocess.Popen(
-            full_cmd,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            text=True,
-            bufsize=1,
-            universal_newlines=True
-        )
-        
-        # Process ID'ni saqlash
-        scan_process.process_id = process.pid
-        scan_process.save()
-        
-        # Process manager'ga process'ni qo'shish
-        process_key = f"{domain}_{tool_type}"
-        with process_manager['lock']:
-            if process_key in process_manager['processes']:
-                process_manager['processes'][process_key]['process'] = process
-        
-        # Output'ni real-time o'qish
-        for line in process.stdout:
-            if line:
-                line = line.strip()
-                # Output'ni buffer'ga saqlash
-                scan_process.add_output(line)
-                # Queue'ga yuborish (real-time streaming uchun)
-                output_queue.put(line)
-        
-        # Process tugashini kutish
-        process.wait()
-        
-        # Natijani tekshirish
-        if process.returncode == 0:
-            scan_process.complete(success=True)
-        else:
-            scan_process.complete(success=False)
-            scan_process.error_message = f"Process xatolik bilan tugadi (kod: {process.returncode})"
-            scan_process.save()
-        
-        # Process manager'dan olib tashlash
-        with process_manager['lock']:
-            if process_key in process_manager['processes']:
-                del process_manager['processes'][process_key]
-            if process_key in process_manager['output_queues']:
-                del process_manager['output_queues'][process_key]
-                
-    except Exception as e:
-        scan_process.complete(success=False)
-        scan_process.error_message = str(e)
-        scan_process.save()
-        
-        # Process manager'dan olib tashlash
-        process_key = f"{domain}_{tool_type}"
-        with process_manager['lock']:
-            if process_key in process_manager['processes']:
-                del process_manager['processes'][process_key]
-            if process_key in process_manager['output_queues']:
-                del process_manager['output_queues'][process_key]
-
 def perform_tool_scans(domain):
-    """Domain uchun tool scanning natijalarini background'da ishga tushirish"""
+    """Domain uchun tool scanning natijalarini olish (KeshDomain bazasidagi buyruqlar bilan)"""
     tool_results = {}
+    raw_tool_output = {}  # Raw output'ni ham saqlash
     
     try:
         # KeshDomain bazasidan tool buyruqlarini olish
@@ -558,36 +431,39 @@ def perform_tool_scans(domain):
                 print(f"KeshDomain bazasidan {domain} uchun tool buyruqlari topildi")
                 print(f"Tool buyruqlari: {kesh_domain.tool_commands}")
                 
-                # Har bir tool uchun background'da ishga tushirish
+                # Har bir tool uchun buyruqni ishga tushirish
                 for tool_command in kesh_domain.tool_commands:
                     for tool_type, command in tool_command.items():
                         try:
                             print(f"Tool {tool_type} uchun buyruq: {command}")
                             
-                            # Background'da tool'ni ishga tushirish
-                            started = start_background_tool_scan(domain, tool_type, command)
-                            
-                            if started:
-                                tool_results[tool_type] = {
-                                    'status': 'running',
-                                    'message': f'{tool_type} background\'da ishga tushirildi',
-                                    'command': command
-                                }
-                                print(f"{tool_type} background'da ishga tushirildi")
-                            else:
-                                tool_results[tool_type] = {
-                                    'status': 'already_running',
-                                    'message': f'{tool_type} allaqachon ishlayapti',
-                                    'command': command
-                                }
-                                print(f"{tool_type} allaqachon ishlayapti")
-                                
+                            if tool_type == 'nmap':
+                                result = run_nmap_scan_with_command(domain, command)
+                                tool_results['nmap'] = result
+                                raw_tool_output['nmap'] = result.get('output', '')
+                                print(f"Nmap natijasi: {result}")
+                            elif tool_type == 'sqlmap':
+                                result = run_sqlmap_scan_with_command(domain, command)
+                                tool_results['sqlmap'] = result
+                                raw_tool_output['sqlmap'] = result.get('output', '')
+                                print(f"SQLMap natijasi: {result}")
+                            elif tool_type == 'gobuster':
+                                result = run_gobuster_scan_with_command(domain, command)
+                                tool_results['gobuster'] = result
+                                raw_tool_output['gobuster'] = result.get('output', '')
+                                print(f"Gobuster natijasi: {result}")
+                            elif tool_type == 'xsstrike':
+                                result = run_xsstrike_scan_with_command(domain, command)
+                                tool_results['xsstrike'] = result
+                                raw_tool_output['xsstrike'] = result.get('output', '')
+                                print(f"XSStrike natijasi: {result}")
                         except Exception as e:
                             print(f"{tool_type} scanning xatolik {domain}: {e}")
                             tool_results[tool_type] = {
                                 'status': 'error',
                                 'error': f'{tool_type} tool xatolik: {str(e)}'
                             }
+                            raw_tool_output[tool_type] = f'Xatolik: {str(e)}'
             else:
                 print(f"KeshDomain bazasida {domain} uchun tool buyruqlari topilmadi")
                 tool_results['error'] = 'Tool buyruqlari topilmadi'
@@ -601,7 +477,7 @@ def perform_tool_scans(domain):
         tool_results['error'] = str(e)
     
     print(f"Final tool_results: {tool_results}")
-    return tool_results
+    return tool_results, raw_tool_output
 
 def get_dns_info(domain):
     """DNS ma'lumotlarini olish"""
@@ -1595,87 +1471,58 @@ def stream_tool_output(request, domain, tool_type):
     """Real-time tool output streaming using Server-Sent Events"""
     def event_stream():
         try:
-            process_key = f"{domain}_{tool_type}"
-            
-            # Avval ScanProcess'ni tekshirish
-            scan_process = ScanProcess.objects.filter(
-                domain_name=domain,
-                tool_type=tool_type
+            # Avval bazadan mavjud natijalarni tekshirish
+            domain_scan = DomainScan.objects.filter(
+                domain_name=domain, 
+                status='completed'
             ).first()
             
-            if scan_process and scan_process.is_running():
-                # Process ishlayapti - real-time output ko'rsatish
-                yield f"data: {json.dumps({'status': 'running', 'message': f'🚀 {tool_type} ishlayapti...'})}\n\n"
+            if domain_scan and domain_scan.raw_tool_output:
+                # Mavjud natijalar bor - ularni ko'rsatish
+                tool_output = domain_scan.raw_tool_output.get(tool_type, '')
                 
-                # Mavjud output'ni ko'rsatish
-                if scan_process.output_buffer:
-                    for line in scan_process.output_buffer.split('\n'):
+                if tool_output:
+                    yield f"data: {json.dumps({'status': 'completed', 'message': f'✅ {tool_type} natijasi mavjud'})}\n\n"
+                    
+                    # Natijalarni qatorlar bo'lib ko'rsatish
+                    for line in tool_output.split('\n'):
                         if line.strip():
                             yield f"data: {json.dumps({'output': line.strip()})}\n\n"
-                
-                # Yangi output'larni real-time kuzatish
-                if process_key in process_manager['output_queues']:
-                    output_queue = process_manager['output_queues'][process_key]
                     
-                    # Yangi output'larni kutish
-                    while True:
-                        try:
-                            # 1 soniya kutish
-                            output = output_queue.get(timeout=1)
-                            if output:
-                                yield f"data: {json.dumps({'output': output})}\n\n"
-                        except queue.Empty:
-                            # Timeout - process tugaganini tekshirish
-                            scan_process.refresh_from_db()
-                            if not scan_process.is_running():
-                                break
-                            continue
-                
-                # Process tugaganda
-                if scan_process.status == 'completed':
-                    yield f"data: {json.dumps({'status': 'completed', 'message': f'✅ {tool_type} muvaffaqiyatli tugadi'})}\n\n"
-                elif scan_process.status == 'failed':
-                    yield f"data: {json.dumps({'status': 'failed', 'message': f'❌ {tool_type} xatolik bilan tugadi: {scan_process.error_message}'})}\n\n"
-                    
-            elif scan_process and scan_process.status == 'completed':
-                # Process tugagan - natijalarni ko'rsatish
-                yield f"data: {json.dumps({'status': 'completed', 'message': f'✅ {tool_type} natijasi mavjud'})}\n\n"
-                
-                # To'liq natijani ko'rsatish
-                for line in scan_process.output_buffer.split('\n'):
-                    if line.strip():
-                        yield f"data: {json.dumps({'output': line.strip()})}\n\n"
-                        
-            elif scan_process and scan_process.status == 'failed':
-                # Process xatolik bilan tugagan
-                yield f"data: {json.dumps({'error': f'{tool_type} xatolik bilan tugadi: {scan_process.error_message}'})}\n\n"
-                
-            else:
-                # Process topilmadi - tool'ni ishga tushirish
-                kesh_domain = KeshDomain.objects.filter(domain_name=domain).first()
-                if not kesh_domain or not kesh_domain.tool_commands:
-                    yield f"data: {json.dumps({'error': 'Tool buyruqlari topilmadi'})}\n\n"
+                    yield f"data: {json.dumps({'status': 'completed', 'message': f'✅ {tool_type} natijasi ko\'rsatildi'})}\n\n"
                     return
-                
-                # Tool buyrugini topish
-                tool_command = None
-                for cmd in kesh_domain.tool_commands:
-                    if tool_type in cmd:
-                        tool_command = cmd[tool_type]
-                        break
-                
-                if not tool_command:
-                    yield f"data: {json.dumps({'error': f'{tool_type} buyrugi topilmadi'})}\n\n"
-                    return
-                
-                # Background'da tool'ni ishga tushirish
-                started = start_background_tool_scan(domain, tool_type, tool_command)
-                if started:
-                    yield f"data: {json.dumps({'status': 'starting', 'message': f'🚀 {tool_type} ishga tushirilmoqda...'})}\n\n"
-                    # Yangi process'ni kuzatish uchun qayta chaqirish
-                    yield from stream_tool_output(request, domain, tool_type)
                 else:
-                    yield f"data: {json.dumps({'error': f'{tool_type} allaqachon ishlayapti'})}\n\n"
+                    yield f"data: {json.dumps({'error': f'{tool_type} uchun natija topilmadi'})}\n\n"
+                    return
+            
+            # Agar natija yo'q bo'lsa, tool'ni ishga tushirish
+            kesh_domain = KeshDomain.objects.filter(domain_name=domain).first()
+            if not kesh_domain or not kesh_domain.tool_commands:
+                yield f"data: {json.dumps({'error': 'Tool buyruqlari topilmadi'})}\n\n"
+                return
+            
+            # Find the specific tool command
+            tool_command = None
+            for cmd in kesh_domain.tool_commands:
+                if tool_type in cmd:
+                    tool_command = cmd[tool_type]
+                    break
+            
+            if not tool_command:
+                yield f"data: {json.dumps({'error': f'{tool_type} buyrugi topilmadi'})}\n\n"
+                return
+            
+            # Execute tool with real-time output
+            if tool_type == 'nmap':
+                yield from stream_nmap_output(domain, tool_command)
+            elif tool_type == 'sqlmap':
+                yield from stream_sqlmap_output(domain, tool_command)
+            elif tool_type == 'gobuster':
+                yield from stream_gobuster_output(domain, tool_command)
+            elif tool_type == 'xsstrike':
+                yield from stream_xsstrike_output(domain, tool_command)
+            else:
+                yield f"data: {json.dumps({'error': f'{tool_type} tool qo\'llab-quvvatlanmaydi'})}\n\n"
                 
         except Exception as e:
             yield f"data: {json.dumps({'error': f'Xatolik: {str(e)}'})}\n\n"
@@ -1939,56 +1786,5 @@ def scan_details_api(request, scan_id):
             'success': False,
             'error': str(e)
         }, status=500)
-
-@csrf_exempt
-def stop_tool_process(request, domain, tool_type):
-    """Tool process'ini to'xtatish"""
-    if request.method == 'POST':
-        try:
-            process_key = f"{domain}_{tool_type}"
-            
-            with process_manager['lock']:
-                if process_key in process_manager['processes']:
-                    process_info = process_manager['processes'][process_key]
-                    
-                    # Process'ni to'xtatish
-                    if process_info['process']:
-                        try:
-                            process_info['process'].terminate()
-                            process_info['process'].wait(timeout=5)
-                        except subprocess.TimeoutExpired:
-                            process_info['process'].kill()
-                    
-                    # ScanProcess'ni yangilash
-                    if process_info['scan_process']:
-                        process_info['scan_process'].status = 'stopped'
-                        process_info['scan_process'].end_time = timezone.now()
-                        process_info['scan_process'].save()
-                    
-                    # Process manager'dan olib tashlash
-                    del process_manager['processes'][process_key]
-                    if process_key in process_manager['output_queues']:
-                        del process_manager['output_queues'][process_key]
-                    
-                    return JsonResponse({
-                        'success': True,
-                        'message': f'{tool_type} process to\'xtatildi'
-                    })
-                else:
-                    return JsonResponse({
-                        'success': False,
-                        'error': f'{tool_type} process topilmadi'
-                    })
-                    
-        except Exception as e:
-            return JsonResponse({
-                'success': False,
-                'error': str(e)
-            }, status=500)
-    
-    return JsonResponse({
-        'success': False,
-        'error': 'Noto\'g\'ri so\'rov'
-    }, status=400)
 
 

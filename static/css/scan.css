@@ -4457,24 +4457,3 @@
         flex-direction: column;
     }
 }
-
-.status-indicator.stopping {
-    background: #ffaa00;
-    color: #000;
-}
-
-.status-indicator.stopped {
-    background: #666666;
-    color: #fff;
-}
-
-.btn-warning {
-    background: #ffaa00;
-    color: #000;
-    border: 1px solid #ffaa00;
-}
-
-.btn-warning:hover {
-    background: #ff8800;
-    border-color: #ff8800;
-}

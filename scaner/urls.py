@@ -16,7 +16,6 @@ urlpatterns = [
     path('scaner/get-domain-tools-preview/', views.get_domain_tools_preview, name='get_domain_tools_preview'),
     path('scaner/get-domains/', views.get_domains, name='get_domains'),
     path('scaner/stream-tool-output/<str:domain>/<str:tool_type>/', views.stream_tool_output, name='stream_tool_output'),
-    path('scaner/stop-tool-process/<str:domain>/<str:tool_type>/', views.stop_tool_process, name='stop_tool_process'),
 
     path('api/scan-details/<int:scan_id>/', views.scan_details_api, name='scan_details'),
     path('tools/', views.tools, name='tools'),

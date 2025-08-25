@@ -1578,61 +1578,56 @@ function updateToolWindowTitle(toolName) {
     }
 }
 
-function createToolResultsSection(domainName, toolName) {
-    // Check if already exists
-    if (document.getElementById('toolResultsSection')) {
-        document.getElementById('toolResultsSection').remove();
+function createToolResultsSection(toolName) {
+    // Check if tool results window already exists
+    if (window.currentToolResultsWindow) {
+        console.log('Tool results window already exists, updating title');
+        updateToolWindowTitle(toolName);
+        return;
     }
     
-    const toolResultsSection = document.createElement('div');
-    toolResultsSection.id = 'toolResultsSection';
-    toolResultsSection.className = 'tool-results-section';
+    // Modal'ni yopish
+    closeProgressModal();
     
-    toolResultsSection.innerHTML = `
-        <div class="tool-results-header">
-            <h3>${toolName.toUpperCase()} Natijalari - ${domainName}</h3>
-            <div class="tool-status">
-                <span>Holat:</span>
-                <span id="toolStatus" class="status-indicator">Tayyor</span>
+    // Yangi tool results oynasini yaratish
+    const toolResultsWindow = document.createElement('div');
+    toolResultsWindow.className = 'tool-results-window';
+    toolResultsWindow.innerHTML = `
+        <div class="tool-results-window-content">
+            <div class="tool-results-window-header">
+                <div class="tool-results-window-title">
+                    <span class="tool-icon">${getToolIcon(toolName)}</span>
+                    <h3>${getToolDisplayName(toolName)} Real-Time Output</h3>
+                </div>
+                <div class="tool-results-window-controls">
+                    <button class="btn btn-small btn-secondary" onclick="closeToolResultsWindow()">Yopish</button>
+                </div>
             </div>
-            <button class="btn btn-small" onclick="closeToolResultsSection()">Yopish</button>
-        </div>
-        
-        <div class="tool-output-container">
-            <div class="tool-output-header">
-                <span>Natija:</span>
-                <button class="btn btn-small" onclick="clearToolOutput()">Tozalash</button>
+            
+            <div class="tool-results-window-body">
+                <div class="tool-output-container">
+                    <pre class="tool-output-log" id="toolOutputLog"></pre>
+                </div>
             </div>
-            <textarea id="toolOutputLog" class="tool-output-log" readonly placeholder="Tool natijasi shu yerda ko'rsatiladi..."></textarea>
-        </div>
-        
-        <div class="tool-actions">
-            <button class="btn btn-primary" onclick="startToolStreaming('${domainName}', '${toolName}')">
-                🔍 Natijani ko'rish
-            </button>
-            <button class="btn btn-warning" onclick="stopToolProcess('${domainName}', '${toolName}')" style="display: none;" id="stopToolBtn">
-                ⏹️ To'xtatish
-            </button>
+            
+            <div class="tool-results-window-footer">
+                <div class="tool-status">
+                    <span class="status-indicator" id="toolStatus">Ulanish ochilmoqda...</span>
+                </div>
+            </div>
         </div>
     `;
     
-    // Add to page
-    const scanContainer = document.querySelector('.scan-container');
-    scanContainer.appendChild(toolResultsSection);
+    document.body.appendChild(toolResultsWindow);
     
-    // Store reference
-    window.currentToolResultsSection = toolResultsSection;
-}
-
-function closeToolResultsSection() {
-    if (window.currentToolResultsSection) {
-        // Cleanup streaming
-        cleanupToolStreaming();
-        
-        // Remove section
-        window.currentToolResultsSection.remove();
-        window.currentToolResultsSection = null;
-    }
+    // Show window with animation
+    setTimeout(() => {
+        toolResultsWindow.style.opacity = '1';
+        toolResultsWindow.style.transform = 'scale(1)';
+    }, 10);
+    
+    // Store reference for cleanup
+    window.currentToolResultsWindow = toolResultsWindow;
 }
 
 function startToolStreaming(domain, toolName) {
@@ -2966,9 +2961,6 @@ function createToolResultsSection(domainName, toolName) {
             <button class="btn btn-primary" onclick="startToolStreaming('${domainName}', '${toolName}')">
                 🔍 Natijani ko'rish
             </button>
-            <button class="btn btn-warning" onclick="stopToolProcess('${domainName}', '${toolName}')" style="display: none;" id="stopToolBtn">
-                ⏹️ To'xtatish
-            </button>
         </div>
     `;
     
@@ -2989,57 +2981,6 @@ function closeToolResultsSection() {
         window.currentToolResultsSection.remove();
         window.currentToolResultsSection = null;
     }
-}
-
-function stopToolProcess(domain, toolName) {
-    if (confirm(`${toolName} process'ini to'xtatishni xohlaysizmi?`)) {
-        // Stop button'ni yashirish
-        const stopBtn = document.getElementById('stopToolBtn');
-        if (stopBtn) {
-            stopBtn.style.display = 'none';
-        }
-        
-        // Status'ni yangilash
-        updateToolStatus('stopping', 'To\'xtatilmoqda...');
-        
-        // Backend'ga to'xtatish so'rovini yuborish
-        fetch(`/scaner/stop-tool-process/${domain}/${toolName}/`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': getCookie('csrftoken')
-            }
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                updateToolStatus('stopped', 'To\'xtatildi');
-                appendToolOutput(`✅ ${toolName} process to'xtatildi`, 'success');
-            } else {
-                updateToolStatus('error', 'To\'xtatishda xatolik');
-                appendToolOutput(`❌ ${toolName} process to'xtatishda xatolik: ${data.error}`, 'error');
-            }
-        })
-        .catch(error => {
-            updateToolStatus('error', 'To\'xtatishda xatolik');
-            appendToolOutput(`❌ ${toolName} process to'xtatishda xatolik: ${error.message}`, 'error');
-        });
-    }
-}
-
-function getCookie(name) {
-    let cookieValue = null;
-    if (document.cookie && document.cookie !== '') {
-        const cookies = document.cookie.split(';');
-        for (let i = 0; i < cookies.length; i++) {
-            const cookie = cookies[i].trim();
-            if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                break;
-            }
-        }
-    }
-    return cookieValue;
 }
 
  
