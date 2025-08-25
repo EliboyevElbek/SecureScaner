@@ -1,8 +1,8 @@
 🚀 GOBUSTER ishga tushirilmoqda: gobuster dir -u https://kurslar24.uz -w wordlist.txt
-⏰ Vaqt: 2025-08-26 03:10:22
+⏰ Vaqt: 2025-08-26 03:27:40
 ==================================================
 🔧 Buyruq: tools/gobuster/gobuster.exe dir -u https://kurslar24.uz -w wordlist.txt
-2025/08/26 03:10:24 wordlist file "wordlist.txt" does not exist: CreateFile wordlist.txt: The system cannot find the file specified.
+2025/08/26 03:27:41 wordlist file "wordlist.txt" does not exist: CreateFile wordlist.txt: The system cannot find the file specified.
 ❌ Gobuster xatolik bilan tugadi (kod: 1)
 ==================================================
 ✅ GOBUSTER tugallandi

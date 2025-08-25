@@ -1224,6 +1224,11 @@ function startScan() {
             const message = data.message || 'Tahlil muvaffaqiyatli bajarildi!';
             showNotification(message, 'success');
             
+            // Har bir domain uchun tool holati kuzatishni boshlash
+            domains.forEach(domain => {
+                startToolStatusMonitoring(domain);
+            });
+            
             // Save tool results to localStorage for each domain
             if (data.results) {
                 data.results.forEach(result => {
@@ -1335,6 +1340,8 @@ function confirmStopScan() {
     // Stop all domains one by one
     let stoppedCount = 0;
     let totalDomains = domains.length;
+    let totalStoppedProcesses = 0;
+    let totalFailedProcesses = 0;
     
     domains.forEach((domain, index) => {
         console.log(`Stopping scan for domain: ${domain}`);
@@ -1350,15 +1357,51 @@ function confirmStopScan() {
         .then(data => {
             if (data.status === 'success') {
                 stoppedCount++;
-                console.log(`✅ ${domain}: ${data.message}`);
                 
-                // Update progress
+                // Count stopped and failed processes
+                if (data.stopped_processes) {
+                    totalStoppedProcesses += data.stopped_processes.length;
+                }
+                if (data.failed_processes) {
+                    totalFailedProcesses += data.failed_processes.length;
+                }
+                
+                console.log(`✅ ${domain}: ${data.message}`);
+                console.log(`📊 ${domain} statistikasi:`, {
+                    stopped: data.stopped_processes || [],
+                    failed: data.failed_processes || [],
+                    total: data.total_processed || 0
+                });
+                
+                // Update progress with detailed information
                 const progress = Math.round((stoppedCount / totalDomains) * 100);
                 scanButton.innerHTML = `⏳ ${progress}% (${stoppedCount}/${totalDomains})`;
                 
+                // Show detailed notification for each domain
+                if (data.stopped_processes && data.stopped_processes.length > 0) {
+                    const processDetails = data.stopped_processes.map(p => p.split(' - ')[0]).join(', ');
+                    showNotification(`✅ ${domain}: ${data.stopped_processes.length} ta tool to'xtatildi (${processDetails})`, 'success');
+                } else {
+                    showNotification(`ℹ️ ${domain}: ${data.message}`, 'info');
+                }
+                
                 // If all domains are stopped
                 if (stoppedCount === totalDomains) {
-                    showNotification(`✅ Barcha ${totalDomains} ta domain uchun tahlillar to\'xtatildi`, 'success');
+                    // Prepare final summary
+                    let finalMessage = `✅ Barcha ${totalDomains} ta domain uchun tahlillar to'xtatildi`;
+                    if (totalStoppedProcesses > 0) {
+                        finalMessage += `\n📊 Jami ${totalStoppedProcesses} ta tool to'xtatildi`;
+                    }
+                    if (totalFailedProcesses > 0) {
+                        finalMessage += `\n⚠️ ${totalFailedProcesses} ta tool to'xtatishda xatolik`;
+                    }
+                    
+                    showNotification(finalMessage, 'success');
+                    
+                    // Stop tool status monitoring for all domains
+                    domains.forEach(domain => {
+                        stopToolStatusMonitoring(domain);
+                    });
                     
                     // Reset button to original state
                     resetScanButton(scanButton, 'Tahlilni boshlash');
@@ -1370,6 +1413,13 @@ function confirmStopScan() {
                     if (window.currentToolResultsWindow) {
                         closeToolResultsWindow();
                     }
+                    
+                    // Log final statistics
+                    console.log('📊 Final stop scan statistics:', {
+                        totalDomains,
+                        totalStoppedProcesses,
+                        totalFailedProcesses
+                    });
                 }
                 
             } else {
@@ -1701,7 +1751,7 @@ function updateToolStatusesAfterStop() {
         }
     });
     
-    // Update available tools section
+    // Update all available tools section
     const availableTools = document.querySelectorAll('.tool-row:not(.stop-scan-row) .btn');
     availableTools.forEach(btn => {
         btn.innerHTML = '📊 Logni ko\'rish';
@@ -3395,3 +3445,83 @@ function updateAllToolStatusesAfterStop() {
 }
 
 // ===== END SCANER SAHIFASI UCHUN TO'XTATISH FUNKSIYASI ===== 
+
+// Tool holatini real-time kuzatish
+function startToolStatusMonitoring(domain) {
+    if (window.toolStatusIntervals && window.toolStatusIntervals[domain]) {
+        clearInterval(window.toolStatusIntervals[domain]);
+    }
+    
+    if (!window.toolStatusIntervals) {
+        window.toolStatusIntervals = {};
+    }
+    
+    // Har 5 soniyada tool holatini tekshirish
+    window.toolStatusIntervals[domain] = setInterval(() => {
+        checkToolStatus(domain);
+    }, 5000);
+    
+    console.log(`🔍 ${domain} uchun tool holati kuzatish boshladi`);
+}
+
+function stopToolStatusMonitoring(domain) {
+    if (window.toolStatusIntervals && window.toolStatusIntervals[domain]) {
+        clearInterval(window.toolStatusIntervals[domain]);
+        delete window.toolStatusIntervals[domain];
+        console.log(`🛑 ${domain} uchun tool holati kuzatish to'xtatildi`);
+    }
+}
+
+function checkToolStatus(domain) {
+    fetch(`/scaner/tool-status/${domain}/`, {
+        method: 'GET',
+        headers: {
+            'X-CSRFToken': getCSRFToken(),
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === 'active') {
+            console.log(`📊 ${domain} uchun ${data.active_count} ta tool ishlayapti`);
+            
+            // Tool holatlarini yangilash
+            Object.entries(data.tool_statuses).forEach(([tool_type, status]) => {
+                updateToolStatusInUI(domain, tool_type, status);
+            });
+            
+            // Agar barcha tool'lar tugagan bo'lsa, kuzatishni to'xtatish
+            if (data.active_count === 0) {
+                stopToolStatusMonitoring(domain);
+                showNotification(`✅ ${domain} uchun barcha tool'lar tugallandi`, 'success');
+            }
+            
+        } else if (data.status === 'no_active_tools') {
+            console.log(`ℹ️ ${domain} uchun faol tool'lar topilmadi`);
+            stopToolStatusMonitoring(domain);
+            
+        } else if (data.status === 'error') {
+            console.error(`❌ ${domain} uchun tool holatini tekshirishda xatolik: ${data.message}`);
+        }
+    })
+    .catch(error => {
+        console.error(`Error checking tool status for ${domain}:`, error);
+    });
+}
+
+function updateToolStatusInUI(domain, tool_type, status) {
+    // UI'da tool holatini yangilash
+    const toolElement = document.querySelector(`[data-domain="${domain}"][data-tool="${tool_type}"]`);
+    if (toolElement) {
+        const statusElement = toolElement.querySelector('.tool-status');
+        if (statusElement) {
+            if (status.status === 'running') {
+                statusElement.textContent = '🔄 Ishlayapti';
+                statusElement.className = 'tool-status running';
+            } else if (status.status === 'completed') {
+                statusElement.textContent = '✅ Tugallandi';
+                statusElement.className = 'tool-status completed';
+            }
+        }
+    }
+}
