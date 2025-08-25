@@ -133,6 +133,10 @@ function prepareDomains() {
             // Add new domains to existing domains array
             domains = [...domains, ...newDomains];
             
+            // Save to global window object for easy access
+            window.domains = domains;
+            console.log('Global domains array updated:', window.domains);
+            
             // Clear the input after successful preparation
             domainsInput.value = '';
             
@@ -1171,6 +1175,10 @@ function startScan() {
         return;
     }
     
+    // Update global domains array
+    window.domains = domains;
+    console.log('Global domains array for scanning:', window.domains);
+    
     console.log('Starting scan for domains:', domains);
     
     // Show loading state with professional animation
@@ -1300,32 +1308,80 @@ function closeStopModal() {
 }
 
 function confirmStopScan() {
-    console.log('Scan stopped by user');
+    console.log('Barcha tahlillar to\'xtatilmoqda...');
     
     // Close modal
     closeStopModal();
     
-    // Reset button to original state
+    // Show loading state
     const scanButton = document.getElementById('scanButton');
     if (scanButton) {
-        scanButton.textContent = 'Tahlilni boshlash';
-        scanButton.classList.remove('btn-danger');
-        scanButton.classList.add('btn-success');
-        scanButton.onclick = startScan;
-        scanButton.id = ''; // ID ni tozalaymiz
+        scanButton.innerHTML = '⏳ To\'xtatilmoqda...';
+        scanButton.disabled = true;
     }
     
-    // Remove scanning state from domain items
-        document.querySelectorAll('.domain-item').forEach(item => {
-            item.classList.remove('scanning');
+    // Get all domains from the page
+    const domains = getCurrentDomains();
+    console.log('Domains found for stopping:', domains);
+    
+    if (domains.length === 0) {
+        showNotification('To\'xtatish uchun domain topilmadi. Iltimos, sahifani yangilang va qayta urinib ko\'ring.', 'warning');
+        resetScanButton(scanButton, 'Tahlilni boshlash');
+        return;
+    }
+    
+    showNotification(`🔄 ${domains.length} ta domain uchun tahlillar to'xtatilmoqda...`, 'info');
+    
+    // Stop all domains one by one
+    let stoppedCount = 0;
+    let totalDomains = domains.length;
+    
+    domains.forEach((domain, index) => {
+        console.log(`Stopping scan for domain: ${domain}`);
+        
+        fetch(`/scaner/stop-scan/${domain}/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCSRFToken(),
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                stoppedCount++;
+                console.log(`✅ ${domain}: ${data.message}`);
+                
+                // Update progress
+                const progress = Math.round((stoppedCount / totalDomains) * 100);
+                scanButton.innerHTML = `⏳ ${progress}% (${stoppedCount}/${totalDomains})`;
+                
+                // If all domains are stopped
+                if (stoppedCount === totalDomains) {
+                    showNotification(`✅ Barcha ${totalDomains} ta domain uchun tahlillar to\'xtatildi`, 'success');
+                    
+                    // Reset button to original state
+                    resetScanButton(scanButton, 'Tahlilni boshlash');
+                    
+                    // Update UI to show stopped state
+                    updateAllToolStatusesAfterStop();
+                    
+                    // Close any open tool windows
+                    if (window.currentToolResultsWindow) {
+                        closeToolResultsWindow();
+                    }
+                }
+                
+            } else {
+                console.error(`❌ ${domain}: ${data.message}`);
+                showNotification(`❌ ${domain}: ${data.message}`, 'error');
+            }
+        })
+        .catch(error => {
+            console.error(`Error stopping scan for ${domain}:`, error);
+            showNotification(`❌ ${domain} uchun xatolik: ${error.message}`, 'error');
         });
-    
-    // Hide progress buttons for all domains
-    document.querySelectorAll('.progress-btn').forEach(btn => {
-        btn.style.display = 'none';
     });
-    
-    showNotification('Tahlil to\'xtatildi', 'warning');
 }
 
 function resetScanButton(scanButton, originalText) {
@@ -1483,6 +1539,20 @@ function renderAvailableTools(tools) {
         `;
     });
     
+    // Tahlilni to'xtatish tugmasini qo'shish
+    html += `
+        <div class="tool-row stop-scan-row">
+            <div class="tool-name-section">
+                <span class="tool-name">🛑 Tahlilni to'xtatish</span>
+            </div>
+            <div class="tool-action-section">
+                <button class="btn btn-small btn-danger" onclick="stopDomainScan()">
+                    ⏹️ To'xtatish
+                </button>
+            </div>
+        </div>
+    `;
+    
     return html;
 }
 
@@ -1561,6 +1631,83 @@ function showToolDetails(toolName, toolIndex) {
     
     // Highlight the selected tool
     highlightSelectedTool(toolIndex);
+}
+
+function stopDomainScan() {
+    // Get current domain from the modal
+    const modal = document.querySelector('.custom-modal');
+    if (!modal) {
+        console.error('Modal not found!');
+        return;
+    }
+    
+    const domainName = modal.querySelector('h4').textContent;
+    console.log(`Stopping scan for domain: ${domainName}`);
+    
+    // Confirmation dialog
+    if (!confirm(`${domainName} uchun barcha tool'larni to'xtatishni xohlaysizmi?`)) {
+        return;
+    }
+    
+    // Show loading state
+    const stopButton = event.target;
+    const originalText = stopButton.innerHTML;
+    stopButton.innerHTML = '⏳ To\'xtatilmoqda...';
+    stopButton.disabled = true;
+    
+    // Call backend to stop scan
+    fetch(`/scaner/stop-scan/${domainName}/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': getCSRFToken(),
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === 'success') {
+            showNotification(`✅ ${data.message}`, 'success');
+            
+            // Close any open tool windows
+            if (window.currentToolResultsWindow) {
+                closeToolResultsWindow();
+            }
+            
+            // Update UI to show stopped state
+            updateToolStatusesAfterStop();
+            
+        } else {
+            showNotification(`❌ ${data.message}`, 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error stopping scan:', error);
+        showNotification('❌ Tahlilni to\'xtatishda xatolik yuz berdi', 'error');
+    })
+    .finally(() => {
+        // Restore button state
+        stopButton.innerHTML = originalText;
+        stopButton.disabled = false;
+    });
+}
+
+function updateToolStatusesAfterStop() {
+    // Update tool statuses to show stopped state
+    const toolStatuses = document.querySelectorAll('.tool-status');
+    toolStatuses.forEach(status => {
+        if (status.textContent !== 'Tugallandi') {
+            status.textContent = 'To\'xtatildi';
+            status.className = 'tool-status stopped';
+        }
+    });
+    
+    // Update available tools section
+    const availableTools = document.querySelectorAll('.tool-row:not(.stop-scan-row) .btn');
+    availableTools.forEach(btn => {
+        btn.innerHTML = '📊 Logni ko\'rish';
+        btn.className = 'btn btn-small btn-secondary';
+        btn.disabled = true;
+    });
 }
 
 function updateToolWindowTitle(toolName) {
@@ -3011,12 +3158,12 @@ function startToolStreamingRealtime(domain, toolName) {
     // Update status
     updateToolStatus('connecting', 'Ulanish ochilmoqda...');
     
-    // Create iframe for real-time streaming
+    // Create iframe for real-time streaming from log file
     const toolOutputLog = document.getElementById('toolOutputLog');
     if (toolOutputLog) {
-        // Create iframe for streaming
+        // Create iframe for streaming from log file
         const iframe = document.createElement('iframe');
-        iframe.src = `/scaner/stream-tool-output-realtime/${domain}/${toolName}/`;
+        iframe.src = `/scaner/stream-log-file/${domain}/${toolName}/`;
         iframe.style.width = '100%';
         iframe.style.height = '400px';
         iframe.style.border = 'none';
@@ -3027,7 +3174,7 @@ function startToolStreamingRealtime(domain, toolName) {
         toolOutputLog.appendChild(iframe);
         
         // Update status
-        updateToolStatus('running', 'Ishlayapti...');
+        updateToolStatus('running', 'Log fayl monitoring...');
         
         // Store iframe reference for cleanup
         window.currentStreamingIframe = iframe;
@@ -3045,7 +3192,7 @@ function startToolStreamingRealtime(domain, toolName) {
         
         // Create iframe
         const iframe = document.createElement('iframe');
-        iframe.src = `/scaner/stream-tool-output-realtime/${domain}/${toolName}/`;
+        iframe.src = `/scaner/stream-log-file/${domain}/${toolName}/`;
         iframe.style.width = '100%';
         iframe.style.height = '100%';
         iframe.style.border = 'none';
@@ -3063,11 +3210,188 @@ function startToolStreamingRealtime(domain, toolName) {
         }
         
         // Update status
-        updateToolStatus('running', 'Ishlayapti...');
+        updateToolStatus('running', 'Log fayl monitoring...');
         
         // Store iframe reference for cleanup
         window.currentStreamingIframe = iframe;
     }
 }
 
- 
+// ===== SCANER SAHIFASI UCHUN TO'XTATISH FUNKSIYASI =====
+
+function stopAllScans() {
+    console.log('Barcha tahlillar to\'xtatilmoqda...');
+    
+    // Confirmation dialog
+    if (!confirm('Barcha ishlayotgan tahlillarni to\'xtatishni xohlaysizmi?')) {
+        return;
+    }
+    
+    // Show loading state
+    const stopButton = event.target;
+    const originalText = stopButton.innerHTML;
+    stopButton.innerHTML = '⏳ To\'xtatilmoqda...';
+    stopButton.disabled = true;
+    
+    // Get all domains from the page
+    const domains = getCurrentDomains();
+    
+    if (domains.length === 0) {
+        showNotification('To\'xtatish uchun domain topilmadi', 'warning');
+        stopButton.innerHTML = originalText;
+        stopButton.disabled = false;
+        return;
+    }
+    
+    // Stop all domains one by one
+    let stoppedCount = 0;
+    let totalDomains = domains.length;
+    
+    domains.forEach((domain, index) => {
+        console.log(`Stopping scan for domain: ${domain}`);
+        
+        fetch(`/scaner/stop-scan/${domain}/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCSRFToken(),
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                stoppedCount++;
+                console.log(`✅ ${domain}: ${data.message}`);
+                
+                // Update progress
+                const progress = Math.round((stoppedCount / totalDomains) * 100);
+                stopButton.innerHTML = `⏳ ${progress}% (${stoppedCount}/${totalDomains})`;
+                
+                // If all domains are stopped
+                if (stoppedCount === totalDomains) {
+                    showNotification(`✅ Barcha ${totalDomains} ta domain uchun tahlillar to\'xtatildi`, 'success');
+                    
+                    // Reset button
+                    stopButton.innerHTML = '🛑 Barcha tahlillarni to\'xtatish';
+                    stopButton.disabled = false;
+                    
+                    // Update UI to show stopped state
+                    updateAllToolStatusesAfterStop();
+                    
+                    // Close any open tool windows
+                    if (window.currentToolResultsWindow) {
+                        closeToolResultsWindow();
+                    }
+                }
+                
+            } else {
+                console.error(`❌ ${domain}: ${data.message}`);
+                showNotification(`❌ ${domain}: ${data.message}`, 'error');
+            }
+        })
+        .catch(error => {
+            console.error(`Error stopping scan for ${domain}:`, error);
+            showNotification(`❌ ${domain} uchun xatolik: ${error.message}`, 'error');
+        });
+    });
+}
+
+function getCurrentDomains() {
+    // Get domains from the current page
+    const domains = [];
+    
+    // Method 1: Get from global domains array (most reliable)
+    if (window.domains && window.domains.length > 0) {
+        console.log('Getting domains from global array:', window.domains);
+        return [...window.domains]; // Return copy of array
+    }
+    
+    // Method 2: Get from domains list on the page
+    const domainItems = document.querySelectorAll('.domain-item');
+    domainItems.forEach(item => {
+        const domainText = item.textContent.trim();
+        if (domainText && domainText.includes('.')) {
+            // Extract domain from text
+            const domain = domainText.split('\n')[0].split(' ')[0].trim();
+            if (domain && !domains.includes(domain)) {
+                domains.push(domain);
+            }
+        }
+    });
+    
+    // Method 3: Get from domains list container
+    if (domains.length === 0) {
+        const domainsList = document.getElementById('domainsList');
+        if (domainsList) {
+            const domainElements = domainsList.querySelectorAll('.domain-name, h3, h4');
+            domainElements.forEach(element => {
+                const text = element.textContent.trim();
+                if (text && text.includes('.') && !text.includes('http')) {
+                    const domain = text.split('\n')[0].split(' ')[0].trim();
+                    if (domain && !domains.includes(domain)) {
+                        domains.push(domain);
+                    }
+                }
+            });
+        }
+    }
+    
+    // Method 4: Get from modal if exists
+    if (domains.length === 0) {
+        const modal = document.querySelector('.custom-modal');
+        if (modal) {
+            const modalTitle = modal.querySelector('h4');
+            if (modalTitle) {
+                const domain = modalTitle.textContent.trim();
+                if (domain && domain.includes('.')) {
+                    domains.push(domain);
+                }
+            }
+        }
+    }
+    
+    // Method 5: Get from textarea if nothing else works
+    if (domains.length === 0) {
+        const domainsInput = document.getElementById('domainsInput');
+        if (domainsInput && domainsInput.value.trim()) {
+            const textareaDomains = domainsInput.value.trim().split('\n')
+                .map(domain => domain.trim())
+                .filter(domain => domain && domain.includes('.'));
+            domains.push(...textareaDomains);
+        }
+    }
+    
+    console.log('Found domains to stop:', domains);
+    return domains;
+}
+
+function updateAllToolStatusesAfterStop() {
+    // Update all tool statuses to show stopped state
+    const toolStatuses = document.querySelectorAll('.tool-status');
+    toolStatuses.forEach(status => {
+        if (status.textContent !== 'Tugallandi') {
+            status.textContent = 'To\'xtatildi';
+            status.className = 'tool-status stopped';
+        }
+    });
+    
+    // Update all available tools section
+    const availableTools = document.querySelectorAll('.tool-row:not(.stop-scan-row) .btn');
+    availableTools.forEach(btn => {
+        if (btn.textContent.includes('Logni kuzatish') || btn.textContent.includes('Logni ko\'rish')) {
+            btn.innerHTML = '📊 Logni ko\'rish';
+            btn.className = 'btn btn-small btn-secondary';
+            btn.disabled = true;
+        }
+    });
+    
+    // Update scan button if exists
+    const scanButton = document.querySelector('.btn-primary');
+    if (scanButton && scanButton.textContent.includes('Tahlilni boshlash')) {
+        scanButton.innerHTML = '✅ Tahlil tugallandi';
+        scanButton.className = 'btn btn-primary disabled';
+        scanButton.disabled = true;
+    }
+}
+
+// ===== END SCANER SAHIFASI UCHUN TO'XTATISH FUNKSIYASI ===== 

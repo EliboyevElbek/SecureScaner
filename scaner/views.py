@@ -8,7 +8,10 @@ import requests
 import urllib3
 import subprocess
 import time
+from pathlib import Path
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from .models import DomainScan, Tool, KeshDomain, DomainToolConfiguration, ScanSession
+import psutil
 
 # SSL warnings ni o'chirish
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -389,6 +392,10 @@ def perform_domain_scan(domain):
         
         print(f"DomainScan bazasiga {domain} ma'lumotlari saqlandi. ID: {scan.id}")
         
+        # Log fayllarni avtomatik o'chirish
+        print(f"🧹 {domain} uchun log fayllar o'chirilmoqda...")
+        cleanup_log_files(domain)
+        
         return {
             'domain': domain,
             'status': 'completed',
@@ -431,39 +438,16 @@ def perform_tool_scans(domain):
                 print(f"KeshDomain bazasidan {domain} uchun tool buyruqlari topildi")
                 print(f"Tool buyruqlari: {kesh_domain.tool_commands}")
                 
-                # Har bir tool uchun buyruqni ishga tushirish
-                for tool_command in kesh_domain.tool_commands:
-                    for tool_type, command in tool_command.items():
-                        try:
-                            print(f"Tool {tool_type} uchun buyruq: {command}")
-                            
-                            if tool_type == 'nmap':
-                                result = run_nmap_scan_with_command(domain, command)
-                                tool_results['nmap'] = result
-                                raw_tool_output['nmap'] = result.get('output', '')
-                                print(f"Nmap natijasi: {result}")
-                            elif tool_type == 'sqlmap':
-                                result = run_sqlmap_scan_with_command(domain, command)
-                                tool_results['sqlmap'] = result
-                                raw_tool_output['sqlmap'] = result.get('output', '')
-                                print(f"SQLMap natijasi: {result}")
-                            elif tool_type == 'gobuster':
-                                result = run_gobuster_scan_with_command(domain, command)
-                                tool_results['gobuster'] = result
-                                raw_tool_output['gobuster'] = result.get('output', '')
-                                print(f"Gobuster natijasi: {result}")
-                            elif tool_type == 'xsstrike':
-                                result = run_xsstrike_scan_with_command(domain, command)
-                                tool_results['xsstrike'] = result
-                                raw_tool_output['xsstrike'] = result.get('output', '')
-                                print(f"XSStrike natijasi: {result}")
-                        except Exception as e:
-                            print(f"{tool_type} scanning xatolik {domain}: {e}")
-                            tool_results[tool_type] = {
-                                'status': 'error',
-                                'error': f'{tool_type} tool xatolik: {str(e)}'
-                            }
-                            raw_tool_output[tool_type] = f'Xatolik: {str(e)}'
+                # Tool'larni parallel ishga tushirish
+                # Tool'larni parallel ishga tushirish
+                print(f"🚀 {domain} uchun tool'lar parallel ishga tushirilmoqda...")
+                tool_results = run_tools_parallel(domain, kesh_domain.tool_commands)
+                
+                # Raw output'ni log faylga yozilganini ko'rsatish
+                for tool_type in tool_results.keys():
+                    raw_tool_output[tool_type] = 'Log faylga yozildi'
+                
+                print(f"✅ {domain} uchun barcha tool'lar parallel tugallandi")
             else:
                 print(f"KeshDomain bazasida {domain} uchun tool buyruqlari topilmadi")
                 tool_results['error'] = 'Tool buyruqlari topilmadi'
@@ -2022,5 +2006,503 @@ def scan_details_api(request, scan_id):
             'success': False,
             'error': str(e)
         }, status=500)
+
+def get_log_file_path(domain, tool_type):
+    """Log fayl yo'lini qaytaradi"""
+    log_dir = Path('logs')
+    log_dir.mkdir(exist_ok=True)
+    return log_dir / f"{domain}_{tool_type}.log"
+
+def write_to_log_file(domain, tool_type, content):
+    """Log faylga ma'lumot yozadi"""
+    try:
+        log_file = get_log_file_path(domain, tool_type)
+        with open(log_file, 'a', encoding='utf-8') as f:
+            f.write(f"{content}\n")
+            f.flush()  # Darhol diskka yozish
+        return True
+    except Exception as e:
+        print(f"Log faylga yozishda xatolik: {e}")
+        return False
+
+def stream_log_file_realtime(request, domain, tool_type):
+    """Log faylni real-time o'qib ko'rsatadi (tail -f kabi)"""
+    def stream():
+        log_file = get_log_file_path(domain, tool_type)
+        
+        # Agar fayl mavjud bo'lsa, mavjud loglarni ko'rsatish
+        if log_file.exists():
+            try:
+                with open(log_file, 'r', encoding='utf-8') as f:
+                    existing_content = f.read()
+                    if existing_content.strip():
+                        yield f"<div class='log-message info'>📁 Mavjud log fayl topildi</div>\n"
+                        for line in existing_content.strip().split('\n'):
+                            if line.strip():
+                                yield f"<div class='log-line'>{line.strip()}</div>\n"
+
+            except Exception as e:
+                yield f"<div class='log-message error'>❌ Log faylni o'qishda xatolik: {str(e)}</div>\n"
+        else:
+            yield f"<div class='log-message info'>📝 Yangi log fayl yaratilmoqda...</div>\n"
+        
+        # Real-time monitoring
+        last_size = log_file.stat().st_size if log_file.exists() else 0
+        
+        while True:
+            try:
+                if log_file.exists():
+                    current_size = log_file.stat().st_size
+                    
+                    if current_size > last_size:
+                        # Yangi ma'lumot bor
+                        with open(log_file, 'r', encoding='utf-8') as f:
+                            f.seek(last_size)
+                            new_content = f.read()
+                            if new_content.strip():
+                                for line in new_content.strip().split('\n'):
+                                    if line.strip():
+                                        yield f"<div class='log-line'>{line.strip()}</div>\n"
+                        last_size = current_size
+                
+                time.sleep(0.5)  # 500ms kutish
+                
+            except Exception as e:
+                yield f"<div class='log-message error'>❌ Monitoring xatolik: {str(e)}</div>\n"
+                break
+    
+    return StreamingHttpResponse(stream(), content_type="text/html")
+
+def run_tool_with_logging(domain, tool_type, command):
+    """Tool'ni ishga tushirib, log faylga yozadi"""
+    try:
+        # Log fayl yo'lini olish
+        log_file = get_log_file_path(domain, tool_type)
+        
+        # Log faylga boshlash xabarini yozish
+        write_to_log_file(domain, tool_type, f"🚀 {tool_type.upper()} ishga tushirilmoqda: {command}")
+        write_to_log_file(domain, tool_type, f"⏰ Vaqt: {time.strftime('%Y-%m-%d %H:%M:%S')}")
+        write_to_log_file(domain, tool_type, "=" * 50)
+        
+        # Tool'ni ishga tushirish
+        if tool_type == 'nmap':
+            result = run_nmap_with_logging(domain, command)
+        elif tool_type == 'sqlmap':
+            result = run_sqlmap_with_logging(domain, command)
+        elif tool_type == 'gobuster':
+            result = run_gobuster_with_logging(domain, command)
+        elif tool_type == 'xsstrike':
+            result = run_xsstrike_with_logging(domain, command)
+        else:
+            write_to_log_file(domain, tool_type, f"❌ {tool_type} tool qo'llab-quvvatlanmaydi")
+            return False
+        
+        # Yakunlash xabarini yozish
+        write_to_log_file(domain, tool_type, "=" * 50)
+        write_to_log_file(domain, tool_type, f"✅ {tool_type.upper()} tugallandi")
+        
+        return True
+        
+    except Exception as e:
+        write_to_log_file(domain, tool_type, f"❌ Xatolik: {str(e)}")
+        return False
+
+def run_nmap_with_logging(domain, command):
+    """Nmap'ni log faylga yozib ishga tushirish"""
+    try:
+        import os
+        nmap_path = 'tools/nmap/nmap.exe'
+        if not os.path.exists(nmap_path):
+            write_to_log_file(domain, 'nmap', '❌ Nmap tool topilmadi')
+            return False
+        
+        # Command ni parse qilish
+        cmd_parts = command.split()
+        cmd_parts = [part if part != 'my-courses.uz' else domain for part in cmd_parts]
+        full_cmd = [nmap_path] + cmd_parts[1:]
+        
+        write_to_log_file(domain, 'nmap', f"🔧 Buyruq: {' '.join(full_cmd)}")
+        
+        # Subprocess'ni ishga tushirish
+        process = subprocess.Popen(
+            full_cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            bufsize=1
+        )
+        
+        try:
+            # Real-time output o'qish va log faylga yozish
+            for line in process.stdout:
+                if line:
+                    write_to_log_file(domain, 'nmap', line.strip())
+            
+            # Process tugashini kutish
+            process.wait()
+            
+            # Natijani tekshirish
+            return_code = process.returncode
+            if return_code != 0:
+                write_to_log_file(domain, 'nmap', f"❌ Nmap xatolik bilan tugadi (kod: {return_code})")
+                return False
+            else:
+                write_to_log_file(domain, 'nmap', "✅ Nmap muvaffaqiyatli tugadi")
+                return True
+                
+        except KeyboardInterrupt:
+            # Ctrl+C bosilganda subprocess'ni xavfsiz to'xtatish
+            write_to_log_file(domain, 'nmap', "⚠️ Nmap to'xtatilmoqda...")
+            safe_terminate_process(process)
+            return False
+            
+        except Exception as e:
+            # Xatolik bo'lsa subprocess'ni xavfsiz to'xtatish
+            write_to_log_file(domain, 'nmap', f"❌ Xatolik: {str(e)}")
+            safe_terminate_process(process)
+            return False
+            
+    except Exception as e:
+        write_to_log_file(domain, 'nmap', f"❌ Nmap xatolik: {str(e)}")
+        return False
+
+def run_sqlmap_with_logging(domain, command):
+    """SQLMap'ni log faylga yozib ishga tushirish"""
+    try:
+        import os
+        sqlmap_path = 'tools/sqlmap/sqlmap.py'
+        if not os.path.exists(sqlmap_path):
+            write_to_log_file(domain, 'sqlmap', '❌ SQLMap tool topilmadi')
+            return False
+        
+        # Command ni parse qilish
+        cmd_parts = command.split()
+        cmd_parts = [part if part != 'my-courses.uz' else domain for part in cmd_parts]
+        full_cmd = ['python', sqlmap_path] + cmd_parts[1:]
+        
+        write_to_log_file(domain, 'sqlmap', f"🔧 Buyruq: {' '.join(full_cmd)}")
+        
+        # Subprocess'ni ishga tushirish
+        process = subprocess.Popen(
+            full_cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            bufsize=1
+        )
+        
+        try:
+            # Real-time output o'qish va log faylga yozish
+            for line in process.stdout:
+                if line:
+                    write_to_log_file(domain, 'sqlmap', line.strip())
+            
+            # Process tugashini kutish
+            process.wait()
+            
+            # Natijani tekshirish
+            return_code = process.returncode
+            if return_code != 0:
+                write_to_log_file(domain, 'sqlmap', f"❌ SQLMap xatolik bilan tugadi (kod: {return_code})")
+                return False
+            else:
+                write_to_log_file(domain, 'sqlmap', "✅ SQLMap muvaffaqiyatli tugadi")
+                return True
+                
+        except KeyboardInterrupt:
+            # Ctrl+C bosilganda subprocess'ni xavfsiz to'xtatish
+            write_to_log_file(domain, 'sqlmap', "⚠️ SQLMap to'xtatilmoqda...")
+            safe_terminate_process(process)
+            return False
+            
+        except Exception as e:
+            # Xatolik bo'lsa subprocess'ni xavfsiz to'xtatish
+            write_to_log_file(domain, 'sqlmap', f"❌ Xatolik: {str(e)}")
+            safe_terminate_process(process)
+            return False
+            
+    except Exception as e:
+        write_to_log_file(domain, 'sqlmap', f"❌ SQLMap xatolik: {str(e)}")
+        return False
+
+def run_gobuster_with_logging(domain, command):
+    """Gobuster'ni log faylga yozib ishga tushirish"""
+    try:
+        import os
+        gobuster_path = 'tools/gobuster/gobuster.exe'
+        if not os.path.exists(gobuster_path):
+            write_to_log_file(domain, 'gobuster', '❌ Gobuster tool topilmadi')
+            return False
+        
+        # Command ni parse qilish
+        cmd_parts = command.split()
+        cmd_parts = [part if part != 'my-courses.uz' else domain for part in cmd_parts]
+        full_cmd = [gobuster_path] + cmd_parts[1:]
+        
+        write_to_log_file(domain, 'gobuster', f"🔧 Buyruq: {' '.join(full_cmd)}")
+        
+        # Subprocess'ni ishga tushirish
+        process = subprocess.Popen(
+            full_cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            bufsize=1
+        )
+        
+        try:
+            # Real-time output o'qish va log faylga yozish
+            for line in process.stdout:
+                if line:
+                    write_to_log_file(domain, 'gobuster', line.strip())
+            
+            # Process tugashini kutish
+            process.wait()
+            
+            # Natijani tekshirish
+            return_code = process.returncode
+            if return_code != 0:
+                write_to_log_file(domain, 'gobuster', f"❌ Gobuster xatolik bilan tugadi (kod: {return_code})")
+                return False
+            else:
+                write_to_log_file(domain, 'gobuster', "✅ Gobuster muvaffaqiyatli tugadi")
+                return True
+                
+        except KeyboardInterrupt:
+            # Ctrl+C bosilganda subprocess'ni xavfsiz to'xtatish
+            write_to_log_file(domain, 'gobuster', "⚠️ Gobuster to'xtatilmoqda...")
+            safe_terminate_process(process)
+            return False
+            
+        except Exception as e:
+            # Xatolik bo'lsa subprocess'ni xavfsiz to'xtatish
+            write_to_log_file(domain, 'gobuster', f"❌ Xatolik: {str(e)}")
+            safe_terminate_process(process)
+            return False
+            
+    except Exception as e:
+        write_to_log_file(domain, 'gobuster', f"❌ Gobuster xatolik: {str(e)}")
+        return False
+
+def run_xsstrike_with_logging(domain, command):
+    """XSStrike'ni log faylga yozib ishga tushirish"""
+    try:
+        import os
+        xsstrike_path = 'tools/XSStrike/xsstrike.py'
+        if not os.path.exists(xsstrike_path):
+            write_to_log_file(domain, 'xsstrike', '❌ XSStrike tool topilmadi')
+            return False
+        
+        # Command ni parse qilish
+        cmd_parts = command.split()
+        cmd_parts = [part if part != 'my-courses.uz' else domain for part in cmd_parts]
+        full_cmd = ['python', xsstrike_path] + cmd_parts[1:]
+        
+        write_to_log_file(domain, 'xsstrike', f"🔧 Buyruq: {' '.join(full_cmd)}")
+        
+        # Subprocess'ni ishga tushirish
+        process = subprocess.Popen(
+            full_cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            bufsize=1
+        )
+        
+        try:
+            # Real-time output o'qish va log faylga yozish
+            for line in process.stdout:
+                if line:
+                    write_to_log_file(domain, 'xsstrike', line.strip())
+            
+            # Process tugashini kutish
+            process.wait()
+            
+            # Natijani tekshirish
+            return_code = process.returncode
+            if return_code != 0:
+                write_to_log_file(domain, 'xsstrike', f"❌ XSStrike xatolik bilan tugadi (kod: {return_code})")
+                return False
+            else:
+                write_to_log_file(domain, 'xsstrike', "✅ XSStrike muvaffaqiyatli tugadi")
+                return True
+                
+        except KeyboardInterrupt:
+            # Ctrl+C bosilganda subprocess'ni xavfsiz to'xtatish
+            write_to_log_file(domain, 'xsstrike', "⚠️ XSStrike to'xtatilmoqda...")
+            safe_terminate_process(process)
+            return False
+            
+        except Exception as e:
+            # Xatolik bo'lsa subprocess'ni xavfsiz to'xtatish
+            write_to_log_file(domain, 'xsstrike', f"❌ Xatolik: {str(e)}")
+            safe_terminate_process(process)
+            return False
+            
+    except Exception as e:
+        write_to_log_file(domain, 'xsstrike', f"❌ XSStrike xatolik: {str(e)}")
+        return False
+
+def run_tools_parallel(domain, tool_commands):
+    """Tool'larni parallel ishga tushirish"""
+    results = {}
+    
+    def run_single_tool(tool_type, command):
+        """Bitta tool'ni ishga tushirish"""
+        try:
+            print(f"🚀 {tool_type.upper()} parallel ishga tushirilmoqda: {command}")
+            
+            # Log faylga boshlash xabarini yozish
+            write_to_log_file(domain, tool_type, f"🚀 {tool_type.upper()} ishga tushirilmoqda: {command}")
+            write_to_log_file(domain, tool_type, f"⏰ Vaqt: {time.strftime('%Y-%m-%d %H:%M:%S')}")
+            write_to_log_file(domain, tool_type, "=" * 50)
+            
+            # Tool'ni ishga tushirish
+            if tool_type == 'nmap':
+                result = run_nmap_with_logging(domain, command)
+            elif tool_type == 'sqlmap':
+                result = run_sqlmap_with_logging(domain, command)
+            elif tool_type == 'gobuster':
+                result = run_gobuster_with_logging(domain, command)
+            elif tool_type == 'xsstrike':
+                result = run_xsstrike_with_logging(domain, command)
+            else:
+                write_to_log_file(domain, tool_type, f"❌ {tool_type} tool qo'llab-quvvatlanmaydi")
+                return tool_type, False
+            
+            # Yakunlash xabarini yozish
+            write_to_log_file(domain, tool_type, "=" * 50)
+            write_to_log_file(domain, tool_type, f"✅ {tool_type.upper()} tugallandi")
+            
+            return tool_type, result
+            
+        except Exception as e:
+            write_to_log_file(domain, tool_type, f"❌ Xatolik: {str(e)}")
+            return tool_type, False
+    
+    # Tool'larni parallel ishga tushirish (daemon=False bilan)
+    with ThreadPoolExecutor(max_workers=4, thread_name_prefix="ToolWorker") as executor:
+        # Har bir tool uchun future yaratish
+        future_to_tool = {}
+        for tool_command in tool_commands:
+            for tool_type, command in tool_command.items():
+                future = executor.submit(run_single_tool, tool_type, command)
+                future_to_tool[future] = tool_type
+        
+        # Natijalarni kutish
+        for future in as_completed(future_to_tool):
+            tool_type, result = future.result()
+            results[tool_type] = {'status': 'completed' if result else 'failed'}
+            print(f"✅ {tool_type} parallel tugallandi: {result}")
+        
+        # Barcha thread'lar tugaguncha kutish
+        executor.shutdown(wait=True)
+        print(f"🔄 Barcha tool thread'lari tugallandi")
+    
+    return results
+
+def cleanup_log_files(domain):
+    """Domain uchun barcha log fayllarni o'chirish"""
+    try:
+        log_dir = Path('logs')
+        if log_dir.exists():
+            # Domain bilan bog'liq barcha log fayllarni topish
+            log_files = list(log_dir.glob(f"{domain}_*.log"))
+            
+            for log_file in log_files:
+                try:
+                    log_file.unlink()
+                    print(f"🗑️ Log fayl o'chirildi: {log_file}")
+                except Exception as e:
+                    print(f"❌ Log fayl o'chirishda xatolik {log_file}: {e}")
+            
+            print(f"🧹 {len(log_files)} ta log fayl o'chirildi: {domain}")
+            return True
+        else:
+            print(f"📁 Log papkasi mavjud emas: {domain}")
+            return False
+            
+    except Exception as e:
+        print(f"❌ Log fayllarni o'chirishda xatolik {domain}: {e}")
+        return False
+
+def safe_terminate_process(process, timeout=10):
+    """Subprocess'ni xavfsiz to'xtatish"""
+    try:
+        if process and process.poll() is None:  # Process hali ishlayotgan bo'lsa
+            print(f"🔄 Subprocess to'xtatilmoqda (PID: {process.pid})...")
+            
+            # Yumshoq to'xtatish
+            process.terminate()
+            
+            # Timeout bilan kutish
+            try:
+                process.wait(timeout=timeout)
+                print(f"✅ Subprocess yumshoq to'xtatildi (PID: {process.pid})")
+                return True
+            except subprocess.TimeoutExpired:
+                print(f"⚠️ Subprocess yumshoq to'xtamadi, majburan o'chirilmoqda (PID: {process.pid})")
+                
+                # Majburan o'chirish
+                process.kill()
+                process.wait()
+                print(f"💀 Subprocess majburan o'chirildi (PID: {process.pid})")
+                return True
+                
+    except Exception as e:
+        print(f"❌ Subprocess to'xtatishda xatolik: {e}")
+        return False
+    
+    return True
+
+def stop_domain_scan(request, domain):
+    """Domain uchun barcha ishlayotgan tool'larni to'xtatish"""
+    try:
+        print(f"🛑 {domain} uchun barcha tool'lar to'xtatilmoqda...")
+        
+        # Log fayllarni tozalash
+        cleanup_log_files(domain)
+        
+        # Barcha ishlayotgan subprocess'larni topish va to'xtatish
+        import psutil
+        
+        stopped_processes = []
+        
+        # Barcha Python process'larni tekshirish
+        for proc in psutil.process_iter(['pid', 'name', 'cmdline']):
+            try:
+                cmdline = proc.info['cmdline']
+                if cmdline and any(tool in ' '.join(cmdline).lower() for tool in ['nmap', 'sqlmap', 'gobuster', 'xsstrike']):
+                    # Domain bilan bog'liq process bo'lsa
+                    if domain.lower() in ' '.join(cmdline).lower():
+                        print(f"🔄 Tool process to'xtatilmoqda: {proc.info['name']} (PID: {proc.info['pid']})")
+                        
+                        # Process'ni majburan o'chirish
+                        proc.kill()
+                        proc.wait()
+                        
+                        stopped_processes.append(f"{proc.info['name']} (PID: {proc.info['pid']})")
+                        print(f"💀 Tool process o'chirildi: {proc.info['name']} (PID: {proc.info['pid']})")
+                        
+            except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+                continue
+        
+        if stopped_processes:
+            print(f"✅ {len(stopped_processes)} ta tool process to'xtatildi: {', '.join(stopped_processes)}")
+        else:
+            print(f"ℹ️ {domain} uchun ishlayotgan tool process'lar topilmadi")
+        
+        return JsonResponse({
+            'status': 'success',
+            'message': f'{domain} uchun {len(stopped_processes)} ta tool to\'xtatildi',
+            'stopped_processes': stopped_processes
+        })
+        
+    except Exception as e:
+        print(f"❌ {domain} uchun tool'larni to'xtatishda xatolik: {e}")
+        return JsonResponse({
+            'status': 'error',
+            'message': f'Xatolik: {str(e)}'
+        })
 
 

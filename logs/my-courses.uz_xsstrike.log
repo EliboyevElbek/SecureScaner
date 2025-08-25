@@ -1,0 +1,12 @@
+🚀 XSSTRIKE ishga tushirilmoqda: xsstrike -u https://my-courses.uz
+⏰ Vaqt: 2025-08-26 02:40:32
+==================================================
+🔧 Buyruq: python tools/XSStrike/xsstrike.py -u https://my-courses.uz
+[91m
+XSStrike [97mv3.1.5
+[0m
+[97m[~][0m Checking for DOM vulnerabilities [0m
+[91m[-][0m No parameters to test. [0m
+✅ XSStrike muvaffaqiyatli tugadi
+==================================================
+✅ XSSTRIKE tugallandi
