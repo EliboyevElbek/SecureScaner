@@ -1531,7 +1531,7 @@ function renderAvailableTools(tools) {
                     <span class="tool-name">${tool.displayName}</span>
                 </div>
                 <div class="tool-action-section">
-                    <button class="btn btn-small btn-info" onclick="showToolDetails('${tool.name}', ${index})">
+                    <button class="btn btn-small btn-info" onclick="showToolDetails('${tool.tool_type || tool.name}', ${index})">
                         📊 Logni kuzatish
                     </button>
                 </div>
@@ -1767,14 +1767,17 @@ function createToolResultsSection(toolName) {
     
     document.body.appendChild(toolResultsWindow);
     
-    // Show window with animation
+    // Show window with animation - wait for DOM to be ready
     setTimeout(() => {
         toolResultsWindow.style.opacity = '1';
         toolResultsWindow.style.transform = 'scale(1)';
-    }, 10);
+        console.log('Tool results window ko\'rsatildi');
+    }, 100); // 100ms kutish
     
     // Store reference for cleanup
     window.currentToolResultsWindow = toolResultsWindow;
+    
+    console.log('Tool results window yaratildi va DOM ga qo\'shildi');
 }
 
 function startToolStreaming(domain, toolName) {

@@ -2027,8 +2027,12 @@ def write_to_log_file(domain, tool_type, content):
 
 def stream_log_file_realtime(request, domain, tool_type):
     """Log faylni real-time o'qib ko'rsatadi (tail -f kabi)"""
+    print(f"🔍 stream_log_file_realtime chaqirildi: {domain} - {tool_type}")
+    
     def stream():
         log_file = get_log_file_path(domain, tool_type)
+        print(f"📁 Log fayl yo'li: {log_file}")
+        print(f"📊 Log fayl mavjud: {log_file.exists()}")
         
         # Debug ma'lumotlari
         yield f"<div class='log-message info'>🔍 Debug: {domain} - {tool_type}</div>\n"
@@ -2038,25 +2042,36 @@ def stream_log_file_realtime(request, domain, tool_type):
         # Agar fayl mavjud bo'lsa, faqat oxiridan ko'rsatish (tail -f kabi)
         if log_file.exists():
             try:
-                # Faqat oxirgi 20 qatorni ko'rsatish (xuddi tail -f kabi)
-                with open(log_file, 'r', encoding='utf-8') as f:
-                    lines = f.readlines()
-                    if lines:
-                        # Oxirgi 20 qatorni olish
-                        last_lines = lines[-20:] if len(lines) > 20 else lines
-                        for line in last_lines:
-                            if line.strip():
-                                yield f"<div class='log-line'>{line.strip()}</div>\n"
-                        
-                        # Agar ko'p qator bo'lsa, ko'rsatilgan qatorlar sonini ko'rsatish
-                        if len(lines) > 20:
-                            yield f"<div class='log-message info'>📊 Oxirgi 20 qator ko'rsatildi (jami {len(lines)} qator)</div>\n"
-                        else:
-                            yield f"<div class='log-message info'>📊 Barcha {len(lines)} qator ko'rsatildi</div>\n"
-                        
-                        yield f"<div class='log-message success'>🔄 Real-time monitoring boshlanmoqda...</div>\n"
+                # Avval UTF-8 bilan urinish, keyin boshqa encoding'lar bilan
+                lines = []
+                encoding_attempts = ['utf-8', 'cp1252', 'latin-1', 'iso-8859-1']
+                
+                for encoding in encoding_attempts:
+                    try:
+                        with open(log_file, 'r', encoding=encoding) as f:
+                            lines = f.readlines()
+                        print(f"✅ Log fayl {encoding} encoding bilan o'qildi")
+                        break
+                    except UnicodeDecodeError:
+                        print(f"❌ {encoding} encoding bilan o'qishda xatolik")
+                        continue
+                
+                if lines:
+                    # Oxirgi 20 qatorni olish
+                    last_lines = lines[-20:] if len(lines) > 20 else lines
+                    for line in last_lines:
+                        if line.strip():
+                            yield f"<div class='log-line'>{line.strip()}</div>\n"
+                    
+                    # Agar ko'p qator bo'lsa, ko'rsatilgan qatorlar sonini ko'rsatish
+                    if len(lines) > 20:
+                        yield f"<div class='log-message info'>📊 Oxirgi 20 qator ko'rsatildi (jami {len(lines)} qator)</div>\n"
                     else:
-                        yield f"<div class='log-message info'>📝 Log fayl bo'sh</div>\n"
+                        yield f"<div class='log-message success'>📊 Barcha {len(lines)} qator ko'rsatildi</div>\n"
+                    
+                    yield f"<div class='log-message success'>🔄 Real-time monitoring boshlanmoqda...</div>\n"
+                else:
+                    yield f"<div class='log-message info'>📝 Log fayl bo'sh yoki o'qilolmaydi</div>\n"
                         
             except Exception as e:
                 yield f"<div class='log-message error'>❌ Log faylni o'qishda xatolik: {str(e)}</div>\n"
@@ -2065,29 +2080,36 @@ def stream_log_file_realtime(request, domain, tool_type):
             yield f"<div class='log-message info'>💡 Tool ishga tushirilgandan keyin log ko'rinadi</div>\n"
         
         # Real-time monitoring - faqat yangi qo'shilgan qatorlarni ko'rsatish
-        last_size = log_file.stat().st_size if log_file.exists() else 0
-        
-        while True:
-            try:
-                if log_file.exists():
-                    current_size = log_file.stat().st_size
+        if log_file.exists():
+            last_size = log_file.stat().st_size
+            max_iterations = 100  # Cheklangan iteratsiya soni
+            iteration = 0
+            
+            while iteration < max_iterations:
+                try:
+                    if log_file.exists():
+                        current_size = log_file.stat().st_size
+                        
+                        if current_size > last_size:
+                            # Yangi ma'lumot bor - faqat yangi qatorlarni ko'rsatish
+                            with open(log_file, 'r', encoding='utf-8') as f:
+                                f.seek(last_size)
+                                new_content = f.read()
+                                if new_content.strip():
+                                    for line in new_content.strip().split('\n'):
+                                        if line.strip():
+                                            yield f"<div class='log-line'>{line.strip()}</div>\n"
+                            last_size = current_size
                     
-                    if current_size > last_size:
-                        # Yangi ma'lumot bor - faqat yangi qatorlarni ko'rsatish
-                        with open(log_file, 'r', encoding='utf-8') as f:
-                            f.seek(last_size)
-                            new_content = f.read()
-                            if new_content.strip():
-                                for line in new_content.strip().split('\n'):
-                                    if line.strip():
-                                        yield f"<div class='log-line'>{line.strip()}</div>\n"
-                        last_size = current_size
-                
-                time.sleep(0.5)  # 500ms kutish
-                
-            except Exception as e:
-                yield f"<div class='log-message error'>❌ Monitoring xatolik: {str(e)}</div>\n"
-                break
+                    time.sleep(1)  # 1 soniya kutish
+                    iteration += 1
+                    
+                except Exception as e:
+                    yield f"<div class='log-message error'>❌ Monitoring xatolik: {str(e)}</div>\n"
+                    break
+            
+            # Monitoring tugagandan keyin xabar
+            yield f"<div class='log-message info'>⏹️ Real-time monitoring tugatildi</div>\n"
     
     return StreamingHttpResponse(stream(), content_type="text/html")
 
