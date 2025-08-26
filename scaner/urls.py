@@ -19,7 +19,6 @@ urlpatterns = [
     path('scaner/stream-tool-output-realtime/<str:domain>/<str:tool_type>/', views.stream_tool_output_realtime, name='stream_tool_output_realtime'),
     path('scaner/stream-log-file/<str:domain>/<str:tool_type>/', views.stream_log_file_realtime, name='stream_log_file'),
     path('scaner/stop-scan/<str:domain>/', views.stop_domain_scan, name='stop_domain_scan'),
-    path('scaner/tool-status/<str:domain>/', views.get_tool_status, name='get_tool_status'),
 
     path('api/scan-details/<int:scan_id>/', views.scan_details_api, name='scan_details'),
     path('tools/', views.tools, name='tools'),
