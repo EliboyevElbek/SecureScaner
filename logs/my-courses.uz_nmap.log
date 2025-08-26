@@ -1,0 +1,53 @@
+🚀 NMAP ishga tushirilmoqda: nmap -sS -sV -O my-courses.uz
+⏰ Vaqt: 2024-08-26 23:55:00
+==================================================
+[*] Starting @ 23:55:00 /2024-08-26/
+[+] Target: my-courses.uz
+[+] Engine: nmap/7.94
+[+] Scan Type: SYN Scan + Version Detection + OS Detection
+[+] Ports: 1-1000
+==================================================
+[+] Port 22/tcp: SSH (OpenSSH 8.2p1 Ubuntu 4ubuntu0.5)
+[+] Port 80/tcp: HTTP (nginx/1.18.0)
+[+] Port 443/tcp: HTTPS (nginx/1.18.0)
+[+] Port 3306/tcp: MySQL (MySQL 8.0.32)
+[+] Port 5432/tcp: PostgreSQL (PostgreSQL 13.7)
+==================================================
+[+] OS Detection: Linux 5.4.0 (Ubuntu 20.04.3 LTS)
+[+] Host Status: Up
+[+] Scan Duration: 45.23 seconds
+==================================================
+✅ NMAP scan muvaffaqiyatli tugatildi
+🚀 NMAP ishga tushirilmoqda: nmap my-courses.uz
+⏰ Vaqt: 2025-08-27 00:39:53
+==================================================
+🔧 Buyruq: tools/nmap/nmap.exe my-courses.uz
+Starting Nmap 7.97 ( https://nmap.org ) at 2025-08-27 00:39 +0500
+Nmap scan report for my-courses.uz (31.184.242.14)
+Host is up (0.18s latency).
+rDNS record for 31.184.242.14: ns8.sayt.uz
+Not shown: 949 filtered tcp ports (no-response), 33 filtered tcp ports (host-prohibited)
+PORT      STATE  SERVICE
+20/tcp    closed ftp-data
+21/tcp    open   ftp
+22/tcp    open   ssh
+25/tcp    open   smtp
+53/tcp    open   domain
+80/tcp    open   http
+110/tcp   open   pop3
+143/tcp   open   imap
+443/tcp   open   https
+465/tcp   open   smtps
+587/tcp   open   submission
+993/tcp   open   imaps
+995/tcp   open   pop3s
+1500/tcp  open   vlsi-lm
+3306/tcp  open   mysql
+5432/tcp  closed postgresql
+12345/tcp open   netbus
+35500/tcp closed unknown
+
+Nmap done: 1 IP address (1 host up) scanned in 31.70 seconds
+✅ Nmap muvaffaqiyatli tugadi
+==================================================
+✅ NMAP tugallandi

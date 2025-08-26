@@ -312,15 +312,6 @@
     background: rgba(0, 0, 0, 0.8);
     border: 2px solid #ef4444;
     color: #ef4444;
-    transition: all 0.3s ease;
-}
-
-.btn-danger:hover {
-    background: rgba(239, 68, 68, 0.2);
-    border-color: #ef4444;
-    color: #ef4444;
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
 }
 
 
@@ -4539,64 +4530,4 @@
         opacity: 1;
         transform: translateX(0);
     }
-}
-
-/* Tool Results Window */
-.tool-results-window {
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    width: 90%;
-    max-width: 800px;
-    height: 80%;
-    background: white;
-    border-radius: 12px;
-    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
-    z-index: 10000;
-    display: none;
-    overflow: hidden;
-    border: 2px solid #e1e5e9;
-}
-
-/* Stop Scan Button Styles */
-.stop-scan-row {
-    border-top: 2px solid #ff6b6b;
-    margin-top: 15px;
-    padding-top: 15px;
-}
-
-.stop-scan-row .tool-name {
-    color: #d63031;
-    font-weight: 600;
-}
-
-
-
-/* Tool Status Styles */
-.tool-status.stopped {
-    background: linear-gradient(135deg, #ff6b6b, #ee5a52);
-    color: white;
-    padding: 4px 12px;
-    border-radius: 20px;
-    font-size: 12px;
-    font-weight: 500;
-}
-
-.tool-status.pending {
-    background: linear-gradient(135deg, #fdcb6e, #e17055);
-    color: white;
-    padding: 4px 12px;
-    border-radius: 20px;
-    font-size: 12px;
-    font-weight: 500;
-}
-
-.tool-status.completed {
-    background: linear-gradient(135deg, #00b894, #00a085);
-    color: white;
-    padding: 4px 12px;
-    border-radius: 20px;
-    font-size: 12px;
-    font-weight: 500;
 }

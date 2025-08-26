@@ -1,0 +1,15 @@
+🚀 SQLMAP ishga tushirilmoqda: sqlmap -u https://test_domain.com
+⏰ Vaqt: 2024-01-01 12:00:00
+==================================================
+[*] Starting @ 12:00:00 /2024-01-01/
+[+] Target: https://test_domain.com
+[+] Engine: sqlmap/1.7.2
+[+] Database: sqlite
+[+] Type: GET
+[+] Title: Test log entry 1
+[+] Test log entry 2
+[+] Test log entry 3
+[+] Test log entry 4
+[+] Test log entry 5
+==================================================
+✅ Test log fayli muvaffaqiyatli yaratildi
