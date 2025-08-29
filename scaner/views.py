@@ -186,22 +186,33 @@ def scan_history(request):
                 new_domains = [latest_scan.domain_name]
                 print(f"ScanSession yo'q, eng so'nggi domain: {new_domains}")
             
-            # Eski tahlillarni olish (yangi tahlillarda bo'lmagan domainlar)
-            old_scans = DomainScan.objects.filter(
-                status='completed'
-            ).exclude(
-                domain_name__in=new_domains
-            ).order_by('-scan_date')[:50]
-        else:
-            new_scans = []
-            old_scans = []
+                    # Eski tahlillarni olish (yangi tahlillarda bo'lmagan domainlar) - pagination bilan
+        from django.core.paginator import Paginator
+        
+        # GET parametridan sahifa raqamini olish
+        page_number = request.GET.get('page', 1)
+        
+        # Barcha eski tahlillarni olish (pagination uchun)
+        old_scans_all = DomainScan.objects.filter(
+            status='completed'
+        ).exclude(
+            domain_name__in=new_domains
+        ).order_by('-scan_date')
+        
+        # Har sahifada 10 tadan ko'rsatish
+        paginator = Paginator(old_scans_all, 10)
+        old_scans = paginator.get_page(page_number)
+    else:
+        new_scans = []
+        old_scans = []
         
         context = {
             'new_scans': new_scans,
             'old_scans': old_scans,
             'new_count': len(new_scans) if isinstance(new_scans, list) else new_scans.count(),
             'old_count': len(old_scans) if isinstance(old_scans, list) else old_scans.count(),
-            'total_count': all_scans.count()
+            'total_count': all_scans.count(),
+            'paginator': old_scans if 'old_scans' in locals() and hasattr(old_scans, 'paginator') else None
         }
         
         return render(request, 'scan_history.html', context)

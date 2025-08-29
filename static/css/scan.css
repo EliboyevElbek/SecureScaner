@@ -698,41 +698,66 @@
         text-align: center;
     }
     
-/* Pagination Styles - Dark Professional */
+/* Pagination Styles */
 .pagination {
     display: flex;
-        justify-content: center;
+    justify-content: center;
     align-items: center;
     gap: 1rem;
     margin-top: 2rem;
-    flex-wrap: wrap;
+    padding: 1rem;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 12px;
+    border: 1px solid #333333;
 }
 
 .page-link {
-    color: #ffffff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.5rem 1rem;
+    background: linear-gradient(135deg, rgba(0, 255, 0, 0.1), rgba(0, 255, 0, 0.05));
+    color: #00ff00;
     text-decoration: none;
-    padding: 0.75rem 1rem;
-    border: 2px solid #333333;
     border-radius: 8px;
-    background: rgba(0, 0, 0, 0.8);
-    transition: all 0.3s ease;
-    font-family: 'Inter', sans-serif;
+    border: 1px solid #00ff00;
     font-weight: 500;
+    transition: all 0.3s ease;
+    min-width: 80px;
 }
 
 .page-link:hover {
-    color: #00ff00;
-    border-color: #00ff00;
-    background: rgba(0, 0, 0, 0.9);
-    box-shadow: 0 0 10px rgba(0, 255, 0, 0.3);
+    background: linear-gradient(135deg, rgba(0, 255, 0, 0.2), rgba(0, 255, 0, 0.1));
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(0, 255, 0, 0.3);
+    color: #ffffff;
 }
 
 .current-page {
-    color: #00ff00;
+    padding: 0.5rem 1rem;
+    background: linear-gradient(135deg, #00ff00, #00cc00);
+    color: #000000;
+    border-radius: 8px;
     font-weight: 600;
-    padding: 0.75rem 1rem;
-    font-family: 'Inter', sans-serif;
-    text-shadow: 0 0 5px rgba(0, 255, 0, 0.3);
+    border: 1px solid #00ff00;
+    min-width: 120px;
+    text-align: center;
+}
+
+/* Responsive pagination */
+@media (max-width: 768px) {
+    .pagination {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    
+    .page-link {
+        min-width: 100px;
+    }
+    
+    .current-page {
+        min-width: 150px;
+    }
 }
 
 /* Modal Styles - Dark Professional */
@@ -753,32 +778,26 @@
     background: rgba(0, 0, 0, 0.95);
     border: 2px solid #00ff00;
     border-radius: 20px;
-    padding: 1rem;
+    padding: 2.5rem;
     max-width: 1100px;
     width: 95%;
     max-height: 90vh;
-    height: 90vh;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
+    overflow-y: auto;
 }
 
 .modal-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 0.25rem;
-    padding-bottom: 0.25rem;
-    padding-top: 0.25rem;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
     border-bottom: 1px solid #333333;
-    min-height: auto;
-    flex-shrink: 0;
 }
 
 .modal-title-section {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
+    gap: 1rem;
 }
 
 .modal-title-icon {
@@ -791,16 +810,16 @@
 .modal-title-with-icon {
     display: flex;
     align-items: center;
-    gap: 0.75rem;
+    gap: 1.5rem;
 }
 
 .modal-domain-icon {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 36px;
-    height: 36px;
-    border-radius: 8px;
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
     background: rgba(0, 255, 0, 0.1);
     border: 2px solid rgba(0, 255, 0, 0.3);
     overflow: hidden;
@@ -808,8 +827,8 @@
 }
 
 .modal-domain-icon .modal-favicon {
-    width: 20px;
-    height: 20px;
+    width: 28px;
+    height: 28px;
     object-fit: contain;
 }
 
@@ -821,7 +840,7 @@
 
 .modal-title-text .domain-name {
     color: #ffffff;
-    font-size: 1.4rem;
+    font-size: 1.8rem;
     font-weight: 800;
     font-family: 'Inter', sans-serif;
     text-shadow: 0 0 15px rgba(0, 255, 0, 0.4);
@@ -829,7 +848,7 @@
 
 .modal-title-text .modal-subtitle {
     color: #00ff00;
-    font-size: 0.9rem;
+    font-size: 1rem;
     font-weight: 500;
     font-family: 'Inter', sans-serif;
     opacity: 0.8;
@@ -837,7 +856,7 @@
 
 .modal-header h3 {
     color: #ffffff;
-    font-size: 1.2rem;
+    font-size: 1.5rem;
     font-weight: 700;
     margin: 0;
     font-family: 'Inter', sans-serif;
@@ -848,11 +867,11 @@
     background: none;
     border: none;
     color: #ffffff;
-    font-size: 1.5rem;
+    font-size: 2rem;
     cursor: pointer;
     padding: 0;
-    width: 32px;
-    height: 32px;
+    width: 40px;
+    height: 40px;
     border-radius: 50%;
     display: flex;
     align-items: center;
@@ -869,23 +888,14 @@
     color: #cccccc;
     font-family: 'Inter', sans-serif;
     line-height: 1.6;
-    flex: 1;
-    min-height: 0;
-    padding-top: 0.5rem;
-    overflow-y: auto;
 }
 
 /* Modal content stillar */
 .detailed-result {
     background: rgba(0, 0, 0, 0.3);
     border-radius: 16px;
-    padding: 1rem;
+    padding: 2rem;
     border: 1px solid rgba(0, 255, 0, 0.2);
-    flex: 1;
-    min-height: 0;
-    overflow-y: auto;
-    display: flex;
-    flex-direction: column;
 }
 
 .detailed-result h4 {
@@ -893,23 +903,10 @@
     font-size: 1.3rem;
     font-weight: 700;
     margin: 2rem 0 1rem 0;
-}
-
-/* Iframe styles for modal */
-.detailed-result iframe {
-    width: 100%;
-    height: 100%;
-    min-height: 400px;
-    border: none;
-    background-color: #1a1a1a;
-    border-radius: 8px;
-    flex: 1;
-}
-
-/* Tool output log iframe styles removed */
-
-.detailed-result h4:first-child {
-    margin-top: 0;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid rgba(0, 255, 0, 0.3);
+    font-family: 'Inter', sans-serif;
+    text-shadow: 0 0 8px rgba(0, 255, 0, 0.3);
 }
 
 .detailed-result h4:first-child {
@@ -4080,312 +4077,129 @@
     text-shadow: 0 0 5px rgba(68, 68, 255, 0.3);
 }
 
-/* Simple Log Modal - No Header, No Footer, Full Log Display */
-.log-modal {
+/* Tool Results Window Styles */
+.tool-results-window {
     position: fixed;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
-    background: rgba(0, 0, 0, 0.95);
+    background: rgba(0, 0, 0, 0.9);
     z-index: 10000;
     display: flex;
     align-items: center;
     justify-content: center;
     opacity: 0;
-    transform: scale(0.9);
+    transform: scale(0.8);
     transition: all 0.3s ease;
 }
 
-.log-modal-content {
+.tool-results-window-content {
     background: #000;
     border: 2px solid #00ff00;
-    border-radius: 12px;
-    width: 95%;
-    height: 95%;
-    display: flex;
-    flex-direction: column;
-    box-shadow: 0 0 40px rgba(0, 255, 0, 0.4);
-    position: relative;
-}
-
-.log-modal-close {
-    position: absolute;
-    top: 15px;
-    right: 15px;
-    background: rgba(0, 0, 0, 0.8);
-    border: 1px solid #00ff00;
-    color: #00ff00;
-    font-size: 1.2rem;
-    cursor: pointer;
-    padding: 8px 12px;
-    border-radius: 6px;
-    z-index: 10;
-    transition: all 0.3s ease;
-}
-
-.log-modal-close:hover {
-    background: rgba(0, 255, 0, 0.2);
-    color: #ffffff;
-}
-
-.log-modal-body {
-    flex: 1;
-    padding: 20px;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-}
-
-.log-iframe-container {
-    flex: 1;
-    background: #1a1a1a;
-    border-radius: 8px;
-    overflow: hidden;
-    display: flex;
-}
-
-.log-iframe {
-    width: 100%;
-    height: 100%;
-    border: none;
-    background: #1a1a1a;
-    flex: 1;
-}
-
-/* Simple Edit Modal - Icon and Domain Only */
-.edit-modal-simple {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.95);
-    z-index: 10000;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    opacity: 0;
-    transform: scale(0.9);
-    transition: all 0.3s ease;
-}
-
-.edit-modal-content-simple {
-    background: #000;
-    border: 2px solid #00ff00;
-    border-radius: 12px;
-    width: 95%;
+    border-radius: 15px;
+    width: 90%;
     max-width: 1200px;
-    max-height: 90vh;
+    height: 90%;
+    max-height: 800px;
     display: flex;
     flex-direction: column;
-    box-shadow: 0 0 40px rgba(0, 255, 0, 0.4);
-    position: relative;
+    box-shadow: 0 0 50px rgba(0, 255, 0, 0.3);
 }
 
-.edit-modal-header-simple {
+.tool-results-window-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 1rem;
-    border-bottom: 1px solid #333;
+    padding: 1.5rem;
+    border-bottom: 2px solid #00ff00;
     background: rgba(0, 0, 0, 0.8);
-    border-radius: 12px 12px 0 0;
+    border-radius: 15px 15px 0 0;
 }
 
-.edit-modal-title-section-simple {
+.tool-results-window-title {
     display: flex;
     align-items: center;
-    gap: 0.75rem;
+    gap: 1rem;
 }
 
-.edit-modal-icon-simple {
+.tool-results-window-title .tool-icon {
+    font-size: 2rem;
+    filter: drop-shadow(0 0 10px rgba(0, 255, 0, 0.5));
+}
+
+.tool-results-window-title h3 {
+    color: #00ff00;
+    margin: 0;
+    font-size: 1.5rem;
+    font-weight: 600;
+    text-shadow: 0 0 10px rgba(0, 255, 0, 0.3);
+}
+
+.tool-results-window-controls {
     display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 32px;
-    height: 32px;
-    border-radius: 6px;
-    background: rgba(0, 255, 0, 0.1);
-    border: 2px solid rgba(0, 255, 0, 0.3);
+    gap: 0.5rem;
+}
+
+.tool-results-window-controls .btn {
+    padding: 0.5rem 1rem;
+    font-size: 0.9rem;
+    border-radius: 8px;
+}
+
+.tool-results-window-body {
+    flex: 1;
+    padding: 1.5rem;
     overflow: hidden;
 }
 
-.domain-favicon-simple {
-    width: 18px;
-    height: 18px;
-    object-fit: contain;
+.tool-output-container {
+    height: 100%;
+    background: rgba(0, 0, 0, 0.9);
+    border: 1px solid #00ff00;
+    border-radius: 10px;
+    overflow: hidden;
 }
 
-.icon-emoji-simple {
-    font-size: 1.2rem;
+.tool-output-log {
+    background: rgba(0, 0, 0, 0.95);
     color: #00ff00;
-}
-
-.edit-modal-text-section-simple {
-    display: flex;
-    flex-direction: column;
-    gap: 0.25rem;
-}
-
-.edit-modal-title-simple {
-    color: #ffffff;
-    font-size: 1.1rem;
-    font-weight: 700;
-    margin: 0;
-    font-family: 'Inter', sans-serif;
-}
-
-.edit-modal-subtitle-simple {
-    color: #00ff00;
+    font-family: 'Courier New', monospace;
     font-size: 0.9rem;
-    font-weight: 500;
-    margin: 0;
-    font-family: 'Inter', sans-serif;
-    opacity: 0.8;
-}
-
-.edit-modal-close-simple {
-    background: none;
-    border: none;
-    color: #ffffff;
-    font-size: 1.5rem;
-    cursor: pointer;
-    padding: 0;
-    width: 32px;
-    height: 32px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.3s ease;
-}
-
-.edit-modal-close-simple:hover {
-    color: #00ff00;
-    background: rgba(0, 255, 0, 0.1);
-}
-
-.edit-modal-body-simple {
-    flex: 1;
-    padding: 1.5rem;
+    line-height: 1.4;
+    padding: 1rem;
+    height: 100%;
     overflow-y: auto;
-}
-
-.input-field-group-simple {
-    margin-bottom: 1.5rem;
-}
-
-.input-label-simple {
-    display: block;
-    color: #00ff00;
-    font-size: 1rem;
-    font-weight: 600;
-    margin-bottom: 0.5rem;
-    font-family: 'Inter', sans-serif;
-}
-
-.input-wrapper-simple {
-    position: relative;
-}
-
-.input-field-simple {
-    width: 100%;
-    padding: 0.75rem 1rem;
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid #333;
-    border-radius: 8px;
-    color: #ffffff;
-    font-size: 1rem;
-    font-family: 'Inter', sans-serif;
-    transition: all 0.3s ease;
-}
-
-.input-field-simple:focus {
-    outline: none;
-    border-color: #00ff00;
-    background: rgba(255, 255, 255, 0.1);
-    box-shadow: 0 0 0 3px rgba(0, 255, 0, 0.1);
-}
-
-.tools-preview-section-simple {
-    margin-bottom: 1.5rem;
-}
-
-.tools-preview-title-simple {
-    color: #00ff00;
-    font-size: 1.2rem;
-    font-weight: 600;
-    margin: 0 0 1rem 0;
-    font-family: 'Inter', sans-serif;
-}
-
-.tools-preview-list-simple {
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-}
-
-.tool-preview-item-simple {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    padding: 0.75rem;
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid #333;
-    border-radius: 8px;
-    transition: all 0.3s ease;
-}
-
-.tool-preview-item-simple:hover {
-    background: rgba(255, 255, 255, 0.08);
-    border-color: #00ff00;
-}
-
-.tool-preview-icon-simple {
-    font-size: 1.2rem;
-    color: #00ff00;
-}
-
-.tool-preview-info-simple {
-    flex: 1;
-}
-
-.tool-preview-name-simple {
-    color: #ffffff;
-    font-size: 0.9rem;
-    font-weight: 600;
+    white-space: pre-wrap;
+    word-wrap: break-word;
     margin: 0;
-    font-family: 'Inter', sans-serif;
+    text-shadow: 0 0 5px rgba(0, 255, 0, 0.3);
 }
 
-.tool-preview-command-simple {
-    color: #cccccc;
-    font-size: 0.8rem;
-    margin: 0;
-    font-family: 'Inter', sans-serif;
-    opacity: 0.8;
+.tool-output-log::-webkit-scrollbar {
+    width: 10px;
 }
 
-.edit-modal-actions-simple {
-    display: flex;
-    gap: 0.75rem;
-    justify-content: flex-end;
-    padding-top: 0.75rem;
-    border-top: 1px solid #333;
+.tool-output-log::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.5);
+    border-radius: 5px;
 }
 
-/* Edit modal tugmalari uchun maxsus kichik o'lcham */
-.edit-modal-actions-simple .btn {
-    padding: 0.5rem 1rem;
-    font-size: 0.85rem;
-    border-radius: 6px;
-    min-width: 80px;
+.tool-output-log::-webkit-scrollbar-thumb {
+    background: #00ff00;
+    border-radius: 5px;
 }
 
-/* Scrollbar styles removed - not needed for iframe */
+.tool-output-log::-webkit-scrollbar-thumb:hover {
+    background: #00cc00;
+}
 
-/* Footer removed */
+.tool-results-window-footer {
+    padding: 1rem 1.5rem;
+    border-top: 2px solid #00ff00;
+    background: rgba(0, 0, 0, 0.8);
+    border-radius: 0 0 15px 15px;
+}
 
 .tool-status {
     display: flex;
@@ -4449,7 +4263,17 @@
 
 
 
-/* Modal improvements - removed duplicate styles */
+/* Modal improvements */
+.modal-content {
+    max-width: 90vw;
+    max-height: 90vh;
+    overflow-y: auto;
+}
+
+.modal-body {
+    max-height: 70vh;
+    overflow-y: auto;
+}
 
 /* Interactive Response Styles */
 .interactive-response {

@@ -2096,7 +2096,7 @@ function addMoreDomains() {
         
         // Focus on input
         if (domainsInput) {
-            domainsInput.focus();
+        domainsInput.focus();
         }
         
         // Scroll to input section
