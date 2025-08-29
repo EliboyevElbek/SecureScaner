@@ -154,69 +154,48 @@ def scan(request):
         'existing_domains': existing_domains
     })
 
+
 def scan_history(request):
     """Scan history sahifasi - yangi va eski tahlillarni ko'rsatish"""
     try:
-        # Barcha tahlillarni olish (status='completed' bo'lgan)
-        all_scans = DomainScan.objects.filter(
-            status='completed'
-        ).order_by('-scan_date')
-        
-        # Yangi tahlillarni olish (eng so'nggi ScanSession dagi domainlar)
-        # "Tahlil qilish" tugmasi bosilganda yaratilgan eng so'nggi sessiyadagi domainlar
+        all_scans = DomainScan.objects.filter(status='completed').order_by('-scan_date')
+
         if all_scans.exists():
-            # Eng so'nggi ScanSession ni topish
             latest_session = ScanSession.objects.order_by('-created_at').first()
-            
+
             if latest_session and latest_session.domains:
-                # Eng so'nggi sessiyadagi barcha domainlarni "yangi tahlillar" deb hisoblash
-                new_domains = latest_session.domains
-                new_scans = DomainScan.objects.filter(
-                    domain_name__in=new_domains,
-                    status='completed'
-                ).order_by('-scan_date')
-                print(f"ScanSession dan yangi tahlillar: {new_domains}")
+                new_domains = latest_session.domains  # yoki list(latest_session.domains.all())
+                new_scans = DomainScan.objects.filter(domain_name__in=new_domains, status='completed').order_by(
+                    '-scan_date')
             else:
-                # ScanSession yo'q bo'lsa, eng so'nggi tahlil qilingan domainni olish
                 latest_scan = all_scans.first()
-                new_scans = DomainScan.objects.filter(
-                    domain_name=latest_scan.domain_name,
-                    status='completed'
-                ).order_by('-scan_date')[:1]
+                new_scans = DomainScan.objects.filter(domain_name=latest_scan.domain_name, status='completed').order_by(
+                    '-scan_date')[:1]
                 new_domains = [latest_scan.domain_name]
-                print(f"ScanSession yo'q, eng so'nggi domain: {new_domains}")
-            
-                    # Eski tahlillarni olish (yangi tahlillarda bo'lmagan domainlar) - pagination bilan
-        from django.core.paginator import Paginator
-        
-        # GET parametridan sahifa raqamini olish
-        page_number = request.GET.get('page', 1)
-        
-        # Barcha eski tahlillarni olish (pagination uchun)
-        old_scans_all = DomainScan.objects.filter(
-            status='completed'
-        ).exclude(
-            domain_name__in=new_domains
-        ).order_by('-scan_date')
-        
-        # Har sahifada 10 tadan ko'rsatish
-        paginator = Paginator(old_scans_all, 10)
-        old_scans = paginator.get_page(page_number)
-    else:
-        new_scans = []
-        old_scans = []
-        
+
+            from django.core.paginator import Paginator
+            page_number = request.GET.get('page', 1)
+            old_scans_all = DomainScan.objects.filter(status='completed').exclude(domain_name__in=new_domains).order_by(
+                '-scan_date')
+            paginator = Paginator(old_scans_all, 10)
+            old_scans = paginator.get_page(page_number)
+
+        else:
+            new_scans = []
+            old_scans = []
+            new_domains = []
+
         context = {
             'new_scans': new_scans,
             'old_scans': old_scans,
             'new_count': len(new_scans) if isinstance(new_scans, list) else new_scans.count(),
             'old_count': len(old_scans) if isinstance(old_scans, list) else old_scans.count(),
-            'total_count': all_scans.count(),
-            'paginator': old_scans if 'old_scans' in locals() and hasattr(old_scans, 'paginator') else None
+            'total_count': all_scans.count() if all_scans.exists() else 0,
+            'paginator': old_scans.paginator if old_scans else None
         }
-        
+
         return render(request, 'scan_history.html', context)
-        
+
     except Exception as e:
         print(f"Scan history xatolik: {e}")
         context = {
@@ -228,6 +207,7 @@ def scan_history(request):
             'error': str(e)
         }
         return render(request, 'scan_history.html', context)
+
 
 def viewScanDetails(request, scan_id):
     """Individual scan details ko'rsatish"""
