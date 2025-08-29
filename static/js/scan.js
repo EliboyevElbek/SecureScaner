@@ -271,9 +271,6 @@ function editDomain(index) {
             
             <div class="edit-modal-body-compact">
                 <div class="input-field-group-compact">
-                    <label for="editDomainInput" class="input-label-compact">
-                        Yangi domain nomi
-                    </label>
                     <div class="input-wrapper-compact">
                         <input type="text" 
                                id="editDomainInput" 
@@ -1617,6 +1614,12 @@ function createToolResultsSection(toolName) {
     `;
     
     document.body.appendChild(logModal);
+    
+    // Iframe style ni to'g'ridan-to'g'ri o'zgartirish
+    const iframe = logModal.querySelector('.log-iframe');
+    if (iframe) {
+        iframe.style.backgroundColor = '#808C80';
+    }
     
     // Show modal with animation
     setTimeout(() => {
@@ -3019,24 +3022,23 @@ function closeToolResultsWindow() {
 }
 
 function startToolStreamingRealtime(domain, toolName) {
-    // Check if already streaming
-    if (window.currentEventSource) {
-        console.log(`Already streaming for ${toolName}, stopping previous stream`);
-        cleanupToolStreaming();
-    }
-    
     console.log(`Starting real-time streaming for ${toolName} on ${domain}`);
     
     // Get iframe and set source directly
     const toolOutputLog = document.getElementById('toolOutputLog');
     if (toolOutputLog) {
+        console.log('Iframe topildi, src o\'rnatilmoqda...');
+        
         // Set iframe source directly
         toolOutputLog.src = `/scaner/stream-log-file/${domain}/${toolName}/`;
         
         // Store iframe reference for cleanup
         window.currentStreamingIframe = toolOutputLog;
+        
+        console.log(`Iframe src o'rnatildi: ${toolOutputLog.src}`);
     } else {
         console.error('toolOutputLog elementi topilmadi!');
+        console.log('Mavjud elementlar:', document.querySelectorAll('iframe'));
     }
 }
 

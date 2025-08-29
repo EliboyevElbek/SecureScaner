@@ -2833,7 +2833,7 @@
 .edit-modal-body-compact {
     padding: 1.5rem;
     background: rgba(20, 20, 20, 0.95);
-    max-height: 60vh;
+    max-height: 70vh;
     overflow-y: auto;
     scrollbar-width: thin;
     scrollbar-color: #00ff00 #333333;
@@ -2858,7 +2858,7 @@
 }
 
 .input-field-group-compact {
-    margin-bottom: 1.5rem;
+    margin-bottom: 1rem;
 }
 
 .input-label-compact {
@@ -2876,13 +2876,13 @@
 
 .input-field-compact {
     width: 100%;
-    padding: 1rem;
+    padding: 0.7rem;
     border: 2px solid #333333;
     background: rgba(0, 0, 0, 0.8);
     color: #ffffff;
     font-family: 'Inter', sans-serif;
-    font-size: 1rem;
-    border-radius: 10px;
+    font-size: 0.9rem;
+    border-radius: 8px;
     transition: all 0.3s ease;
     box-sizing: border-box;
 }
@@ -2901,18 +2901,18 @@
 
 /* Tools Preview Section */
 .tools-preview-section {
-    margin: 1.5rem 0;
-    padding: 1rem;
+    margin: 1rem 0;
+    padding: 0.8rem;
     background: rgba(0, 0, 0, 0.3);
     border: 1px solid #333333;
-    border-radius: 12px;
+    border-radius: 10px;
 }
 
 .tools-preview-title {
     color: #00ff00;
-    font-size: 1.1rem;
+    font-size: 1rem;
     font-weight: 600;
-    margin: 0 0 1rem 0;
+    margin: 0 0 0.8rem 0;
     font-family: 'Inter', sans-serif;
     text-shadow: 0 0 5px rgba(0, 255, 0, 0.3);
 }
@@ -2926,10 +2926,10 @@
 .tool-preview-item {
     display: flex;
     align-items: center;
-    padding: 1rem;
+    padding: 0.8rem;
     background: rgba(0, 0, 0, 0.5);
     border: 1px solid #333333;
-    border-radius: 10px;
+    border-radius: 8px;
     transition: all 0.3s ease;
 }
 
@@ -3388,18 +3388,18 @@
 /* Actions Section - Using /scaner page button styles */
 .edit-modal-actions-compact {
     display: flex;
-    gap: 1.5rem;
+    gap: 1rem;
     justify-content: center;
-    padding-top: 1.5rem;
+    padding-top: 1rem;
     border-top: 1px solid #333333;
 }
 
 .edit-modal-actions-compact .btn {
-    min-width: 100px;
-    padding: 0.7rem 1.5rem;
-    font-size: 0.9rem;
+    min-width: 80px;
+    padding: 0.5rem 1.2rem;
+    font-size: 0.85rem;
     font-weight: 600;
-    border-radius: 10px;
+    border-radius: 8px;
     transition: all 0.3s ease;
     border: 2px solid transparent;
     font-family: 'Inter', sans-serif;
@@ -4811,5 +4811,99 @@
     
     .edit-modal-actions-simple .btn {
         width: 100%;
+    }
+}
+
+/* Log Modal Styles */
+.log-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+    opacity: 0;
+    transform: scale(0.9);
+    transition: all 0.3s ease;
+}
+
+.log-modal-content {
+    background: #808C80;
+    border: 2px solid #000000;
+    border-radius: 16px;
+    padding: 0;
+    max-width: 98%;
+    width: 98%;
+    height: 98vh;
+    overflow: hidden;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    position: relative;
+    display: flex;
+    flex-direction: column;
+}
+
+.log-modal-close {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    background: #000000;
+    color: #000000;
+    border: 2px solid #000000;
+    border-radius: 8px;
+    width: 36px;
+    height: 36px;
+    font-size: 20px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+    z-index: 10;
+}
+
+.log-modal-close:hover {
+    transform: scale(1.1);
+    background: #000000;
+    border-color: #000000;
+    color: #000000;
+}
+
+.log-modal-body {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    padding: 1rem;
+    background: #808C80;
+}
+
+.log-iframe-container {
+    flex: 1;
+    display: flex;
+    min-height: 0;
+    background: #808C80;
+}
+
+.log-iframe {
+    width: 100%;
+    height: 100%;
+    border: none;
+    background: #808C80;
+    border-radius: 8px;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+    .log-modal-content {
+        width: 98%;
+        height: 98vh;
+    }
+    
+    .log-modal-body {
+        padding: 0.5rem;
     }
 }

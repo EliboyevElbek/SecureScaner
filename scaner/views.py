@@ -158,41 +158,58 @@ def scan(request):
 def scan_history(request):
     """Scan history sahifasi - yangi va eski tahlillarni ko'rsatish"""
     try:
+        print("=== Scan History Debug ===")
+        
+        # 1. Barcha completed tahlillarni olish
         all_scans = DomainScan.objects.filter(status='completed').order_by('-scan_date')
-
+        print(f"Barcha completed tahlillar: {all_scans.count()} ta")
+        
         if all_scans.exists():
+            # 2. Eng so'nggi ScanSession ni olish
             latest_session = ScanSession.objects.order_by('-created_at').first()
-
+            print(f"Eng so'nggi ScanSession: {latest_session}")
+            
             if latest_session and latest_session.domains:
-                new_domains = latest_session.domains  # yoki list(latest_session.domains.all())
-                new_scans = DomainScan.objects.filter(domain_name__in=new_domains, status='completed').order_by(
-                    '-scan_date')
+                new_domains = latest_session.domains
+                print(f"ScanSession dan domainlar: {new_domains}")
+                
+                # 3. Yangi tahlillarni olish (ScanSession dagi domainlar)
+                new_scans = DomainScan.objects.filter(domain_name__in=new_domains, status='completed').order_by('-scan_date')
+                print(f"Yangi tahlillar: {new_scans.count()} ta")
+                print(f"Yangi tahlillar domainlari: {list(new_scans.values_list('domain_name', flat=True))}")
             else:
+                # ScanSession yo'q bo'lsa, eng so'nggi tahlil qilingan domainni olish
                 latest_scan = all_scans.first()
-                new_scans = DomainScan.objects.filter(domain_name=latest_scan.domain_name, status='completed').order_by(
-                    '-scan_date')[:1]
+                new_scans = DomainScan.objects.filter(domain_name=latest_scan.domain_name, status='completed').order_by('-scan_date')[:1]
                 new_domains = [latest_scan.domain_name]
+                print(f"ScanSession yo'q, eng so'nggi domain: {new_domains}")
 
+            # 4. Barcha tahlillarni olish (pagination bilan)
             from django.core.paginator import Paginator
             page_number = request.GET.get('page', 1)
-            old_scans_all = DomainScan.objects.filter(status='completed').exclude(domain_name__in=new_domains).order_by(
-                '-scan_date')
-            paginator = Paginator(old_scans_all, 10)
+            all_scans_for_pagination = DomainScan.objects.filter(status='completed').order_by('-scan_date')
+            print(f"Barcha tahlillar (pagination uchun): {all_scans_for_pagination.count()} ta")
+            
+            paginator = Paginator(all_scans_for_pagination, 10)
             old_scans = paginator.get_page(page_number)
-
+            print(f"Joriy sahifa: {page_number}, jami sahifalar: {paginator.num_pages}")
         else:
             new_scans = []
             old_scans = []
             new_domains = []
+            print("Hech qanday completed tahlil yo'q")
 
         context = {
-            'new_scans': new_scans,
-            'old_scans': old_scans,
-            'new_count': len(new_scans) if isinstance(new_scans, list) else new_scans.count(),
-            'old_count': len(old_scans) if isinstance(old_scans, list) else old_scans.count(),
-            'total_count': all_scans.count() if all_scans.exists() else 0,
-            'paginator': old_scans.paginator if old_scans else None
+            'new_scans': new_scans,  # ScanSession dan - oxirgi tahlillar
+            'old_scans': old_scans,  # DomainScan dan - barcha tahlillar
+            'new_count': len(new_scans) if hasattr(new_scans, '__len__') else 0,
+            'old_count': len(old_scans) if hasattr(old_scans, '__len__') else 0,
+            'total_count': all_scans.count(),
+            'paginator': old_scans.paginator if hasattr(old_scans, 'paginator') else None
         }
+        
+        print(f"Context: new_count={context['new_count']}, old_count={context['old_count']}, total_count={context['total_count']}")
+        print("=== Scan History Debug End ===")
 
         return render(request, 'scan_history.html', context)
 
