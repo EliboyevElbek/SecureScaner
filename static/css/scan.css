@@ -4850,26 +4850,29 @@
     position: absolute;
     top: 1rem;
     right: 1rem;
-    background: #000000;
-    color: #000000;
-    border: 2px solid #000000;
-    border-radius: 8px;
-    width: 36px;
-    height: 36px;
-    font-size: 20px;
+    background: linear-gradient(135deg, #00ff88, #00cc6a);
+    color: #ffffff;
+    border: 2px solid #00ff88;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    font-size: 24px;
+    font-weight: bold;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
     transition: all 0.3s ease;
     z-index: 10;
+    box-shadow: 0 4px 15px rgba(0, 255, 136, 0.4);
 }
 
 .log-modal-close:hover {
-    transform: scale(1.1);
-    background: #000000;
-    border-color: #000000;
-    color: #000000;
+    transform: scale(1.15) rotate(90deg);
+    background: linear-gradient(135deg, #00cc6a, #00994d);
+    border-color: #00ff88;
+    color: #ffffff;
+    box-shadow: 0 6px 20px rgba(0, 204, 106, 0.6);
 }
 
 .log-modal-body {
