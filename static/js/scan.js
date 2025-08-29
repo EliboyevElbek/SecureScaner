@@ -212,7 +212,7 @@ function renderDomains() {
             </div>
             <div class="domain-actions">
                 <button class="btn btn-small btn-info progress-btn" onclick="showDomainProgress(${index})" style="display: none;">
-                    🔍 Jarayon
+                    🔍 Jarayonda...
                 </button>
                 <button class="btn btn-small btn-secondary edit-btn" onclick="editDomain(${index})">
                     ✏️ Tahrirlash

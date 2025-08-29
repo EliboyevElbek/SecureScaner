@@ -285,8 +285,11 @@
 }
 
 .scan-actions .btn {
-    min-width: 140px;
+    min-width: 91px;
     justify-content: center;
+    padding: 9px 18px;
+    font-size: 9px;
+    border-radius: 5px;
 }
 
 /* Button type specific styles for scan page */
