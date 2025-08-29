@@ -242,61 +242,57 @@ function renderDomains() {
 function editDomain(index) {
     const domain = domains[index];
     
-    // Create compact professional edit modal with tools
+    // Create simple edit modal with icon and domain name only
     const modal = document.createElement('div');
-    modal.className = 'edit-modal-compact';
+    modal.className = 'edit-modal-simple';
     modal.innerHTML = `
-        <div class="edit-modal-content-compact">
-            <div class="edit-modal-header-compact">
-                <div class="edit-modal-title-section-compact">
-                    <div class="edit-modal-icon-compact">
+        <div class="edit-modal-content-simple">
+            <div class="edit-modal-header-simple">
+                <div class="edit-modal-title-section-simple">
+                    <div class="edit-modal-icon-simple">
                         <img src="https://www.google.com/s2/favicons?domain=${domain}&sz=32" 
                              alt="Domain Icon" 
-                             class="domain-favicon-compact"
+                             class="domain-favicon-simple"
                              onerror="this.style.display='none'; this.nextElementSibling.style.display='inline-block';">
-                        <span class="icon-emoji-compact" style="display: none;">🌐</span>
+                        <span class="icon-emoji-simple" style="display: none;">🌐</span>
                     </div>
-                    <div class="edit-modal-text-section">
-                        <h2 class="edit-modal-title-compact">Domain Tahrirlash</h2>
-                        <p class="edit-modal-subtitle-compact">${domain}</p>
+                    <div class="edit-modal-text-section-simple">
+                        <h2 class="edit-modal-title-simple">Domain Tahrirlash</h2>
+                        <p class="edit-modal-subtitle-simple">${domain}</p>
                     </div>
                 </div>
-                <button class="edit-modal-close-compact" onclick="closeEditModal()">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                    </svg>
-                </button>
+                <button class="edit-modal-close-simple" onclick="closeEditModal()">&times;</button>
             </div>
             
-            <div class="edit-modal-body-compact">
-                <div class="input-field-group-compact">
-                    <label for="editDomainInput" class="input-label-compact">
+            <div class="edit-modal-body-simple">
+                <div class="input-field-group-simple">
+                    <label for="editDomainInput" class="input-label-simple">
                         Yangi domain nomi
                     </label>
-                    <div class="input-wrapper-compact">
+                    <div class="input-wrapper-simple">
                         <input type="text" 
                                id="editDomainInput" 
-                               class="input-field-compact" 
+                               class="input-field-simple" 
                                value="${domain}" 
                                placeholder="example.com"
                                required>
                     </div>
                 </div>
                 
-                <div class="tools-preview-section">
-                    <h3 class="tools-preview-title">Mavjud Tool'lar</h3>
-                    <div class="tools-preview-list" id="toolsPreviewList">
-                        <div class="tool-preview-item loading">
-                            <div class="tool-preview-icon">⏳</div>
-                            <div class="tool-preview-info">
-                                <div class="tool-preview-name">Tool'lar yuklanmoqda...</div>
-                                <div class="tool-preview-command">Biroz kuting...</div>
+                <div class="tools-preview-section-simple">
+                    <h3 class="tools-preview-title-simple">Mavjud Tool'lar</h3>
+                    <div class="tools-preview-list-simple" id="toolsPreviewList">
+                        <div class="tool-preview-item-simple loading">
+                            <div class="tool-preview-icon-simple">⏳</div>
+                            <div class="tool-preview-info-simple">
+                                <div class="tool-preview-name-simple">Tool'lar yuklanmoqda...</div>
+                                <div class="tool-preview-command-simple">Biroz kuting...</div>
                             </div>
                         </div>
                     </div>
                 </div>
                 
-                <div class="edit-modal-actions-compact">
+                <div class="edit-modal-actions-simple">
                     <button class="btn btn-secondary" onclick="closeEditModal()">
                         Bekor qilish
                     </button>
@@ -350,7 +346,7 @@ function editDomain(index) {
 }
 
 function closeEditModal() {
-    const modal = document.querySelector('.edit-modal-compact');
+    const modal = document.querySelector('.edit-modal-simple');
     if (modal) {
         modal.style.opacity = '0';
         modal.style.transform = 'scale(0.8)';
@@ -366,10 +362,10 @@ function loadToolsPreview(domain) {
     
     // Show loading state
     toolsPreviewList.innerHTML = `
-        <div class="tool-preview-item loading">
-            <div class="tool-preview-info">
-                <div class="tool-preview-name">Tool'lar yuklanmoqda...</div>
-                <div class="tool-preview-command">Biroz kuting...</div>
+        <div class="tool-preview-item-simple loading">
+            <div class="tool-preview-info-simple">
+                <div class="tool-preview-name-simple">Tool'lar yuklanmoqda...</div>
+                <div class="tool-preview-command-simple">Biroz kuting...</div>
             </div>
         </div>
     `;
@@ -1586,48 +1582,44 @@ function createToolResultsSection(toolName) {
         return;
     }
     
-    // Modal'ni yopish
-    closeProgressModal();
-    
-    // Yangi tool results oynasini yaratish
-    const toolResultsWindow = document.createElement('div');
-    toolResultsWindow.className = 'tool-results-window';
-    toolResultsWindow.innerHTML = `
-        <div class="tool-results-window-content">
-            <div class="tool-results-window-header">
-                <div class="tool-results-window-title">
-                    <span class="tool-icon">${getToolIcon(toolName)}</span>
-                    <h3>${getToolDisplayName(toolName)} Real-Time Output</h3>
-                </div>
-                <div class="tool-results-window-controls">
-                    <button class="btn btn-small btn-secondary" onclick="closeToolResultsWindow()">Yopish</button>
-                </div>
-            </div>
-            
-            <div class="tool-results-window-body">
-                <div class="tool-output-container">
-                    <pre class="tool-output-log" id="toolOutputLog"></pre>
-                </div>
-            </div>
-            
-            <div class="tool-results-window-footer">
-                <div class="tool-status">
-                    <span class="status-indicator" id="toolStatus">Ulanish ochilmoqda...</span>
+    // Yangi log modal oynasini yaratish - header va footer yo'q
+    const logModal = document.createElement('div');
+    logModal.className = 'log-modal';
+    logModal.innerHTML = `
+        <div class="log-modal-content">
+            <button class="log-modal-close" onclick="closeLogModal()">&times;</button>
+            <div class="log-modal-body">
+                <div class="log-iframe-container">
+                    <iframe class="log-iframe" id="toolOutputLog"></iframe>
                 </div>
             </div>
         </div>
     `;
     
-    document.body.appendChild(toolResultsWindow);
+    document.body.appendChild(logModal);
     
-    // Show window with animation
+    // Show modal with animation
     setTimeout(() => {
-        toolResultsWindow.style.opacity = '1';
-        toolResultsWindow.style.transform = 'scale(1)';
+        logModal.style.opacity = '1';
+        logModal.style.transform = 'scale(1)';
     }, 10);
     
     // Store reference for cleanup
-    window.currentToolResultsWindow = toolResultsWindow;
+    window.currentToolResultsWindow = logModal;
+}
+
+function closeLogModal() {
+    if (window.currentToolResultsWindow) {
+        // Cleanup streaming
+        cleanupToolStreaming();
+        
+        // Remove modal
+        window.currentToolResultsWindow.remove();
+        window.currentToolResultsWindow = null;
+    }
+    
+    // "Jarayon" modal oynasini yopmaslik - faqat log modal yopiladi
+    // Progress modal ochiq qoladi
 }
 
 function startToolStreaming(domain, toolName) {
@@ -2093,12 +2085,19 @@ function addMoreDomains() {
     inputSection.style.display = 'block';
     inputSection.classList.add('fade-in');
     
+    // Clear the input field before showing
+    const domainsInput = document.getElementById('domainsInput');
+    if (domainsInput) {
+        domainsInput.value = '';
+    }
+    
     setTimeout(() => {
         inputSection.classList.remove('fade-in');
         
         // Focus on input
-        const domainsInput = document.getElementById('domainsInput');
-        domainsInput.focus();
+        if (domainsInput) {
+            domainsInput.focus();
+        }
         
         // Scroll to input section
         inputSection.scrollIntoView({ 
@@ -3008,65 +3007,16 @@ function startToolStreamingRealtime(domain, toolName) {
     
     console.log(`Starting real-time streaming for ${toolName} on ${domain}`);
     
-    // Update status
-    updateToolStatus('connecting', 'Ulanish ochilmoqda...');
-    
-    // Create iframe for real-time streaming from log file
+    // Get iframe and set source directly
     const toolOutputLog = document.getElementById('toolOutputLog');
     if (toolOutputLog) {
-        // Create iframe for streaming from log file
-        const iframe = document.createElement('iframe');
-        iframe.src = `/scaner/stream-log-file/${domain}/${toolName}/`;
-        iframe.style.width = '100%';
-        iframe.style.height = '400px';
-        iframe.style.border = 'none';
-        iframe.style.backgroundColor = '#1a1a1a';
-        
-        // Clear previous content
-        toolOutputLog.innerHTML = '';
-        toolOutputLog.appendChild(iframe);
-        
-        // Update status
-        updateToolStatus('running', 'Log fayl monitoring...');
+        // Set iframe source directly
+        toolOutputLog.src = `/scaner/stream-log-file/${domain}/${toolName}/`;
         
         // Store iframe reference for cleanup
-        window.currentStreamingIframe = iframe;
+        window.currentStreamingIframe = toolOutputLog;
     } else {
         console.error('toolOutputLog elementi topilmadi!');
-        // Fallback: create a new div for iframe
-        const iframeContainer = document.createElement('div');
-        iframeContainer.id = 'toolOutputLog';
-        iframeContainer.style.width = '100%';
-        iframeContainer.style.height = '400px';
-        iframeContainer.style.backgroundColor = '#1a1a1a';
-        iframeContainer.style.border = '1px solid #333';
-        iframeContainer.style.borderRadius = '8px';
-        iframeContainer.style.padding = '10px';
-        
-        // Create iframe
-        const iframe = document.createElement('iframe');
-        iframe.src = `/scaner/stream-log-file/${domain}/${toolName}/`;
-        iframe.style.width = '100%';
-        iframe.style.height = '100%';
-        iframe.style.border = 'none';
-        iframe.style.backgroundColor = '#1a1a1a';
-        
-        iframeContainer.appendChild(iframe);
-        
-        // Add to current tool results window
-        if (window.currentToolResultsWindow) {
-            const body = window.currentToolResultsWindow.querySelector('.tool-results-window-body');
-            if (body) {
-                body.innerHTML = '';
-                body.appendChild(iframeContainer);
-            }
-        }
-        
-        // Update status
-        updateToolStatus('running', 'Log fayl monitoring...');
-        
-        // Store iframe reference for cleanup
-        window.currentStreamingIframe = iframe;
     }
 }
 

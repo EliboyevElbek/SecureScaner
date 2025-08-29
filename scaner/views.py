@@ -2039,7 +2039,7 @@ def stream_log_file_realtime(request, domain, tool_type):
                         for line in existing_content.strip().split('\n'):
                             if line.strip():
                                 yield f"<div class='log-line'>{line.strip()}</div>\n"
-                        yield f"<div class='log-message success'>✅(QAYTII) Mavjud loglar ko'rsatildi</div>\n"
+                        yield f"<div class='log-message success'>✅Mavjud loglar ko'rsatildi</div>\n"
                         yield f"<div class='log-message info'>🔄 Real-time monitoring boshlanmoqda...</div>\n"
             except Exception as e:
                 yield f"<div class='log-message error'>❌ Log faylni o'qishda xatolik: {str(e)}</div>\n"
