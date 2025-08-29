@@ -214,10 +214,10 @@ function renderDomains() {
                 <button class="btn btn-small btn-info progress-btn" onclick="showDomainProgress(${index})" style="display: none;">
                     🔍 Jarayon
                 </button>
-                <button class="btn btn-small btn-secondary" onclick="editDomain(${index})">
+                <button class="btn btn-small btn-secondary edit-btn" onclick="editDomain(${index})">
                     ✏️ Tahrirlash
                 </button>
-                <button class="btn btn-small btn-danger" onclick="deleteDomain(${index})">
+                <button class="btn btn-small btn-danger delete-btn" onclick="deleteDomain(${index})">
                     🗑️ O'chirish
                 </button>
             </div>
@@ -242,57 +242,62 @@ function renderDomains() {
 function editDomain(index) {
     const domain = domains[index];
     
-    // Create simple edit modal with icon and domain name only
+    // Create compact edit modal with icon and domain name only
     const modal = document.createElement('div');
-    modal.className = 'edit-modal-simple';
+    modal.className = 'edit-modal-compact';
     modal.innerHTML = `
-        <div class="edit-modal-content-simple">
-            <div class="edit-modal-header-simple">
-                <div class="edit-modal-title-section-simple">
-                    <div class="edit-modal-icon-simple">
+        <div class="edit-modal-content-compact">
+            <div class="edit-modal-header-compact">
+                <div class="edit-modal-title-section-compact">
+                    <div class="edit-modal-icon-compact">
                         <img src="https://www.google.com/s2/favicons?domain=${domain}&sz=32" 
                              alt="Domain Icon" 
-                             class="domain-favicon-simple"
+                             class="domain-favicon-compact"
                              onerror="this.style.display='none'; this.nextElementSibling.style.display='inline-block';">
-                        <span class="icon-emoji-simple" style="display: none;">🌐</span>
+                        <span class="icon-emoji-compact" style="display: none;">🌐</span>
                     </div>
-                    <div class="edit-modal-text-section-simple">
-                        <h2 class="edit-modal-title-simple">Domain Tahrirlash</h2>
-                        <p class="edit-modal-subtitle-simple">${domain}</p>
+                    <div class="edit-modal-text-section">
+                        <h2 class="edit-modal-title-compact">Domain Tahrirlash</h2>
+                        <p class="edit-modal-subtitle-compact">${domain}</p>
                     </div>
                 </div>
-                <button class="edit-modal-close-simple" onclick="closeEditModal()">&times;</button>
+                <button class="edit-modal-close-compact" onclick="closeEditModal()">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </button>
             </div>
             
-            <div class="edit-modal-body-simple">
-                <div class="input-field-group-simple">
-                    <label for="editDomainInput" class="input-label-simple">
+            <div class="edit-modal-body-compact">
+                <div class="input-field-group-compact">
+                    <label for="editDomainInput" class="input-label-compact">
                         Yangi domain nomi
                     </label>
-                    <div class="input-wrapper-simple">
+                    <div class="input-wrapper-compact">
                         <input type="text" 
                                id="editDomainInput" 
-                               class="input-field-simple" 
+                               class="input-field-compact" 
                                value="${domain}" 
                                placeholder="example.com"
                                required>
                     </div>
                 </div>
                 
-                <div class="tools-preview-section-simple">
-                    <h3 class="tools-preview-title-simple">Mavjud Tool'lar</h3>
-                    <div class="tools-preview-list-simple" id="toolsPreviewList">
-                        <div class="tool-preview-item-simple loading">
-                            <div class="tool-preview-icon-simple">⏳</div>
-                            <div class="tool-preview-info-simple">
-                                <div class="tool-preview-name-simple">Tool'lar yuklanmoqda...</div>
-                                <div class="tool-preview-command-simple">Biroz kuting...</div>
+                <div class="tools-preview-section-compact">
+                    <h3 class="tools-preview-title-compact">Mavjud Tool'lar</h3>
+                    <div class="tools-preview-list-compact" id="toolsPreviewList">
+                        <div class="tool-preview-item-compact loading">
+                            <div class="tool-preview-icon-compact">⏳</div>
+                            <div class="tool-preview-info-compact">
+                                <div class="tool-preview-name-compact">Tool'lar yuklanmoqda...</div>
+                                <div class="tool-preview-command-compact">Biroz kuting...</div>
                             </div>
                         </div>
                     </div>
                 </div>
                 
-                <div class="edit-modal-actions-simple">
+                <div class="edit-modal-actions-compact">
                     <button class="btn btn-secondary" onclick="closeEditModal()">
                         Bekor qilish
                     </button>
@@ -346,7 +351,7 @@ function editDomain(index) {
 }
 
 function closeEditModal() {
-    const modal = document.querySelector('.edit-modal-simple');
+    const modal = document.querySelector('.edit-modal-compact');
     if (modal) {
         modal.style.opacity = '0';
         modal.style.transform = 'scale(0.8)';
@@ -362,10 +367,10 @@ function loadToolsPreview(domain) {
     
     // Show loading state
     toolsPreviewList.innerHTML = `
-        <div class="tool-preview-item-simple loading">
-            <div class="tool-preview-info-simple">
-                <div class="tool-preview-name-simple">Tool'lar yuklanmoqda...</div>
-                <div class="tool-preview-command-simple">Biroz kuting...</div>
+        <div class="tool-preview-item-compact loading">
+            <div class="tool-preview-info-compact">
+                <div class="tool-preview-name-compact">Tool'lar yuklanmoqda...</div>
+                <div class="tool-preview-command-compact">Biroz kuting...</div>
             </div>
         </div>
     `;
@@ -1183,9 +1188,14 @@ function startScan() {
         item.classList.add('scanning');
     });
     
-    // Show progress buttons for all domains
+    // Show progress buttons for all domains and hide edit/delete buttons
     document.querySelectorAll('.progress-btn').forEach(btn => {
         btn.style.display = 'inline-block';
+    });
+    
+    // Hide edit and delete buttons for all domains
+    document.querySelectorAll('.edit-btn, .delete-btn').forEach(btn => {
+        btn.style.display = 'none';
     });
     
     // Send request with JSON data
@@ -1321,6 +1331,11 @@ function confirmStopScan() {
         btn.style.display = 'none';
     });
     
+    // Show edit and delete buttons for all domains
+    document.querySelectorAll('.edit-btn, .delete-btn').forEach(btn => {
+        btn.style.display = 'inline-block';
+    });
+    
     showNotification('Tahlil to\'xtatildi', 'warning');
 }
 
@@ -1335,6 +1350,11 @@ function resetScanButton(scanButton, originalText) {
     // Hide progress buttons for all domains
     document.querySelectorAll('.progress-btn').forEach(btn => {
         btn.style.display = 'none';
+    });
+    
+    // Show edit and delete buttons for all domains
+    document.querySelectorAll('.edit-btn, .delete-btn').forEach(btn => {
+        btn.style.display = 'inline-block';
     });
 }
 
