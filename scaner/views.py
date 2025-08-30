@@ -2354,308 +2354,177 @@ def run_xsstrike_with_logging(domain, command):
         write_to_log_file(domain, 'xsstrike', f"❌ XSStrike xatolik: {str(e)}")
         return False
 
-# Global PID'larni saqlash
-running_tasks = {}
 
-# Global ThreadPoolExecutor'ni saqlash
-current_executor = None
+# Global obyektlar
+running_tasks = {}  # {"tool_domain": subprocess.Popen}
+current_executor = None  # ThreadPoolExecutor
+global_stop_flag = Event()  # umumiy stop flag
+
 
 def run_tools_parallel(domain, tool_commands):
-    """Tool'larni parallel ishga tushirish"""
+    """Biror domen uchun tool'larni parallel ishga tushirish"""
     results = {}
 
     def run_single_tool(tool_type, command):
-        """Bitta tool'ni ishga tushirish"""
+        """Bitta toolni ishga tushirish va nazorat qilish"""
         try:
-            # Stop flag tekshirish
             if global_stop_flag.is_set():
-                print(f"⏹️ {tool_type.upper()} to'xtatildi - global stop flag yoqildi")
-                write_to_log_file(domain, tool_type, f"⏹️ {tool_type.upper()} to'xtatildi - global stop flag yoqildi")
-                return tool_type, False, "To'xtatildi - global stop flag yoqildi"
-            
-            print(f"🚀 {tool_type.upper()} parallel ishga tushirilmoqda: {command}")
-            write_to_log_file(domain, tool_type, f"🚀 {tool_type.upper()} ishga tushirilmoqda: {command}")
-            write_to_log_file(domain, tool_type, f"⏰ Vaqt: {time.strftime('%Y-%m-%d %H:%M:%S')}")
-            write_to_log_file(domain, tool_type, "=" * 50)
+                msg = f"⏹️ {tool_type.upper()} to'xtatildi (boshlanmasdan)"
+                print(msg)
+                return tool_type, False, msg
 
-            # Windows da command ni to'g'ri ishlatish
-            # Command string bo'lsa, uni list ga o'tkazish kerak
-            if isinstance(command, str):
-                # Command ni parse qilish
-                if tool_type == 'nmap':
-                    # nmap uchun: "tools/nmap/nmap.exe domain" -> ["tools/nmap/nmap.exe", "domain"]
-                    cmd_parts = command.split()
-                    if len(cmd_parts) >= 2:
-                        proc = subprocess.Popen(cmd_parts, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, cwd='.')
-                    else:
-                        proc = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, shell=True, cwd='.')
-                elif tool_type == 'gobuster':
-                    # gobuster uchun: "tools/gobuster/gobuster.exe dir -u domain -w wordlist" -> ["tools/gobuster/gobuster.exe", "dir", "-u", "domain", "-w", "wordlist"]
-                    cmd_parts = command.split()
-                    if len(cmd_parts) >= 3:
-                        proc = subprocess.Popen(cmd_parts, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, cwd='.')
-                    else:
-                        proc = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, shell=True, cwd='.')
-                elif tool_type in ['sqlmap', 'xsstrike']:
-                    # Python script'lar uchun: "python tools/script/script.py -u domain" -> ["python", "tools/script/script.py", "-u", "domain"]
-                    cmd_parts = command.split()
-                    if len(cmd_parts) >= 3:
-                        proc = subprocess.Popen(cmd_parts, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, cwd='.')
-                    else:
-                        proc = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, shell=True, cwd='.')
-                else:
-                    # Boshqa tool'lar uchun shell=True ishlatish
-                    proc = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, shell=True, cwd='.')
-            else:
-                # Command allaqachon list bo'lsa
-                proc = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, cwd='.')
-            
-            # Tool va domain kombinatsiyasi bilan PID saqlash
+            # Command tayyorlash
+            cmd_parts = command.split() if isinstance(command, str) else command
+            proc = subprocess.Popen(cmd_parts, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, cwd='.')
+
             task_key = f"{tool_type}_{domain}"
-            running_tasks[task_key] = proc.pid
-            print(f"🔄 {task_key} ishga tushirildi, PID: {proc.pid}")
+            running_tasks[task_key] = proc
+            print(f"🚀 {task_key} ishga tushdi (PID={proc.pid})")
 
-            # Tool output'ini real-time o'qish va stop flag tekshirish
-            stdout_lines = []
-            stderr_lines = []
-            
-            # Real-time output o'qish
+            stdout_lines, stderr_lines = [], []
+
             while True:
-                # Stop flag tekshirish
                 if global_stop_flag.is_set():
-                    print(f"⏹️ {tool_type.upper()} to'xtatilmoqda - global stop flag yoqildi")
-                    write_to_log_file(domain, tool_type, f"⏹️ {tool_type.upper()} to'xtatilmoqda - global stop flag yoqildi")
+                    print(f"⏹️ {task_key} majburiy to'xtatilmoqda...")
                     proc.terminate()
-                    proc.wait(timeout=3)
-                    
-                    # running_tasks dan o'chirish
-                    task_key = f"{tool_type}_{domain}"
+                    try:
+                        proc.wait(timeout=3)
+                    except subprocess.TimeoutExpired:
+                        proc.kill()
                     running_tasks.pop(task_key, None)
-                    
-                    return tool_type, False, "To'xtatildi - global stop flag yoqildi"
-                
-                # Output o'qish
-                output_line = proc.stdout.readline()
-                if output_line:
-                    stdout_lines.append(output_line.strip())
-                    write_to_log_file(domain, tool_type, output_line.strip())
-                
-                # Process tugashini tekshirish
+                    return tool_type, False, "To'xtatildi - global stop flag"
+
+                line = proc.stdout.readline()
+                if line:
+                    stdout_lines.append(line.strip())
                 if proc.poll() is not None:
                     break
-                
-                # Kichik kutish
-                time.sleep(0.1)
-            
-            # Qolgan output'ni o'qish
-            remaining_stdout, remaining_stderr = proc.communicate()
-            if remaining_stdout:
-                stdout_lines.extend(remaining_stdout.strip().split('\n'))
-                write_to_log_file(domain, tool_type, remaining_stdout)
-            if remaining_stderr:
-                stderr_lines.extend(remaining_stderr.strip().split('\n'))
-                write_to_log_file(domain, tool_type, f"STDERR: {remaining_stderr}")
-            
-            stdout = '\n'.join(stdout_lines)
-            return_code = proc.returncode
-            
-            # Log faylga yozish
-            if stdout:
-                write_to_log_file(domain, tool_type, stdout)
-            if stderr:
-                write_to_log_file(domain, tool_type, f"STDERR: {stderr}")
-            
-            # Natijani aniqlash
-            if return_code == 0:
-                result = True
-                output = stdout if stdout else "Tool muvaffaqiyatli tugadi"
-            else:
-                result = False
-                output = stderr if stderr else f"Tool xatolik bilan tugadi (kod: {return_code})"
+                time.sleep(0.05)
 
-            # Yakunlash xabari
-            write_to_log_file(domain, tool_type, "=" * 50)
-            write_to_log_file(domain, tool_type, f"✅ {tool_type.upper()} tugallandi")
-            
-            return tool_type, result, output
+            out, err = proc.communicate()
+            if out:
+                stdout_lines.extend(out.splitlines())
+            if err:
+                stderr_lines.extend(err.splitlines())
+
+            running_tasks.pop(task_key, None)
+            return_code = proc.returncode
+
+            if return_code == 0:
+                return tool_type, True, "\n".join(stdout_lines) or "✅ Muvaffaqiyatli tugadi"
+            else:
+                return tool_type, False, "\n".join(stderr_lines) or f"❌ Xatolik (kod={return_code})"
 
         except Exception as e:
-            error_msg = f"❌ Xatolik: {str(e)}"
-            write_to_log_file(domain, tool_type, error_msg)
-            return tool_type, False, error_msg
+            return tool_type, False, f"❌ Exception: {e}"
 
     global current_executor
-    
-    # Stop flag tekshirish - executor yaratishdan oldin
     if global_stop_flag.is_set():
-        print("⏹️ Executor yaratilmadi - global stop flag yoqildi")
-        return {"error": "To'xtatildi - global stop flag yoqildi"}
-    
-    current_executor = ThreadPoolExecutor(max_workers=4)
-    
-    executor = current_executor
-    future_to_tool = {}
-    for tool_command in tool_commands:
-        for tool_type, command in tool_command.items():
-            # Stop flag tekshirish - yangi tool'lar ishga tushirilmasligi uchun
-            if global_stop_flag.is_set():
-                print(f"⏹️ {tool_type} ishga tushirilmadi - global stop flag yoqildi")
-                results[tool_type] = "To'xtatildi - global stop flag yoqildi"
-                continue
-            
-            # Foydalanuvchi buyruqini bajarish buyruqiga o'tkazish
-            execution_command = get_execution_tool_command(tool_type, domain)
-            print(f"🔄 {tool_type} buyruq o'zgartirildi:")
-            print(f"   Foydalanuvchi: {command}")
-            print(f"   Bajarish: {execution_command}")
-            
-            future = executor.submit(run_single_tool, tool_type, execution_command)
-            future_to_tool[future] = tool_type
+        return {"error": "To'xtatildi - global stop flag"}
 
-        # Natijalarni olish va stop flag tekshirish
-        for future in as_completed(future_to_tool):
-            # Stop flag tekshirish - natijalarni olish jarayonida ham
-            if global_stop_flag.is_set():
-                print("⏹️ Global stop flag yoqildi - natijalar olinmaydi")
-                # Barcha future'larni cancel qilish
-                for f in future_to_tool:
-                    f.cancel()
-                break
-            
-            try:
-                tool_type, result, output = future.result()
-                results[tool_type] = output  # Faqat output'ni saqlash, status emas
-                print(f"✅ {tool_type} parallel tugallandi: {result}")
-            except Exception as e:
-                print(f"❌ {tool_type} natijasini olishda xatolik: {e}")
-                results[tool_type] = f"Xatolik: {str(e)}"
+    current_executor = ThreadPoolExecutor(max_workers=4)
+    futures = {current_executor.submit(run_single_tool, tool, get_execution_tool_command(tool, domain)): tool
+               for tool_command in tool_commands for tool, command in tool_command.items()}
+
+    for future in as_completed(futures):
+        if global_stop_flag.is_set():
+            break
+        try:
+            tool, ok, output = future.result()
+            results[tool] = output
+            print(f"✅ {tool} tugadi: {ok}")
+        except Exception as e:
+            results[futures[future]] = f"❌ Exception: {e}"
 
     return results
 
+
 def stop_all():
-    """Barcha scan'larni to'xtatish - global stop flag orqali"""
-    global global_stop_flag, current_executor
+    """Butunlay hamma scan'larni to'xtatish"""
+    global current_executor
     global_stop_flag.set()
-    print("🛑 Global stop flag yoqildi - barcha scan'lar to'xtatilmoqda...")
-    
-    # ThreadPoolExecutor'ni to'xtatish
+    print("🛑 Global stop flag yoqildi - barcha jarayonlar to'xtatilmoqda...")
+
+    # Executor to'xtatish
     if current_executor:
         try:
-            print("🛑 ThreadPoolExecutor to'xtatilmoqda...")
-            # wait=False → threadlar tugashini kutmaymiz, darhol qaytamiz
-            # cancel_futures=True → navbatda turgan boshlanmagan vazifalarni bekor qiladi
             current_executor.shutdown(wait=False, cancel_futures=True)
             print("✅ ThreadPoolExecutor to'xtatildi")
         except Exception as e:
-            print(f"⚠️ ThreadPoolExecutor to'xtatishda xatolik: {e}")
-    
-    # Barcha running task'larni to'xtatish
-    for task_key, pid in list(running_tasks.items()):
-        try:
-            proc = psutil.Process(pid)
-            proc.terminate()
-            print(f"🛑 {task_key} to'xtatildi (PID: {pid})")
-        except Exception as e:
-            print(f"⚠️ {task_key} to'xtatishda xatolik: {e}")
-    
-    # running_tasks ni tozalash
-    running_tasks.clear()
-    print("✅ Barcha scan'lar to'xtatildi, yangi domenlar ham ishga tushmaydi")
-    return True
-
-def reset_stop_flag():
-    """Global stop flag'ni qaytadan tozalash - yangi scan uchun"""
-    global global_stop_flag, current_executor
-    global_stop_flag.clear()
-    
-    # Executor'ni to'liq tozalash - yangi scan uchun
-    if current_executor:
-        try:
-            # Executor allaqachon shutdown bo'lgan bo'lsa, uni tozalash
-            if current_executor._shutdown:
-                current_executor = None
-                print("🔄 ThreadPoolExecutor tozalandi (shutdown bo'lgan)")
-            else:
-                # Executor hali ishlayotgan bo'lsa, uni to'xtatish
-                current_executor.shutdown(wait=False, cancel_futures=True)
-                current_executor = None
-                print("🔄 ThreadPoolExecutor to'xtatildi va tozalandi")
-        except Exception as e:
-            print(f"⚠️ Executor tozalashda xatolik: {e}")
+            print(f"⚠️ Executor to'xtatishda xatolik: {e}")
+        finally:
             current_executor = None
-    
-    print("🔄 Global stop flag tozalandi - yangi scan'lar mumkin")
 
-def stop_tool(tool_type, domain=None):
-    """Muayyan tool'ni to'xtatish"""
-    if domain:
-        # Tool va domain kombinatsiyasi bilan to'xtatish
-        task_key = f"{tool_type}_{domain}"
-        pid = running_tasks.get(task_key)
-        if not pid:
-            print(f"⚠️ {task_key} topilmadi")
-            return False
-    else:
-        # Faqat tool nomi bilan to'xtatish (eski usul)
-        pid = running_tasks.get(tool_type)
-        if not pid:
-            return False
-
-    proc = None
-    try:
-        proc = psutil.Process(pid)
-        proc.terminate()   # yumshoq to'xtatish
-        proc.wait(timeout=3)
-    except Exception as e:
-        if proc:
+    # Hamma processlarni to'xtatish
+    for task_key, proc in list(running_tasks.items()):
+        try:
+            if proc.poll() is None:
+                proc.terminate()
+                proc.wait(timeout=3)
+                print(f"🛑 {task_key} to'xtatildi (PID={proc.pid})")
+        except Exception:
             try:
-                proc.kill()        # majburiy to'xtatish
+                proc.kill()
+                print(f"💀 {task_key} majburiy o'chirildi (PID={proc.pid})")
             except:
                 pass
-        print(f"stop_tool da xatolik {tool_type}: {e}")
-    finally:
-        if domain:
-            # Tool va domain kombinatsiyasi bilan o'chirish
-            task_key = f"{tool_type}_{domain}"
+        finally:
             running_tasks.pop(task_key, None)
-            print(f"🗑️ {task_key} running_tasks dan o'chirildi")
-        else:
-            # Eski usul
-            running_tasks.pop(tool_type, None)
+
+    print("✅ Barcha scan'lar to'xtatildi.")
     return True
 
-def stop_all_tools():
-    """Hamma tool'larni to'xtatish"""
-    if not running_tasks:
-        print("ℹ️ Hech qanday ishlayotgan tool yo'q")
-        return True
-    
-    print(f"🛑 {len(running_tasks)} ta tool'ni to'xtatish boshlandi...")
-    print(f"📋 To'xtatilmoqchi bo'lgan tool'lar: {list(running_tasks.keys())}")
-    
-    success_count = 0
-    for task_key in list(running_tasks.keys()):
+
+def reset_stop_flag():
+    """Yangi start uchun global stop flag va executor'ni tozalash"""
+    global current_executor
+    global_stop_flag.clear()
+    current_executor = None
+    print("🔄 Global stop flag tozalandi - yangi scan'lar mumkin")
+
+
+def stop_tool(tool_type, domain=None):
+    """Faqat bitta toolni to'xtatish"""
+    task_key = f"{tool_type}_{domain}" if domain else tool_type
+    proc = running_tasks.get(task_key)
+    if not proc:
+        print(f"⚠️ {task_key} topilmadi")
+        return False
+
+    try:
+        if proc.poll() is None:
+            proc.terminate()
+            proc.wait(timeout=3)
+            print(f"🛑 {task_key} to'xtatildi (PID={proc.pid})")
+    except Exception:
         try:
-            # task_key format: "tool_type_domain"
-            if "_" in task_key:
-                tool_type, domain = task_key.split("_", 1)
-                if stop_tool(tool_type, domain):
-                    success_count += 1
-                    print(f"✅ {task_key} to'xtatildi")
-                else:
-                    print(f"⚠️ {task_key} to'xtatilmadi")
-            else:
-                # Eski format uchun
-                if stop_tool(task_key):
-                    success_count += 1
-                    print(f"✅ {task_key} tool to'xtatildi")
-                else:
-                    print(f"⚠️ {task_key} tool to'xtatilmadi")
-        except Exception as e:
-            print(f"❌ {task_key} ni to'xtatishda xatolik: {e}")
-    
-    print(f"🎯 {success_count}/{len(running_tasks)} ta tool muvaffaqiyatli to'xtatildi")
-    return success_count > 0
+            proc.kill()
+            print(f"💀 {task_key} majburiy o'chirildi (PID={proc.pid})")
+        except:
+            pass
+    finally:
+        running_tasks.pop(task_key, None)
+    return True
+
+
+def stop_all_tools():
+    """Faqat hozir ishlayotgan tool'larni to'xtatish"""
+    if not running_tasks:
+        print("ℹ️ Hozirda hech qanday tool ishlamayapti")
+        return True
+
+    print(f"🛑 {len(running_tasks)} ta tool to'xtatilmoqda...")
+    success = 0
+    for task_key in list(running_tasks.keys()):
+        if "_" in task_key:
+            tool, domain = task_key.split("_", 1)
+            if stop_tool(tool, domain):
+                success += 1
+        else:
+            if stop_tool(task_key):
+                success += 1
+    print(f"🎯 {success}/{len(running_tasks)} ta tool muvaffaqiyatli to'xtatildi")
+    return success > 0
 
 
 def cleanup_log_files(domain):
