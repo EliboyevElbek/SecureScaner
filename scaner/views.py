@@ -2358,7 +2358,7 @@ def run_xsstrike_with_logging(domain, command):
 # Global obyektlar
 running_tasks = {}  # {"tool_domain": subprocess.Popen}
 current_executor = None  # ThreadPoolExecutor
-global_stop_flag = Event()  # umumiy stop flag
+global_stop_flag = threading.Event()  # umumiy stop flag
 
 
 def run_tools_parallel(domain, tool_commands):
