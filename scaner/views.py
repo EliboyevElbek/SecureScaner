@@ -704,12 +704,12 @@ def save_domains(request):
                     print(f"Domain {domain}: created={created}, tool_commands={kesh_domain.tool_commands}")
                     
                     if created:
-                        # Yangi yaratilgan domain uchun default tool buyruqlarini saqlash
+                        # Yangi yaratilgan domain uchun default tool buyruqlarini saqlash (foydalanuvchiga ko'rsatish uchun)
                         default_tool_commands = [
-                            {"sqlmap": f"python tools/sqlmap/sqlmap.py -u https://{domain}"},
-                            {"nmap": f"tools/nmap/nmap.exe {domain}"},
-                            {"xsstrike": f"python tools/XSStrike/xsstrike.py -u https://{domain}"},
-                            {"gobuster": f"tools/gobuster/gobuster.exe dir -u https://{domain} -w tools/gobuster/common-files.txt"}
+                            {"sqlmap": f"sqlmap -u https://{domain}"},
+                            {"nmap": f"nmap {domain}"},
+                            {"xsstrike": f"xsstrike -u https://{domain}"},
+                            {"gobuster": f"gobuster dir -u https://{domain} -w common-files.txt"}
                         ]
                         kesh_domain.tool_commands = default_tool_commands
                         kesh_domain.save()
@@ -977,11 +977,18 @@ def get_domain_tool_config(request):
                         'is_active': config.is_active
                     })
                 
+                # Foydalanuvchiga ko'rsatish uchun oddiy buyruqlarni yaratish
+                display_commands = {}
+                for tool_command in kesh_domain.tool_commands:
+                    for tool_type, command in tool_command.items():
+                        # Foydalanuvchiga oddiy ko'rsatish uchun
+                        display_commands[tool_type] = command
+                
                 return JsonResponse({
                     'success': True,
                     'domain': domain_name,
                     'tool_configs': tool_configs,
-                    'saved_commands': kesh_domain.tool_commands
+                    'saved_commands': display_commands  # Foydalanuvchiga ko'rsatish uchun
                 })
             
             except KeshDomain.DoesNotExist:
@@ -1077,8 +1084,8 @@ def get_domain_tools_preview(request):
                     # Saqlangan buyruqni olish
                     saved_command = kesh_domain.get_tool_command(tool.tool_type)
                     
-                    # Asosiy buyruqni yaratish
-                    base_command = get_base_tool_command(tool.tool_type, domain_name)
+                    # Asosiy buyruqni yaratish (foydalanuvchiga ko'rsatish uchun)
+                    base_command = get_display_tool_command(tool.tool_type, domain_name)
                     
                     # Saqlangan parametrlarni olish
                     saved_parameters = []
@@ -1096,11 +1103,17 @@ def get_domain_tools_preview(request):
                         'description': tool.description
                     })
                 
+                # Foydalanuvchiga ko'rsatish uchun oddiy buyruqlarni yaratish
+                display_commands = {}
+                for tool_command in kesh_domain.tool_commands:
+                    for tool_type, command in tool_command.items():
+                        display_commands[tool_type] = command
+                
                 return JsonResponse({
                     'success': True,
                     'domain': domain_name,
                     'tools_preview': tools_preview,
-                    'saved_commands': kesh_domain.tool_commands
+                    'saved_commands': display_commands  # Foydalanuvchiga ko'rsatish uchun
                 })
             
             except KeshDomain.DoesNotExist:
@@ -1109,7 +1122,7 @@ def get_domain_tools_preview(request):
                 tools = Tool.objects.filter(is_active=True)
                 
                 for tool in tools:
-                    base_command = get_base_tool_command(tool.tool_type, domain_name)
+                    base_command = get_display_tool_command(tool.tool_type, domain_name)
                     tools_preview.append({
                         'id': tool.id,
                         'name': tool.name,
@@ -1132,19 +1145,37 @@ def get_domain_tools_preview(request):
     
     return JsonResponse({'error': 'Faqat GET so\'rov qabul qilinadi'}, status=405)
 
-def get_base_tool_command(tool_type, domain):
-    """Tool turiga qarab asosiy buyruqni yaratish"""
+def get_display_tool_command(tool_type, domain):
+    """Tool turiga qarab foydalanuvchiga ko'rsatish uchun oddiy buyruqni yaratish"""
     if not domain.startswith('http'):
         domain = f"https://{domain}"
     
-    base_commands = {
+    display_commands = {
+        'nmap': f"nmap {domain.replace('https://', '').replace('http://', '')}",
+        'sqlmap': f"sqlmap -u {domain}",
+        'xsstrike': f"xsstrike -u {domain}",
+        'gobuster': f"gobuster dir -u {domain} -w common-files.txt"
+    }
+    
+    return display_commands.get(tool_type, f"{tool_type} {domain}")
+
+def get_execution_tool_command(tool_type, domain):
+    """Tool turiga qarab bajarish uchun to'liq path bilan buyruqni yaratish"""
+    if not domain.startswith('http'):
+        domain = f"https://{domain}"
+    
+    execution_commands = {
         'nmap': f"tools/nmap/nmap.exe {domain.replace('https://', '').replace('http://', '')}",
         'sqlmap': f"python tools/sqlmap/sqlmap.py -u {domain}",
         'xsstrike': f"python tools/XSStrike/xsstrike.py -u {domain}",
         'gobuster': f"tools/gobuster/gobuster.exe dir -u {domain} -w tools/gobuster/common-files.txt"
     }
     
-    return base_commands.get(tool_type, f"{tool_type} {domain}")
+    return execution_commands.get(tool_type, f"{tool_type} {domain}")
+
+def get_base_tool_command(tool_type, domain):
+    """Tool turiga qarab asosiy buyruqni yaratish (eski funksiya - bajarish uchun)"""
+    return get_execution_tool_command(tool_type, domain)
 
 def extract_parameters_from_command(full_command, base_command):
     """To'liq buyruqdan parametrlarni ajratib olish"""
@@ -1168,9 +1199,15 @@ def get_domains(request):
             
             domains_data = []
             for domain in domains:
+                # Foydalanuvchiga ko'rsatish uchun oddiy buyruqlarni yaratish
+                display_commands = {}
+                for tool_command in domain.tool_commands:
+                    for tool_type, command in tool_command.items():
+                        display_commands[tool_type] = command
+                
                 domains_data.append({
                     'domain_name': domain.domain_name,
-                    'tool_commands': domain.tool_commands,
+                    'tool_commands': display_commands,  # Foydalanuvchiga ko'rsatish uchun
                     'created_at': domain.created_at.strftime('%Y-%m-%d %H:%M:%S'),
                     'updated_at': domain.updated_at.strftime('%Y-%m-%d %H:%M:%S'),
                     'is_active': domain.is_active
@@ -2349,7 +2386,10 @@ def run_tools_parallel(domain, tool_commands):
                 # Command allaqachon list bo'lsa
                 proc = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, cwd='.')
             
-            running_tasks[tool_type] = proc.pid   # PID saqlash
+            # Tool va domain kombinatsiyasi bilan PID saqlash
+            task_key = f"{tool_type}_{domain}"
+            running_tasks[task_key] = proc.pid
+            print(f"🔄 {task_key} ishga tushirildi, PID: {proc.pid}")
 
             # Tool output'ini o'qish
             stdout, stderr = proc.communicate()
@@ -2384,7 +2424,13 @@ def run_tools_parallel(domain, tool_commands):
         future_to_tool = {}
         for tool_command in tool_commands:
             for tool_type, command in tool_command.items():
-                future = executor.submit(run_single_tool, tool_type, command)
+                # Foydalanuvchi buyruqini bajarish buyruqiga o'tkazish
+                execution_command = get_execution_tool_command(tool_type, domain)
+                print(f"🔄 {tool_type} buyruq o'zgartirildi:")
+                print(f"   Foydalanuvchi: {command}")
+                print(f"   Bajarish: {execution_command}")
+                
+                future = executor.submit(run_single_tool, tool_type, execution_command)
                 future_to_tool[future] = tool_type
 
         for future in as_completed(future_to_tool):
@@ -2394,11 +2440,20 @@ def run_tools_parallel(domain, tool_commands):
 
     return results
 
-def stop_tool(tool_type):
+def stop_tool(tool_type, domain=None):
     """Muayyan tool'ni to'xtatish"""
-    pid = running_tasks.get(tool_type)
-    if not pid:
-        return False
+    if domain:
+        # Tool va domain kombinatsiyasi bilan to'xtatish
+        task_key = f"{tool_type}_{domain}"
+        pid = running_tasks.get(task_key)
+        if not pid:
+            print(f"⚠️ {task_key} topilmadi")
+            return False
+    else:
+        # Faqat tool nomi bilan to'xtatish (eski usul)
+        pid = running_tasks.get(tool_type)
+        if not pid:
+            return False
 
     proc = None
     try:
@@ -2413,27 +2468,48 @@ def stop_tool(tool_type):
                 pass
         print(f"stop_tool da xatolik {tool_type}: {e}")
     finally:
-        running_tasks.pop(tool_type, None)
+        if domain:
+            # Tool va domain kombinatsiyasi bilan o'chirish
+            task_key = f"{tool_type}_{domain}"
+            running_tasks.pop(task_key, None)
+            print(f"🗑️ {task_key} running_tasks dan o'chirildi")
+        else:
+            # Eski usul
+            running_tasks.pop(tool_type, None)
     return True
 
 def stop_all_tools():
     """Hamma tool'larni to'xtatish"""
-    try:
-        if not running_tasks:
-            print("Hech qanday ishlayotgan tool yo'q")
-            return True
-        
-        print(f"To'xtatilmoqchi bo'lgan tool'lar: {list(running_tasks.keys())}")
-        for tool_type in list(running_tasks.keys()):
-            success = stop_tool(tool_type)
-            if success:
-                print(f"✅ {tool_type} to'xtatildi")
-            else:
-                print(f"❌ {tool_type} to'xtatilmadi")
+    if not running_tasks:
+        print("ℹ️ Hech qanday ishlayotgan tool yo'q")
         return True
-    except Exception as e:
-        print(f"stop_all_tools da xatolik: {e}")
-        return False
+    
+    print(f"🛑 {len(running_tasks)} ta tool'ni to'xtatish boshlandi...")
+    print(f"📋 To'xtatilmoqchi bo'lgan tool'lar: {list(running_tasks.keys())}")
+    
+    success_count = 0
+    for task_key in list(running_tasks.keys()):
+        try:
+            # task_key format: "tool_type_domain"
+            if "_" in task_key:
+                tool_type, domain = task_key.split("_", 1)
+                if stop_tool(tool_type, domain):
+                    success_count += 1
+                    print(f"✅ {task_key} to'xtatildi")
+                else:
+                    print(f"⚠️ {task_key} to'xtatilmadi")
+            else:
+                # Eski format uchun
+                if stop_tool(task_key):
+                    success_count += 1
+                    print(f"✅ {task_key} tool to'xtatildi")
+                else:
+                    print(f"⚠️ {task_key} tool to'xtatilmadi")
+        except Exception as e:
+            print(f"❌ {task_key} ni to'xtatishda xatolik: {e}")
+    
+    print(f"🎯 {success_count}/{len(running_tasks)} ta tool muvaffaqiyatli to'xtatildi")
+    return success_count > 0
 
 
 def cleanup_log_files(domain):
@@ -2468,17 +2544,23 @@ def stop_tool_api(request):
         try:
             data = json.loads(request.body)
             tool_type = data.get('tool_type', '').strip()
+            domain = data.get('domain', '').strip()  # Domain parametrini qo'shish
             
             if not tool_type:
                 return JsonResponse({'error': 'Tool turi kiritilmagan'}, status=400)
             
-            # Tool'ni to'xtatish
-            success = stop_tool(tool_type)
+            # Tool'ni to'xtatish (domain bilan yoki sizsiz)
+            if domain:
+                success = stop_tool(tool_type, domain)
+                message = f'{tool_type} tool {domain} uchun muvaffaqiyatli to\'xtatildi!'
+            else:
+                success = stop_tool(tool_type)
+                message = f'{tool_type} tool muvaffaqiyatli to\'xtatildi!'
             
             if success:
                 return JsonResponse({
                     'success': True,
-                    'message': f'{tool_type} tool muvaffaqiyatli to\'xtatildi!'
+                    'message': message
                 })
             else:
                 return JsonResponse({

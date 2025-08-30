@@ -1408,7 +1408,8 @@ function stopIndividualTool(toolName, domain) {
             'X-CSRFToken': getCSRFToken()
         },
         body: JSON.stringify({
-            tool_type: toolName
+            tool_type: toolName,
+            domain: domain  // Domain parametrini qo'shish
         })
     })
     .then(response => response.json())
