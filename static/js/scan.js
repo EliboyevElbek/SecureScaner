@@ -1345,14 +1345,14 @@ function confirmStopScan() {
         });
     
     // Hide progress buttons for all domains
-        document.querySelectorAll('.progress-btn').forEach(btn => {
-            btn.style.display = 'none';
-        });
+    document.querySelectorAll('.progress-btn').forEach(btn => {
+        btn.style.display = 'none';
+    });
     
     // Show edit and delete buttons for all domains
-        document.querySelectorAll('.edit-btn, .delete-btn').forEach(btn => {
-            btn.style.display = 'inline-block';
-        });
+    document.querySelectorAll('.edit-btn, .delete-btn').forEach(btn => {
+        btn.style.display = 'inline-block';
+    });
     
     showNotification('Tahlil to\'xtatildi', 'warning');
 }
@@ -1675,7 +1675,7 @@ function showToolDetails(toolName, toolIndex) {
     }
     
     // Create or update tool results section for real-time output
-    createToolResultsSection(toolName);
+    createToolResultsSection(toolName, domainName);
     
     // Start real-time streaming using new endpoint
     startToolStreamingRealtime(domainName, toolName);
@@ -1686,20 +1686,20 @@ function showToolDetails(toolName, toolIndex) {
 
 function updateToolWindowTitle(toolName) {
     if (window.currentToolResultsWindow) {
-        const titleElement = window.currentToolResultsWindow.querySelector('.tool-results-window-title h3');
-        const iconElement = window.currentToolResultsWindow.querySelector('.tool-results-window-title .tool-icon');
+        const titleElement = window.currentToolResultsWindow.querySelector('.log-modal-header h3');
         
         if (titleElement) {
-            titleElement.textContent = `${getToolDisplayName(toolName)} Real-Time Output`;
-        }
-        
-        if (iconElement) {
-            iconElement.textContent = getToolIcon(toolName);
+            // Extract domain from current title if it exists
+            const currentTitle = titleElement.textContent;
+            const domainMatch = currentTitle.match(/natijalari - (.+)$/);
+            const domain = domainMatch ? domainMatch[1] : '';
+            
+            titleElement.textContent = `${getToolDisplayName(toolName)} natijalari - ${domain}`;
         }
     }
 }
 
-function createToolResultsSection(toolName) {
+function createToolResultsSection(toolName, domain) {
     // Check if tool results window already exists
     if (window.currentToolResultsWindow) {
         console.log('Tool results window already exists, updating title');

@@ -1,0 +1,32 @@
+🚀 NMAP ishga tushirilmoqda: tools/nmap/nmap.exe kurslar24.uz
+⏰ Vaqt: 2025-08-30 17:04:09
+==================================================
+Starting Nmap 7.97 ( https://nmap.org ) at 2025-08-30 17:04 +0500
+Nmap scan report for kurslar24.uz (31.184.242.14)
+Host is up (0.18s latency).
+rDNS record for 31.184.242.14: ns8.sayt.uz
+Not shown: 959 filtered tcp ports (no-response), 23 filtered tcp ports (host-prohibited)
+PORT      STATE  SERVICE
+20/tcp    closed ftp-data
+21/tcp    open   ftp
+22/tcp    open   ssh
+25/tcp    open   smtp
+53/tcp    open   domain
+80/tcp    open   http
+110/tcp   open   pop3
+143/tcp   open   imap
+443/tcp   open   https
+465/tcp   open   smtps
+587/tcp   open   submission
+993/tcp   open   imaps
+995/tcp   open   pop3s
+1500/tcp  open   vlsi-lm
+3306/tcp  open   mysql
+5432/tcp  closed postgresql
+12345/tcp open   netbus
+35500/tcp closed unknown
+
+Nmap done: 1 IP address (1 host up) scanned in 27.71 seconds
+
+==================================================
+✅ NMAP tugallandi

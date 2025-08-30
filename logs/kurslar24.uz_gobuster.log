@@ -1,0 +1,32 @@
+🚀 GOBUSTER ishga tushirilmoqda: tools/gobuster/gobuster.exe dir -u https://kurslar24.uz -w tools/gobuster/common-files.txt
+⏰ Vaqt: 2025-08-30 17:04:09
+==================================================
+===============================================================
+Gobuster v3.7
+by OJ Reeves (@TheColonial) & Christian Mehlmauer (@firefart)
+===============================================================
+[+] Url:                     https://kurslar24.uz
+[+] Method:                  GET
+[+] Threads:                 10
+[+] Wordlist:                tools/gobuster/common-files.txt
+[+] Negative Status codes:   404
+[+] User Agent:              gobuster/3.7
+[+] Timeout:                 10s
+===============================================================
+Starting gobuster in directory enumeration mode
+===============================================================
+/assets               (Status: 301) [Size: 242] [--> http://kurslar24.uz/public/assets/]
+/config               (Status: 301) [Size: 235] [--> http://kurslar24.uz/config/]
+/login                (Status: 200) [Size: 8846]
+/logout               (Status: 405) [Size: 1011]
+/phpmyadmin           (Status: 301) [Size: 169] [--> https://kurslar24.uz/phpmyadmin/]
+/register             (Status: 200) [Size: 9931]
+/public               (Status: 301) [Size: 235] [--> http://kurslar24.uz/public/]
+/robots.txt           (Status: 200) [Size: 24]
+/vendor               (Status: 301) [Size: 235] [--> http://kurslar24.uz/vendor/]
+===============================================================
+Finished
+===============================================================
+
+==================================================
+✅ GOBUSTER tugallandi

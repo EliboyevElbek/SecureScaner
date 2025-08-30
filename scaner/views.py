@@ -386,7 +386,7 @@ def perform_domain_scan(domain):
             'dns_records': dns_records,
             'ssl_info': ssl_info,
             'security_headers': security_headers,
-            'tool_results': tool_results,
+            'tool_results': tool_results,  # Bu endi tool'lardan chiqgan log'larni o'z ichiga oladi
             'scan_duration': '2-5 soniya'
         }
         
@@ -446,7 +446,6 @@ def perform_tool_scans(domain):
                 print(f"KeshDomain bazasidan {domain} uchun tool buyruqlari topildi")
                 print(f"Tool buyruqlari: {kesh_domain.tool_commands}")
                 
-                # Tool'larni parallel ishga tushirish
                 # Tool'larni parallel ishga tushirish
                 print(f"🚀 {domain} uchun tool'lar parallel ishga tushirilmoqda...")
                 tool_results = run_tools_parallel(domain, kesh_domain.tool_commands)
@@ -2318,21 +2317,68 @@ def run_tools_parallel(domain, tool_commands):
             write_to_log_file(domain, tool_type, f"⏰ Vaqt: {time.strftime('%Y-%m-%d %H:%M:%S')}")
             write_to_log_file(domain, tool_type, "=" * 50)
 
-            # subprocess orqali ishga tushirish
-            proc = subprocess.Popen(command, shell=True)
+            # Windows da command ni to'g'ri ishlatish
+            # Command string bo'lsa, uni list ga o'tkazish kerak
+            if isinstance(command, str):
+                # Command ni parse qilish
+                if tool_type == 'nmap':
+                    # nmap uchun: "tools/nmap/nmap.exe domain" -> ["tools/nmap/nmap.exe", "domain"]
+                    cmd_parts = command.split()
+                    if len(cmd_parts) >= 2:
+                        proc = subprocess.Popen(cmd_parts, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, cwd='.')
+                    else:
+                        proc = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, shell=True, cwd='.')
+                elif tool_type == 'gobuster':
+                    # gobuster uchun: "tools/gobuster/gobuster.exe dir -u domain -w wordlist" -> ["tools/gobuster/gobuster.exe", "dir", "-u", "domain", "-w", "wordlist"]
+                    cmd_parts = command.split()
+                    if len(cmd_parts) >= 3:
+                        proc = subprocess.Popen(cmd_parts, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, cwd='.')
+                    else:
+                        proc = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, shell=True, cwd='.')
+                elif tool_type in ['sqlmap', 'xsstrike']:
+                    # Python script'lar uchun: "python tools/script/script.py -u domain" -> ["python", "tools/script/script.py", "-u", "domain"]
+                    cmd_parts = command.split()
+                    if len(cmd_parts) >= 3:
+                        proc = subprocess.Popen(cmd_parts, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, cwd='.')
+                    else:
+                        proc = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, shell=True, cwd='.')
+                else:
+                    # Boshqa tool'lar uchun shell=True ishlatish
+                    proc = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, shell=True, cwd='.')
+            else:
+                # Command allaqachon list bo'lsa
+                proc = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, cwd='.')
+            
             running_tasks[tool_type] = proc.pid   # PID saqlash
 
-            proc.wait()  # tugashini kutish
-            result = True
+            # Tool output'ini o'qish
+            stdout, stderr = proc.communicate()
+            return_code = proc.returncode
+            
+            # Log faylga yozish
+            if stdout:
+                write_to_log_file(domain, tool_type, stdout)
+            if stderr:
+                write_to_log_file(domain, tool_type, f"STDERR: {stderr}")
+            
+            # Natijani aniqlash
+            if return_code == 0:
+                result = True
+                output = stdout if stdout else "Tool muvaffaqiyatli tugadi"
+            else:
+                result = False
+                output = stderr if stderr else f"Tool xatolik bilan tugadi (kod: {return_code})"
 
             # Yakunlash xabari
             write_to_log_file(domain, tool_type, "=" * 50)
             write_to_log_file(domain, tool_type, f"✅ {tool_type.upper()} tugallandi")
-            return tool_type, result
+            
+            return tool_type, result, output
 
         except Exception as e:
-            write_to_log_file(domain, tool_type, f"❌ Xatolik: {str(e)}")
-            return tool_type, False
+            error_msg = f"❌ Xatolik: {str(e)}"
+            write_to_log_file(domain, tool_type, error_msg)
+            return tool_type, False, error_msg
 
     with ThreadPoolExecutor(max_workers=4) as executor:
         future_to_tool = {}
@@ -2342,8 +2388,8 @@ def run_tools_parallel(domain, tool_commands):
                 future_to_tool[future] = tool_type
 
         for future in as_completed(future_to_tool):
-            tool_type, result = future.result()
-            results[tool_type] = {'status': 'completed' if result else 'failed'}
+            tool_type, result, output = future.result()
+            results[tool_type] = output  # Faqat output'ni saqlash, status emas
             print(f"✅ {tool_type} parallel tugallandi: {result}")
 
     return results
@@ -2354,20 +2400,40 @@ def stop_tool(tool_type):
     if not pid:
         return False
 
+    proc = None
     try:
         proc = psutil.Process(pid)
         proc.terminate()   # yumshoq to'xtatish
         proc.wait(timeout=3)
-    except Exception:
-        proc.kill()        # majburiy to'xtatish
+    except Exception as e:
+        if proc:
+            try:
+                proc.kill()        # majburiy to'xtatish
+            except:
+                pass
+        print(f"stop_tool da xatolik {tool_type}: {e}")
     finally:
         running_tasks.pop(tool_type, None)
     return True
 
 def stop_all_tools():
     """Hamma tool'larni to'xtatish"""
-    for tool_type in list(running_tasks.keys()):
-        stop_tool(tool_type)
+    try:
+        if not running_tasks:
+            print("Hech qanday ishlayotgan tool yo'q")
+            return True
+        
+        print(f"To'xtatilmoqchi bo'lgan tool'lar: {list(running_tasks.keys())}")
+        for tool_type in list(running_tasks.keys()):
+            success = stop_tool(tool_type)
+            if success:
+                print(f"✅ {tool_type} to'xtatildi")
+            else:
+                print(f"❌ {tool_type} to'xtatilmadi")
+        return True
+    except Exception as e:
+        print(f"stop_all_tools da xatolik: {e}")
+        return False
 
 
 def cleanup_log_files(domain):
@@ -2433,14 +2499,21 @@ def stop_all_tools_api(request):
     if request.method == 'POST':
         try:
             # Barcha tool'larni to'xtatish
-            stop_all_tools()
+            success = stop_all_tools()
             
-            return JsonResponse({
-                'success': True,
-                'message': 'Barcha tool\'lar muvaffaqiyatli to\'xtatildi!'
-            })
+            if success:
+                return JsonResponse({
+                    'success': True,
+                    'message': 'Barcha tool\'lar muvaffaqiyatli to\'xtatildi!'
+                })
+            else:
+                return JsonResponse({
+                    'success': False,
+                    'error': 'Tool\'larni to\'xtatishda muammo yuz berdi'
+                })
                 
         except Exception as e:
+            print(f"stop_all_tools_api da xatolik: {e}")
             return JsonResponse({'error': f'Xatolik yuz berdi: {str(e)}'}, status=500)
     
     return JsonResponse({'error': 'Faqat POST so\'rov qabul qilinadi'}, status=405)
