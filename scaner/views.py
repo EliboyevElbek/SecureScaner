@@ -10,6 +10,7 @@ import subprocess
 import time
 import psutil
 import threading
+import os
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from .models import DomainScan, Tool, KeshDomain, DomainToolConfiguration, ScanSession
@@ -19,6 +20,11 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 # Global stop flag - barcha scan'larni to'xtatish uchun
 global_stop_flag = threading.Event()
+
+# Global process management
+running_processes = []  # Barcha ishlayotgan subprocess Popen obyektlari
+process_lock = threading.Lock()  # running_processes ni himoyalash uchun lock
+stop_event = threading.Event()  # Global stop signal
 
 # Create your views here.
 
@@ -55,13 +61,12 @@ def scan(request):
             action = data.get('action')
             
             if action == 'prepare_domains':
-                # "Tayyorlash" tugmasi bosilganda mavjud PID'larni saqlash
-                current_pids = save_current_pids()
+                # "Tayyorlash" tugmasi bosilganda mavjud process'larni tozalash
+                cleanup_running_processes()
                 
                 return JsonResponse({
                     'success': True,
-                    'message': 'Domainlar tayyorlandi, mavjud PID\'lar saqlandi',
-                    'current_pids_count': len(current_pids)
+                    'message': 'Domainlar tayyorlandi, mavjud process\'lar tozalandi'
                 })
             
             elif action == 'add_domain':
@@ -468,31 +473,21 @@ def perform_tool_scans(domain):
         try:
             kesh_domain = KeshDomain.objects.filter(domain_name=domain).first()
             if kesh_domain and kesh_domain.tool_commands:
-                print(f"KeshDomain bazasidan {domain} uchun tool buyruqlari topildi")
-                print(f"Tool buyruqlari: {kesh_domain.tool_commands}")
-                
                 # Tool'larni parallel ishga tushirish
-                print(f"🚀 {domain} uchun tool'lar parallel ishga tushirilmoqda...")
                 tool_results = run_tools_parallel(domain, kesh_domain.tool_commands)
                 
                 # Raw output'ni log faylga yozilganini ko'rsatish
                 for tool_type in tool_results.keys():
                     raw_tool_output[tool_type] = 'Log faylga yozildi'
-                
-                print(f"✅ {domain} uchun barcha tool'lar parallel tugallandi")
             else:
-                print(f"KeshDomain bazasida {domain} uchun tool buyruqlari topilmadi")
                 tool_results['error'] = 'Tool buyruqlari topilmadi'
                 
         except Exception as e:
-            print(f"KeshDomain bazasidan ma'lumot olishda xatolik {domain}: {e}")
             tool_results['error'] = str(e)
         
     except Exception as e:
-        print(f"Tool scanning xatolik {domain}: {e}")
         tool_results['error'] = str(e)
     
-    print(f"Final tool_results: {tool_results}")
     return tool_results, raw_tool_output
 
 def get_dns_info(domain):
@@ -701,8 +696,6 @@ def save_domains(request):
             data = json.loads(request.body)
             domains = data.get('domains', [])
             
-            print(f"save_domains called with domains: {domains}")
-            
             if not domains:
                 return JsonResponse({'error': 'Domainlar kiritilmagan'}, status=400)
             
@@ -726,19 +719,16 @@ def save_domains(request):
                         domain_name=domain
                     )
                     
-                    print(f"Domain {domain}: created={created}, tool_commands={kesh_domain.tool_commands}")
-                    
                     if created:
                         # Yangi yaratilgan domain uchun default tool buyruqlarini saqlash (foydalanuvchiga ko'rsatish uchun)
                         default_tool_commands = [
-                            {"sqlmap": f"sqlmap -u https://{domain}"},
                             {"nmap": f"nmap {domain}"},
+                            {"sqlmap": f"sqlmap -u https://{domain}"},
                             {"xsstrike": f"xsstrike -u https://{domain}"},
-                            {"gobuster": f"gobuster dir -u https://{domain} -w common-files.txt"}
+                            {"gobuster": f"gobuster dir -u https://{domain} -w tools/gobuster/common-files.txt"}
                         ]
                         kesh_domain.tool_commands = default_tool_commands
                         kesh_domain.save()
-                        print(f"Default tool commands saved for {domain}: {default_tool_commands}")
                         
                         saved_domains.append(domain)
                     else:
@@ -746,10 +736,7 @@ def save_domains(request):
                         saved_domains.append(f'{domain} (mavjud)')
                         
                 except Exception as e:
-                    print(f"Error saving domain {domain}: {str(e)}")
                     errors.append(f'{domain} - xatolik: {str(e)}')
-            
-            print(f"Save results: saved={saved_domains}, errors={errors}")
             
             return JsonResponse({
                 'success': True,
@@ -761,10 +748,8 @@ def save_domains(request):
             })
             
         except json.JSONDecodeError:
-            print(f"JSON decode error in save_domains: {request.body}")
             return JsonResponse({'error': 'Noto\'g\'ri JSON format'}, status=400)
         except Exception as e:
-            print(f"Error in save_domains: {str(e)}")
             return JsonResponse({'error': f'Xatolik yuz berdi: {str(e)}'}, status=500)
     
     return JsonResponse({'error': 'Faqat POST so\'rov qabul qilinadi'}, status=405)
@@ -2373,35 +2358,10 @@ process_lock = threading.Lock()  # running_processes ni himoyalash uchun lock
 stop_event = threading.Event()  # Global stop signal
 
 
-def write_to_log_file(domain, tool_type, message):
-    # Bu funksiya o'zgarmagan deb hisoblayman, shuning uchun o'tkazib yuboraman (agar kerak bo'lsa, qo'shing)
-    pass
 
 
-def get_execution_tool_command(tool_type, domain):
-    """To'g'ri fayl yo'lini qaytarish va mavjudligini tekshirish"""
-    base_path = r"C:\Users\user\Desktop\SiteScaner"  # Asosiy ishchi direktoriya
-    execution_commands = {
-        'nmap': f"tools/nmap/nmap.exe {domain.replace('https://', '').replace('http://', '')}",
-        'sqlmap': f"python tools/sqlmap/sqlmap.py -u {domain}",
-        'xsstrike': f"python tools/XSStrike/xsstrike.py -u {domain}",
-        'gobuster': f"tools/gobuster/gobuster.exe dir -u {domain} -w tools/gobuster/common-files.txt"
-    }
 
-    if tool_type not in execution_commands:
-        raise ValueError(f"Noma'lum tool: {tool_type}")
 
-    command = execution_commands[tool_type]
-    # Fayl yo'lini aniqlash (python uchun emas, faqat .exe yoki .py fayllari uchun)
-    if tool_type == 'nmap' or tool_type == 'gobuster':
-        tool_path = os.path.join(base_path, command.split()[0])
-    elif tool_type in ['sqlmap', 'xsstrike']:
-        tool_path = os.path.join(base_path, command.split()[1])  # python dan keyingi yo'l
-
-    if not os.path.exists(tool_path):
-        raise FileNotFoundError(f"Fayl topilmadi: {tool_path}")
-
-    return command
 
 
 def run_tools_parallel(domain, tool_commands):
@@ -2419,16 +2379,66 @@ def run_tools_parallel(domain, tool_commands):
             write_to_log_file(domain, tool_type, f"Vaqt: {time.strftime('%Y-%m-%d %H:%M:%S')}")
             write_to_log_file(domain, tool_type, "=" * 50)
 
-            cmd_parts = command.split() if isinstance(command, str) else command
+            # Tool path'larini to'g'ri qo'shish
+            if tool_type == 'nmap':
+                # Nmap uchun to'g'ri path
+                nmap_path = os.path.join(os.getcwd(), 'tools', 'nmap', 'nmap.exe')
+                if os.path.exists(nmap_path):
+                    cmd_parts = [nmap_path] + command.split()[1:]
+                else:
+                    return tool_type, False, f"Nmap tool topilmadi: {nmap_path}"
+                    
+            elif tool_type == 'sqlmap':
+                # SQLMap uchun to'g'ri path
+                sqlmap_path = os.path.join(os.getcwd(), 'tools', 'sqlmap', 'sqlmap.py')
+                if os.path.exists(sqlmap_path):
+                    cmd_parts = ['python', sqlmap_path] + command.split()[1:]
+                else:
+                    return tool_type, False, f"SQLMap tool topilmadi: {sqlmap_path}"
+                    
+            elif tool_type == 'xsstrike':
+                # XSStrike uchun to'g'ri path
+                xsstrike_path = os.path.join(os.getcwd(), 'tools', 'XSStrike', 'xsstrike.py')
+                if os.path.exists(xsstrike_path):
+                    cmd_parts = ['python', xsstrike_path] + command.split()[1:]
+                else:
+                    return tool_type, False, f"XSStrike tool topilmadi: {xsstrike_path}"
+                    
+            elif tool_type == 'gobuster':
+                # Gobuster uchun wordlist fayl yo'lini to'g'irlash
+                base_cmd = command.split()
+                
+                # Gobuster executable path'ini tekshirish
+                gobuster_path = os.path.join(os.getcwd(), 'tools', 'gobuster', 'gobuster.exe')
+                if not os.path.exists(gobuster_path):
+                    return tool_type, False, f"Gobuster tool topilmadi: {gobuster_path}"
+                
+                # Wordlist fayl mavjudligini tekshirish
+                wordlist_path = os.path.join(os.getcwd(), 'tools', 'gobuster', 'common-files.txt')
+                if not os.path.exists(wordlist_path):
+                    return tool_type, False, f"Wordlist fayl topilmadi: {wordlist_path}"
+                
+                if '-w' in base_cmd:
+                    # -w parametri mavjud bo'lsa, wordlist fayl yo'lini to'g'irlash
+                    wordlist_index = base_cmd.index('-w') + 1
+                    if wordlist_index < len(base_cmd):
+                        base_cmd[wordlist_index] = wordlist_path
+                
+                cmd_parts = [gobuster_path] + base_cmd[1:]
+            else:
+                cmd_parts = command.split() if isinstance(command, str) else command
+            
+            print(f"Command parts: {cmd_parts}")
+            
             proc = subprocess.Popen(cmd_parts, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
-                                    cwd=r'C:\Users\user\Desktop\SiteScaner')
+                                    cwd=os.getcwd())
 
             # Process'ni global ro'yxatga qo'shish (lock bilan)
             with process_lock:
                 running_processes.append((proc, domain, tool_type))  # Domain va tool_type ni saqlash
 
             # Tool output'ini o'qish
-            stdout, stderr = proc.communicate()
+            stdout, stderr = proc.communicate(timeout=300)  # 5 daqiqa timeout
             return_code = proc.returncode
 
             # Process tugagandan so'ng ro'yxatdan o'chirish (lock bilan)
@@ -2446,10 +2456,19 @@ def run_tools_parallel(domain, tool_commands):
             write_to_log_file(domain, tool_type, f"{tool_type.upper()} tugallandi")
 
             if return_code == 0:
-                return tool_type, True, stdout if stdout else "Muvaffaqiyatli tugadi"
+                result = stdout if stdout else "Muvaffaqiyatli tugadi"
+                return tool_type, True, result
             else:
-                return tool_type, False, stderr if stderr else f"Xatolik (kod: {return_code})"
+                result = stderr if stderr else f"Xatolik (kod: {return_code})"
+                return tool_type, False, result
 
+        except subprocess.TimeoutExpired:
+            proc.terminate()
+            try:
+                proc.wait(timeout=5)
+            except:
+                proc.kill()
+            return tool_type, False, "Vaqt tugadi"
         except Exception as e:
             error_msg = f"Xatolik: {str(e)}"
             write_to_log_file(domain, tool_type, error_msg)
@@ -2458,18 +2477,22 @@ def run_tools_parallel(domain, tool_commands):
     # ThreadPoolExecutor bilan parallel ishga tushirish
     with ThreadPoolExecutor(max_workers=4) as executor:
         future_to_tool = {}
+        
         for tool_command in tool_commands:
-            for tool_type, _ in tool_command.items():
+            for tool_type, command in tool_command.items():
                 if stop_event.is_set():
                     continue
 
                 try:
-                    execution_command = get_execution_tool_command(tool_type, domain)
+                    # Asl tool buyruqini ishlatish (hardcoded emas)
+                    execution_command = command
+                    
                     future = executor.submit(run_single_tool, tool_type, execution_command)
                     future_to_tool[future] = tool_type
-                except (ValueError, FileNotFoundError) as e:
-                    write_to_log_file(domain, tool_type, f"Xatolik: {str(e)}")
-                    results[tool_type] = f"Xatolik: {str(e)}"
+                except Exception as e:
+                    error_msg = f"Xatolik: {str(e)}"
+                    write_to_log_file(domain, tool_type, error_msg)
+                    results[tool_type] = error_msg
 
         # Natijalarni olish
         for future in as_completed(future_to_tool):
@@ -2479,7 +2502,8 @@ def run_tools_parallel(domain, tool_commands):
                 tool_type, result, output = future.result()
                 results[tool_type] = output
             except Exception as e:
-                results[future_to_tool[future]] = f"Xatolik: {str(e)}"
+                error_msg = f"Xatolik: {str(e)}"
+                results[future_to_tool[future]] = error_msg
 
     return results
 
@@ -2505,7 +2529,7 @@ def stop_all():
             except Exception:
                 pass
 
-    # To'xtatilgan domain va tool'larni chiqarish
+    # To'xtatilgan domain va tool'larni chiqarish (print o'rniga log)
     if stopped_tools:
         print("To'xtatildi")
         print("=" * 24)
@@ -2668,3 +2692,62 @@ def reset_stop_flag_api(request):
             return JsonResponse({'error': f'Xatolik yuz berdi: {str(e)}'}, status=500)
     
     return JsonResponse({'error': 'Faqat POST so\'rov qabul qilinadi'}, status=405)
+
+def cleanup_running_processes():
+    """Mavjud ishlayotgan process'larni tozalash"""
+    global running_processes
+    with process_lock:
+        for proc, domain, tool_type in running_processes[:]:
+            try:
+                if proc.poll() is None:  # Process hali ishlayotgan bo'lsa
+                    proc.terminate()
+                    try:
+                        proc.wait(timeout=2)
+                    except subprocess.TimeoutExpired:
+                        proc.kill()
+            except Exception:
+                pass
+        running_processes.clear()
+
+def stop_tool(tool_type, domain=None):
+    """Muayyan tool'ni to'xtatish"""
+    global running_processes
+    stopped_count = 0
+    
+    with process_lock:
+        for proc, proc_domain, proc_tool_type in running_processes[:]:
+            if proc_tool_type == tool_type and (domain is None or proc_domain == domain):
+                try:
+                    if proc.poll() is None:
+                        proc.terminate()
+                        try:
+                            proc.wait(timeout=3)
+                        except subprocess.TimeoutExpired:
+                            proc.kill()
+                        stopped_count += 1
+                except Exception:
+                    pass
+                running_processes.remove((proc, proc_domain, proc_tool_type))
+    
+    return stopped_count > 0
+
+def stop_all_tools():
+    """Barcha tool'larni to'xtatish"""
+    global running_processes
+    stopped_count = 0
+    
+    with process_lock:
+        for proc, domain, tool_type in running_processes[:]:
+            try:
+                if proc.poll() is None:
+                    proc.terminate()
+                    try:
+                        proc.wait(timeout=3)
+                    except subprocess.TimeoutExpired:
+                        proc.kill()
+                    stopped_count += 1
+            except Exception:
+                pass
+        running_processes.clear()
+    
+    return stopped_count > 0
