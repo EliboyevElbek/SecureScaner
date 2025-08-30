@@ -17,7 +17,7 @@ class KeshDomainAdmin(admin.ModelAdmin):
         }),
         ('Tool buyruqlari', {
             'fields': ('tool_commands',),
-            'description': 'Tool va buyruqlar ro\'yxati. Namuna: [{"sqlmap": "sqlmap -u https://example.com --dbs"}, {"nmap": "nmap example.com -sS"}]'
+            'description': 'Tool va buyruqlar ro\'yxati. Namuna: [{"sqlmap": "python tools/sqlmap/sqlmap.py -u https://example.com --dbs"}, {"nmap": "tools/nmap/nmap.exe example.com -sS"}]'
         }),
         ('Vaqt ma\'lumotlari', {
             'fields': ('created_at', 'updated_at'),

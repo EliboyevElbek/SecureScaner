@@ -14,10 +14,10 @@ class Command(BaseCommand):
             if not domain.tool_commands:
                 # Create default tool commands for domains without them
                 default_tool_commands = [
-                    {"sqlmap": f"sqlmap -u https://{domain.domain_name}"},
-                    {"nmap": f"nmap {domain.domain_name}"},
-                    {"xsstrike": f"xsstrike -u https://{domain.domain_name}"},
-                    {"gobuster": f"gobuster dir -u https://{domain.domain_name} -w wordlist.txt"}
+                    {"sqlmap": f"python tools/sqlmap/sqlmap.py -u https://{domain.domain_name}"},
+                    {"nmap": f"tools/nmap/nmap.exe {domain.domain_name}"},
+                    {"xsstrike": f"python tools/XSStrike/xsstrike.py -u https://{domain.domain_name}"},
+                    {"gobuster": f"tools/gobuster/gobuster.exe dir -u https://{domain.domain_name} -w tools/gobuster/common-files.txt"}
                 ]
                 
                 domain.tool_commands = default_tool_commands

@@ -8,6 +8,7 @@ import requests
 import urllib3
 import subprocess
 import time
+import psutil
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from .models import DomainScan, Tool, KeshDomain, DomainToolConfiguration, ScanSession
@@ -706,10 +707,10 @@ def save_domains(request):
                     if created:
                         # Yangi yaratilgan domain uchun default tool buyruqlarini saqlash
                         default_tool_commands = [
-                            {"sqlmap": f"sqlmap -u https://{domain}"},
-                            {"nmap": f"nmap {domain}"},
-                            {"xsstrike": f"xsstrike -u https://{domain}"},
-                            {"gobuster": f"gobuster dir -u https://{domain} -w wordlist.txt"}
+                            {"sqlmap": f"python tools/sqlmap/sqlmap.py -u https://{domain}"},
+                            {"nmap": f"tools/nmap/nmap.exe {domain}"},
+                            {"xsstrike": f"python tools/XSStrike/xsstrike.py -u https://{domain}"},
+                            {"gobuster": f"tools/gobuster/gobuster.exe dir -u https://{domain} -w tools/gobuster/common-files.txt"}
                         ]
                         kesh_domain.tool_commands = default_tool_commands
                         kesh_domain.save()
@@ -1138,10 +1139,10 @@ def get_base_tool_command(tool_type, domain):
         domain = f"https://{domain}"
     
     base_commands = {
-        'nmap': f"nmap {domain.replace('https://', '').replace('http://', '')}",
-        'sqlmap': f"sqlmap -u {domain}",
-        'xsstrike': f"xsstrike -u {domain}",
-        'gobuster': f"gobuster dir -u {domain} -w wordlist.txt"
+        'nmap': f"tools/nmap/nmap.exe {domain.replace('https://', '').replace('http://', '')}",
+        'sqlmap': f"python tools/sqlmap/sqlmap.py -u {domain}",
+        'xsstrike': f"python tools/XSStrike/xsstrike.py -u {domain}",
+        'gobuster': f"tools/gobuster/gobuster.exe dir -u {domain} -w tools/gobuster/common-files.txt"
     }
     
     return base_commands.get(tool_type, f"{tool_type} {domain}")
@@ -2299,59 +2300,75 @@ def run_xsstrike_with_logging(domain, command):
         write_to_log_file(domain, 'xsstrike', f"❌ XSStrike xatolik: {str(e)}")
         return False
 
+from concurrent.futures import ThreadPoolExecutor, as_completed
+import subprocess, time, psutil
+
+# Global PID'larni saqlash
+running_tasks = {}
+
 def run_tools_parallel(domain, tool_commands):
     """Tool'larni parallel ishga tushirish"""
     results = {}
-    
+
     def run_single_tool(tool_type, command):
         """Bitta tool'ni ishga tushirish"""
         try:
             print(f"🚀 {tool_type.upper()} parallel ishga tushirilmoqda: {command}")
-            
-            # Log faylga boshlash xabarini yozish
             write_to_log_file(domain, tool_type, f"🚀 {tool_type.upper()} ishga tushirilmoqda: {command}")
             write_to_log_file(domain, tool_type, f"⏰ Vaqt: {time.strftime('%Y-%m-%d %H:%M:%S')}")
             write_to_log_file(domain, tool_type, "=" * 50)
-            
-            # Tool'ni ishga tushirish
-            if tool_type == 'nmap':
-                result = run_nmap_with_logging(domain, command)
-            elif tool_type == 'sqlmap':
-                result = run_sqlmap_with_logging(domain, command)
-            elif tool_type == 'gobuster':
-                result = run_gobuster_with_logging(domain, command)
-            elif tool_type == 'xsstrike':
-                result = run_xsstrike_with_logging(domain, command)
-            else:
-                write_to_log_file(domain, tool_type, f"❌ {tool_type} tool qo'llab-quvvatlanmaydi")
-                return tool_type, False
-            
-            # Yakunlash xabarini yozish
+
+            # subprocess orqali ishga tushirish
+            proc = subprocess.Popen(command, shell=True)
+            running_tasks[tool_type] = proc.pid   # PID saqlash
+
+            proc.wait()  # tugashini kutish
+            result = True
+
+            # Yakunlash xabari
             write_to_log_file(domain, tool_type, "=" * 50)
             write_to_log_file(domain, tool_type, f"✅ {tool_type.upper()} tugallandi")
-            
             return tool_type, result
-            
+
         except Exception as e:
             write_to_log_file(domain, tool_type, f"❌ Xatolik: {str(e)}")
             return tool_type, False
-    
-    # Tool'larni parallel ishga tushirish
+
     with ThreadPoolExecutor(max_workers=4) as executor:
-        # Har bir tool uchun future yaratish
         future_to_tool = {}
         for tool_command in tool_commands:
             for tool_type, command in tool_command.items():
                 future = executor.submit(run_single_tool, tool_type, command)
                 future_to_tool[future] = tool_type
-        
-        # Natijalarni kutish
+
         for future in as_completed(future_to_tool):
             tool_type, result = future.result()
             results[tool_type] = {'status': 'completed' if result else 'failed'}
             print(f"✅ {tool_type} parallel tugallandi: {result}")
-    
+
     return results
+
+def stop_tool(tool_type):
+    """Muayyan tool'ni to'xtatish"""
+    pid = running_tasks.get(tool_type)
+    if not pid:
+        return False
+
+    try:
+        proc = psutil.Process(pid)
+        proc.terminate()   # yumshoq to'xtatish
+        proc.wait(timeout=3)
+    except Exception:
+        proc.kill()        # majburiy to'xtatish
+    finally:
+        running_tasks.pop(tool_type, None)
+    return True
+
+def stop_all_tools():
+    """Hamma tool'larni to'xtatish"""
+    for tool_type in list(running_tasks.keys()):
+        stop_tool(tool_type)
+
 
 def cleanup_log_files(domain):
     """Domain uchun barcha log fayllarni o'chirish"""
@@ -2377,5 +2394,55 @@ def cleanup_log_files(domain):
     except Exception as e:
         print(f"❌ Log fayllarni o'chirishda xatolik {domain}: {e}")
         return False
+
+@csrf_exempt
+def stop_tool_api(request):
+    """Muayyan tool'ni to'xtatish uchun API endpoint"""
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            tool_type = data.get('tool_type', '').strip()
+            
+            if not tool_type:
+                return JsonResponse({'error': 'Tool turi kiritilmagan'}, status=400)
+            
+            # Tool'ni to'xtatish
+            success = stop_tool(tool_type)
+            
+            if success:
+                return JsonResponse({
+                    'success': True,
+                    'message': f'{tool_type} tool muvaffaqiyatli to\'xtatildi!'
+                })
+            else:
+                return JsonResponse({
+                    'success': False,
+                    'error': f'{tool_type} tool topilmadi yoki allaqachon to\'xtatilgan'
+                })
+                
+        except json.JSONDecodeError:
+            return JsonResponse({'error': 'Noto\'g\'ri JSON format'}, status=400)
+        except Exception as e:
+            return JsonResponse({'error': f'Xatolik yuz berdi: {str(e)}'}, status=500)
+    
+    return JsonResponse({'error': 'Faqat POST so\'rov qabul qilinadi'}, status=405)
+
+@csrf_exempt
+def stop_all_tools_api(request):
+    """Barcha tool'larni to'xtatish uchun API endpoint"""
+    if request.method == 'POST':
+        try:
+            # Barcha tool'larni to'xtatish
+            stop_all_tools()
+            
+            return JsonResponse({
+                'success': True,
+                'message': 'Barcha tool\'lar muvaffaqiyatli to\'xtatildi!'
+            })
+                
+        except Exception as e:
+            return JsonResponse({'error': f'Xatolik yuz berdi: {str(e)}'}, status=500)
+    
+    return JsonResponse({'error': 'Faqat POST so\'rov qabul qilinadi'}, status=405)
 
 

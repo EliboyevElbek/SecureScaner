@@ -1308,6 +1308,27 @@ function confirmStopScan() {
     // Close modal
     closeStopModal();
     
+    // Call backend API to stop all tools
+    fetch('/scaner/stop-all-tools/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCSRFToken()
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showNotification('Barcha tool\'lar to\'xtatildi', 'success');
+        } else {
+            showNotification('Tool\'larni to\'xtatishda xatolik: ' + (data.error || 'Noma\'lum xatolik'), 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Stop tools error:', error);
+        showNotification('Tool\'larni to\'xtatishda xatolik yuz berdi', 'error');
+    });
+    
     // Reset button to original state
     const scanButton = document.getElementById('scanButton');
     if (scanButton) {
@@ -1324,16 +1345,103 @@ function confirmStopScan() {
         });
     
     // Hide progress buttons for all domains
-    document.querySelectorAll('.progress-btn').forEach(btn => {
-        btn.style.display = 'none';
-    });
+        document.querySelectorAll('.progress-btn').forEach(btn => {
+            btn.style.display = 'none';
+        });
     
     // Show edit and delete buttons for all domains
-    document.querySelectorAll('.edit-btn, .delete-btn').forEach(btn => {
-        btn.style.display = 'inline-block';
-    });
+        document.querySelectorAll('.edit-btn, .delete-btn').forEach(btn => {
+            btn.style.display = 'inline-block';
+        });
     
     showNotification('Tahlil to\'xtatildi', 'warning');
+}
+
+function stopTool(toolType, domain) {
+    console.log(`Stopping ${toolType} for domain: ${domain}`);
+    
+    // Call backend API to stop specific tool
+    fetch('/scaner/stop-tool/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCSRFToken()
+        },
+        body: JSON.stringify({
+            tool_type: toolType
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showNotification(`${toolType} tool to\'xtatildi`, 'success');
+            
+            // Update UI to show tool is stopped
+            const toolElement = document.querySelector(`[data-tool="${toolType}"][data-domain="${domain}"]`);
+            if (toolElement) {
+                toolElement.classList.remove('running');
+                toolElement.classList.add('stopped');
+                const statusElement = toolElement.querySelector('.tool-status');
+                if (statusElement) {
+                    statusElement.textContent = 'To\'xtatildi';
+                    statusElement.className = 'tool-status stopped';
+                }
+            }
+        } else {
+            showNotification(`${toolType} tool\'ni to\'xtatishda xatolik: ` + (data.error || 'Noma\'lum xatolik'), 'error');
+        }
+    })
+    .catch(error => {
+        console.error(`Stop ${toolType} tool error:`, error);
+        showNotification(`${toolType} tool\'ni to\'xtatishda xatolik yuz berdi`, 'error');
+    });
+}
+
+function stopIndividualTool(toolName, domain) {
+    console.log(`Stopping individual tool: ${toolName} for domain: ${domain}`);
+    
+    // Call backend API to stop specific tool
+    fetch('/scaner/stop-tool/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCSRFToken()
+        },
+        body: JSON.stringify({
+            tool_type: toolName
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showNotification(`${toolName} tool to\'xtatildi`, 'success');
+            
+            // Update UI to show tool is stopped
+            const stopBtn = document.getElementById('stopToolBtn');
+            if (stopBtn) {
+                stopBtn.textContent = '✅ To\'xtatildi';
+                stopBtn.disabled = true;
+                stopBtn.classList.remove('btn-danger');
+                stopBtn.classList.add('btn-success');
+            }
+            
+            // Close the streaming connection
+            if (window.currentEventSource) {
+                window.currentEventSource.close();
+                window.currentEventSource = null;
+            }
+            
+            // Update status
+            updateToolStatus('stopped', 'To\'xtatildi');
+            
+        } else {
+            showNotification(`${toolName} tool\'ni to\'xtatishda xatolik: ` + (data.error || 'Noma\'lum xatolik'), 'error');
+        }
+    })
+    .catch(error => {
+        console.error(`Stop ${toolName} tool error:`, error);
+        showNotification(`${toolName} tool\'ni to\'xtatishda xatolik yuz berdi`, 'error');
+    });
 }
 
 function resetScanButton(scanButton, originalText) {
@@ -1606,6 +1714,12 @@ function createToolResultsSection(toolName) {
         <div class="log-modal-content">
             <button class="log-modal-close" onclick="closeLogModal()">&times;</button>
             <div class="log-modal-body">
+                <div class="log-modal-header">
+                    <h3>${toolName} natijalari - ${domain}</h3>
+                    <button class="btn btn-danger btn-small" onclick="stopIndividualTool('${toolName}', '${domain}')" id="stopToolBtn">
+                        ⏹️ To'xtatish
+                    </button>
+                </div>
                 <div class="log-iframe-container">
                     <iframe class="log-iframe" id="toolOutputLog"></iframe>
                 </div>
