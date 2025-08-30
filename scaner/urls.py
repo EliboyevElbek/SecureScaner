@@ -22,6 +22,10 @@ urlpatterns = [
     # Stop tool API endpoints
     path('scaner/stop-tool/', views.stop_tool_api, name='stop_tool_api'),
     path('scaner/stop-all-tools/', views.stop_all_tools_api, name='stop_all_tools_api'),
+    
+    # Global stop flag API endpoints
+    path('scaner/stop-all/', views.stop_all_api, name='stop_all_api'),
+    path('scaner/reset-stop-flag/', views.reset_stop_flag_api, name='reset_stop_flag_api'),
 
     path('api/scan-details/<int:scan_id>/', views.scan_details_api, name='scan_details'),
     path('tools/', views.tools, name='tools'),

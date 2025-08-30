@@ -1173,12 +1173,16 @@ function startScan() {
     
     // Show loading state with professional animation
     const scanButton = document.getElementById('scanButton');
+    const stopButton = document.getElementById('stopButton');
     const originalText = scanButton.textContent;
-    scanButton.textContent = '⏸️ Tahlilni to\'xtatish';
-    scanButton.disabled = false;
-    scanButton.classList.remove('btn-success', 'loading');
-    scanButton.classList.add('btn-danger');
-    scanButton.onclick = stopScan; // Tugma funksiyasini o'zgartirish
+    
+    // Scan button'ni yashirish va stop button'ni ko'rsatish
+    scanButton.style.display = 'none';
+    if (stopButton) {
+        stopButton.style.display = 'inline-block';
+        stopButton.disabled = false;
+        stopButton.textContent = 'Tahlilni to\'xtatish';
+    }
     
     // Add loading animation to all domain items
     document.querySelectorAll('.domain-item').forEach(item => {
@@ -1308,8 +1312,8 @@ function confirmStopScan() {
     // Close modal
     closeStopModal();
     
-    // Call backend API to stop all tools
-    fetch('/scaner/stop-all-tools/', {
+    // Call backend API to stop all tools using global stop flag
+    fetch('/scaner/stop-all/', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -1319,24 +1323,30 @@ function confirmStopScan() {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            showNotification('Barcha tool\'lar to\'xtatildi', 'success');
+            showNotification('✅ Barcha scan\'lar muvaffaqiyatli to\'xtatildi!', 'success');
         } else {
-            showNotification('Tool\'larni to\'xtatishda xatolik: ' + (data.error || 'Noma\'lum xatolik'), 'error');
+            showNotification('❌ Scan\'larni to\'xtatishda xatolik: ' + (data.error || 'Noma\'lum xatolik'), 'error');
         }
     })
     .catch(error => {
-        console.error('Stop tools error:', error);
-        showNotification('Tool\'larni to\'xtatishda xatolik yuz berdi', 'error');
+        console.error('Stop scan error:', error);
+        showNotification('❌ Scan\'larni to\'xtatishda xatolik yuz berdi', 'error');
     });
     
-    // Reset button to original state
+    // Reset buttons to original state
     const scanButton = document.getElementById('scanButton');
+    const stopButton = document.getElementById('stopButton');
+    
     if (scanButton) {
+        scanButton.style.display = 'inline-block';
         scanButton.textContent = 'Tahlilni boshlash';
         scanButton.classList.remove('btn-danger');
         scanButton.classList.add('btn-success');
         scanButton.onclick = startScan;
-        scanButton.id = ''; // ID ni tozalaymiz
+    }
+    
+    if (stopButton) {
+        stopButton.style.display = 'none';
     }
     
     // Remove scanning state from domain items
@@ -1447,11 +1457,17 @@ function stopIndividualTool(toolName, domain) {
 
 function resetScanButton(scanButton, originalText) {
     scanButton.textContent = originalText;
+    scanButton.style.display = 'inline-block';
     scanButton.disabled = false;
     scanButton.classList.remove('btn-danger', 'loading');
     scanButton.classList.add('btn-success');
     scanButton.onclick = startScan;
-    scanButton.id = ''; // ID ni tozalaymiz
+    
+    // Stop button'ni yashirish
+    const stopButton = document.getElementById('stopButton');
+    if (stopButton) {
+        stopButton.style.display = 'none';
+    }
     
     // Hide progress buttons for all domains
     document.querySelectorAll('.progress-btn').forEach(btn => {
@@ -3155,6 +3171,66 @@ function startToolStreamingRealtime(domain, toolName) {
         console.error('toolOutputLog elementi topilmadi!');
         console.log('Mavjud elementlar:', document.querySelectorAll('iframe'));
     }
+}
+
+// Global stop flag orqali barcha scan'larni to'xtatish
+function stopAllTools() {
+    console.log('🛑 Barcha scan\'lar to\'xtatilmoqda...');
+    
+    // Stop button'ni o'chirish
+    const stopButton = document.getElementById('stopButton');
+    if (stopButton) {
+        stopButton.disabled = true;
+        stopButton.textContent = 'To\'xtatilmoqda...';
+    }
+    
+    // Backend'ga so'rov yuborish
+    fetch('/scaner/stop-all/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCSRFToken()
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showNotification('✅ Barcha scan\'lar muvaffaqiyatli to\'xtatildi!', 'success');
+            
+            // Stop button'ni yashirish
+            if (stopButton) {
+                stopButton.style.display = 'none';
+            }
+            
+            // Scan button'ni qayta ko'rsatish
+            const scanButton = document.getElementById('scanButton');
+            if (scanButton) {
+                scanButton.style.display = 'inline-block';
+            }
+            
+            // Barcha tool streaming'ni to'xtatish
+            cleanupToolStreaming();
+            
+        } else {
+            showNotification(`❌ Xatolik: ${data.error}`, 'error');
+            
+            // Stop button'ni qayta faollashtirish
+            if (stopButton) {
+                stopButton.disabled = false;
+                stopButton.textContent = 'Tahlilni to\'xtatish';
+            }
+        }
+    })
+    .catch(error => {
+        console.error('Stop all tools da xatolik:', error);
+        showNotification('❌ Server bilan bog\'lanishda xatolik', 'error');
+        
+        // Stop button'ni qayta faollashtirish
+        if (stopButton) {
+            stopButton.disabled = false;
+            stopButton.textContent = 'Tahlilni to\'xtatish';
+        }
+    });
 }
 
  

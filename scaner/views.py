@@ -9,12 +9,16 @@ import urllib3
 import subprocess
 import time
 import psutil
+import threading
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from .models import DomainScan, Tool, KeshDomain, DomainToolConfiguration, ScanSession
 
 # SSL warnings ni o'chirish
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
+# Global stop flag - barcha scan'larni to'xtatish uchun
+global_stop_flag = threading.Event()
 
 # Create your views here.
 
@@ -349,6 +353,9 @@ def is_valid_domain(domain):
 
 def perform_domain_scan(domain):
     """Domen tahlilini amalga oshirish"""
+    # Yangi scan uchun stop flag'ni tozalash
+    reset_stop_flag()
+    
     scan = None
     try:
         # Yangi scan yaratish
@@ -378,7 +385,13 @@ def perform_domain_scan(domain):
         security_headers = get_security_headers(domain)
         
         # Tool scanning natijalarini olish (KeshDomain bazasidagi buyruqlar bilan)
-        tool_results, raw_tool_output = perform_tool_scans(domain)
+        # Stop flag tekshirish - tool scanning jarayonida
+        if global_stop_flag.is_set():
+            print(f"⏹️ {domain} uchun tool scanning to'xtatildi - global stop flag yoqildi")
+            tool_results = {"error": "To'xtatildi - global stop flag yoqildi"}
+            raw_tool_output = {}
+        else:
+            tool_results, raw_tool_output = perform_tool_scans(domain)
         
         # Natijalarni saqlash
         scan.scan_result = {
@@ -435,6 +448,11 @@ def perform_domain_scan(domain):
 
 def perform_tool_scans(domain):
     """Domain uchun tool scanning natijalarini olish (KeshDomain bazasidagi buyruqlar bilan)"""
+    # Stop flag tekshirish - tool scanning boshlanishida
+    if global_stop_flag.is_set():
+        print(f"⏹️ {domain} uchun tool scanning boshlanmadi - global stop flag yoqildi")
+        return {"error": "To'xtatildi - global stop flag yoqildi"}, {}
+    
     tool_results = {}
     raw_tool_output = {}  # Raw output'ni ham saqlash
     
@@ -2336,11 +2354,11 @@ def run_xsstrike_with_logging(domain, command):
         write_to_log_file(domain, 'xsstrike', f"❌ XSStrike xatolik: {str(e)}")
         return False
 
-from concurrent.futures import ThreadPoolExecutor, as_completed
-import subprocess, time, psutil
-
 # Global PID'larni saqlash
 running_tasks = {}
+
+# Global ThreadPoolExecutor'ni saqlash
+current_executor = None
 
 def run_tools_parallel(domain, tool_commands):
     """Tool'larni parallel ishga tushirish"""
@@ -2349,6 +2367,12 @@ def run_tools_parallel(domain, tool_commands):
     def run_single_tool(tool_type, command):
         """Bitta tool'ni ishga tushirish"""
         try:
+            # Stop flag tekshirish
+            if global_stop_flag.is_set():
+                print(f"⏹️ {tool_type.upper()} to'xtatildi - global stop flag yoqildi")
+                write_to_log_file(domain, tool_type, f"⏹️ {tool_type.upper()} to'xtatildi - global stop flag yoqildi")
+                return tool_type, False, "To'xtatildi - global stop flag yoqildi"
+            
             print(f"🚀 {tool_type.upper()} parallel ishga tushirilmoqda: {command}")
             write_to_log_file(domain, tool_type, f"🚀 {tool_type.upper()} ishga tushirilmoqda: {command}")
             write_to_log_file(domain, tool_type, f"⏰ Vaqt: {time.strftime('%Y-%m-%d %H:%M:%S')}")
@@ -2391,8 +2415,48 @@ def run_tools_parallel(domain, tool_commands):
             running_tasks[task_key] = proc.pid
             print(f"🔄 {task_key} ishga tushirildi, PID: {proc.pid}")
 
-            # Tool output'ini o'qish
-            stdout, stderr = proc.communicate()
+            # Tool output'ini real-time o'qish va stop flag tekshirish
+            stdout_lines = []
+            stderr_lines = []
+            
+            # Real-time output o'qish
+            while True:
+                # Stop flag tekshirish
+                if global_stop_flag.is_set():
+                    print(f"⏹️ {tool_type.upper()} to'xtatilmoqda - global stop flag yoqildi")
+                    write_to_log_file(domain, tool_type, f"⏹️ {tool_type.upper()} to'xtatilmoqda - global stop flag yoqildi")
+                    proc.terminate()
+                    proc.wait(timeout=3)
+                    
+                    # running_tasks dan o'chirish
+                    task_key = f"{tool_type}_{domain}"
+                    running_tasks.pop(task_key, None)
+                    
+                    return tool_type, False, "To'xtatildi - global stop flag yoqildi"
+                
+                # Output o'qish
+                output_line = proc.stdout.readline()
+                if output_line:
+                    stdout_lines.append(output_line.strip())
+                    write_to_log_file(domain, tool_type, output_line.strip())
+                
+                # Process tugashini tekshirish
+                if proc.poll() is not None:
+                    break
+                
+                # Kichik kutish
+                time.sleep(0.1)
+            
+            # Qolgan output'ni o'qish
+            remaining_stdout, remaining_stderr = proc.communicate()
+            if remaining_stdout:
+                stdout_lines.extend(remaining_stdout.strip().split('\n'))
+                write_to_log_file(domain, tool_type, remaining_stdout)
+            if remaining_stderr:
+                stderr_lines.extend(remaining_stderr.strip().split('\n'))
+                write_to_log_file(domain, tool_type, f"STDERR: {remaining_stderr}")
+            
+            stdout = '\n'.join(stdout_lines)
             return_code = proc.returncode
             
             # Log faylga yozish
@@ -2420,25 +2484,107 @@ def run_tools_parallel(domain, tool_commands):
             write_to_log_file(domain, tool_type, error_msg)
             return tool_type, False, error_msg
 
-    with ThreadPoolExecutor(max_workers=4) as executor:
-        future_to_tool = {}
-        for tool_command in tool_commands:
-            for tool_type, command in tool_command.items():
-                # Foydalanuvchi buyruqini bajarish buyruqiga o'tkazish
-                execution_command = get_execution_tool_command(tool_type, domain)
-                print(f"🔄 {tool_type} buyruq o'zgartirildi:")
-                print(f"   Foydalanuvchi: {command}")
-                print(f"   Bajarish: {execution_command}")
-                
-                future = executor.submit(run_single_tool, tool_type, execution_command)
-                future_to_tool[future] = tool_type
+    global current_executor
+    
+    # Stop flag tekshirish - executor yaratishdan oldin
+    if global_stop_flag.is_set():
+        print("⏹️ Executor yaratilmadi - global stop flag yoqildi")
+        return {"error": "To'xtatildi - global stop flag yoqildi"}
+    
+    current_executor = ThreadPoolExecutor(max_workers=4)
+    
+    executor = current_executor
+    future_to_tool = {}
+    for tool_command in tool_commands:
+        for tool_type, command in tool_command.items():
+            # Stop flag tekshirish - yangi tool'lar ishga tushirilmasligi uchun
+            if global_stop_flag.is_set():
+                print(f"⏹️ {tool_type} ishga tushirilmadi - global stop flag yoqildi")
+                results[tool_type] = "To'xtatildi - global stop flag yoqildi"
+                continue
+            
+            # Foydalanuvchi buyruqini bajarish buyruqiga o'tkazish
+            execution_command = get_execution_tool_command(tool_type, domain)
+            print(f"🔄 {tool_type} buyruq o'zgartirildi:")
+            print(f"   Foydalanuvchi: {command}")
+            print(f"   Bajarish: {execution_command}")
+            
+            future = executor.submit(run_single_tool, tool_type, execution_command)
+            future_to_tool[future] = tool_type
 
+        # Natijalarni olish va stop flag tekshirish
         for future in as_completed(future_to_tool):
-            tool_type, result, output = future.result()
-            results[tool_type] = output  # Faqat output'ni saqlash, status emas
-            print(f"✅ {tool_type} parallel tugallandi: {result}")
+            # Stop flag tekshirish - natijalarni olish jarayonida ham
+            if global_stop_flag.is_set():
+                print("⏹️ Global stop flag yoqildi - natijalar olinmaydi")
+                # Barcha future'larni cancel qilish
+                for f in future_to_tool:
+                    f.cancel()
+                break
+            
+            try:
+                tool_type, result, output = future.result()
+                results[tool_type] = output  # Faqat output'ni saqlash, status emas
+                print(f"✅ {tool_type} parallel tugallandi: {result}")
+            except Exception as e:
+                print(f"❌ {tool_type} natijasini olishda xatolik: {e}")
+                results[tool_type] = f"Xatolik: {str(e)}"
 
     return results
+
+def stop_all():
+    """Barcha scan'larni to'xtatish - global stop flag orqali"""
+    global global_stop_flag, current_executor
+    global_stop_flag.set()
+    print("🛑 Global stop flag yoqildi - barcha scan'lar to'xtatilmoqda...")
+    
+    # ThreadPoolExecutor'ni to'xtatish
+    if current_executor:
+        try:
+            print("🛑 ThreadPoolExecutor to'xtatilmoqda...")
+            # wait=False → threadlar tugashini kutmaymiz, darhol qaytamiz
+            # cancel_futures=True → navbatda turgan boshlanmagan vazifalarni bekor qiladi
+            current_executor.shutdown(wait=False, cancel_futures=True)
+            print("✅ ThreadPoolExecutor to'xtatildi")
+        except Exception as e:
+            print(f"⚠️ ThreadPoolExecutor to'xtatishda xatolik: {e}")
+    
+    # Barcha running task'larni to'xtatish
+    for task_key, pid in list(running_tasks.items()):
+        try:
+            proc = psutil.Process(pid)
+            proc.terminate()
+            print(f"🛑 {task_key} to'xtatildi (PID: {pid})")
+        except Exception as e:
+            print(f"⚠️ {task_key} to'xtatishda xatolik: {e}")
+    
+    # running_tasks ni tozalash
+    running_tasks.clear()
+    print("✅ Barcha scan'lar to'xtatildi, yangi domenlar ham ishga tushmaydi")
+    return True
+
+def reset_stop_flag():
+    """Global stop flag'ni qaytadan tozalash - yangi scan uchun"""
+    global global_stop_flag, current_executor
+    global_stop_flag.clear()
+    
+    # Executor'ni to'liq tozalash - yangi scan uchun
+    if current_executor:
+        try:
+            # Executor allaqachon shutdown bo'lgan bo'lsa, uni tozalash
+            if current_executor._shutdown:
+                current_executor = None
+                print("🔄 ThreadPoolExecutor tozalandi (shutdown bo'lgan)")
+            else:
+                # Executor hali ishlayotgan bo'lsa, uni to'xtatish
+                current_executor.shutdown(wait=False, cancel_futures=True)
+                current_executor = None
+                print("🔄 ThreadPoolExecutor to'xtatildi va tozalandi")
+        except Exception as e:
+            print(f"⚠️ Executor tozalashda xatolik: {e}")
+            current_executor = None
+    
+    print("🔄 Global stop flag tozalandi - yangi scan'lar mumkin")
 
 def stop_tool(tool_type, domain=None):
     """Muayyan tool'ni to'xtatish"""
@@ -2601,3 +2747,47 @@ def stop_all_tools_api(request):
     return JsonResponse({'error': 'Faqat POST so\'rov qabul qilinadi'}, status=405)
 
 
+@csrf_exempt
+def stop_all_api(request):
+    """Barcha scan'larni to'xtatish uchun API endpoint - global stop flag orqali"""
+    if request.method == 'POST':
+        try:
+            # Global stop flag orqali barcha scan'larni to'xtatish
+            success = stop_all()
+            
+            if success:
+                return JsonResponse({
+                    'success': True,
+                    'message': 'Barcha scan\'lar muvaffaqiyatli to\'xtatildi!'
+                })
+            else:
+                return JsonResponse({
+                    'success': False,
+                    'error': 'Scan\'larni to\'xtatishda muammo yuz berdi'
+                })
+                
+        except Exception as e:
+            print(f"stop_all_api da xatolik: {e}")
+            return JsonResponse({'error': f'Xatolik yuz berdi: {str(e)}'}, status=500)
+    
+    return JsonResponse({'error': 'Faqat POST so\'rov qabul qilinadi'}, status=405)
+
+
+@csrf_exempt
+def reset_stop_flag_api(request):
+    """Global stop flag'ni qaytadan tozalash uchun API endpoint"""
+    if request.method == 'POST':
+        try:
+            # Global stop flag'ni tozalash
+            reset_stop_flag()
+            
+            return JsonResponse({
+                'success': True,
+                'message': 'Global stop flag tozalandi - yangi scan\'lar mumkin!'
+            })
+                
+        except Exception as e:
+            print(f"reset_stop_flag_api da xatolik: {e}")
+            return JsonResponse({'error': f'Xatolik yuz berdi: {str(e)}'}, status=500)
+    
+    return JsonResponse({'error': 'Faqat POST so\'rov qabul qilinadi'}, status=405)

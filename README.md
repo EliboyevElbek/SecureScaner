@@ -93,11 +93,128 @@ TOOLS_DATA = {
 #### 4. **File Type**
 ```python
 {
-    'key': '-w',
+    'key': '-u',
     'type': 'file',
     'placeholder': 'Masalan: /usr/share/wordlists/dirb/common.txt'
 }
 ```
+
+## 🛑 **Global Stop Flag Tizimi**
+
+### 🎯 **Asosiy Maqsad**
+Global stop flag tizimi barcha parallel ishlayotgan scan'larni bir vaqtda to'xtatish imkonini beradi. Bu xususiyat foydalanuvchiga scan jarayonini to'liq nazorat qilish imkonini beradi.
+
+### 🔧 **Texnik Tuzilma**
+
+#### 1. **Global Flag**
+```python
+import threading
+
+# Global stop flag - barcha scan'larni to'xtatish uchun
+global_stop_flag = threading.Event()
+```
+
+#### 2. **Worker Funksiyasida Tekshirish**
+```python
+def run_single_tool(tool_type, command):
+    # Stop flag tekshirish
+    if global_stop_flag.is_set():
+        print(f"⏹️ {tool_type.upper()} to'xtatildi - global stop flag yoqildi")
+        return tool_type, False, "To'xtatildi - global stop flag yoqildi"
+    
+    # ... tool'ni bajarish kodi ...
+```
+
+#### 3. **Real-time Output va Stop Flag**
+```python
+# Real-time output o'qish va stop flag tekshirish
+while True:
+    # Stop flag tekshirish
+    if global_stop_flag.is_set():
+        proc.terminate()
+        return tool_type, False, "To'xtatildi - global stop flag yoqildi"
+    
+    # Output o'qish
+    output_line = proc.stdout.readline()
+    # ... boshqa kod ...
+```
+
+#### 4. **To'xtatish Funksiyasi**
+```python
+def stop_all():
+    """Barcha scan'larni to'xtatish - global stop flag orqali"""
+    global global_stop_flag
+    global_stop_flag.set()
+    
+    # Barcha running task'larni to'xtatish
+    for task_key, pid in list(running_tasks.items()):
+        try:
+            proc = psutil.Process(pid)
+            proc.terminate()
+        except Exception as e:
+            print(f"⚠️ {task_key} to'xtatishda xatolik: {e}")
+    
+    return True
+```
+
+#### 5. **Flag'ni Qaytadan Tozalash**
+```python
+def reset_stop_flag():
+    """Global stop flag'ni qaytadan tozalash - yangi scan uchun"""
+    global global_stop_flag
+    global_stop_flag.clear()
+```
+
+### 🌐 **Frontend Integratsiyasi**
+
+#### 1. **Stop Button**
+```html
+<button class="btn btn-medium-large btn-danger" id="stopButton" onclick="stopAllTools()" style="display: none;">
+    Tahlilni to'xtatish
+</button>
+```
+
+#### 2. **JavaScript Funksiyasi**
+```javascript
+function stopAllTools() {
+    // Backend'ga so'rov yuborish
+    fetch('/scaner/stop-all/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCSRFToken()
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showNotification('✅ Barcha scan\'lar muvaffaqiyatli to\'xtatildi!', 'success');
+        }
+    });
+}
+```
+
+### 📡 **API Endpoint'lar**
+
+#### 1. **Stop All Scans**
+```
+POST /scaner/stop-all/
+```
+Barcha scan'larni to'xtatish uchun global stop flag'ni yoqadi.
+
+#### 2. **Reset Stop Flag**
+```
+POST /scaner/reset-stop-flag/
+```
+Global stop flag'ni qaytadan tozalaydi - yangi scan'lar uchun.
+
+### ✅ **Afzalliklari**
+
+1. **Tezkor To'xtatish** - Barcha parallel ishlayotgan tool'lar darhol to'xtaydi
+2. **Xavfsizlik** - Process'lar to'g'ri tarzda to'xtatiladi va resurslar tozalanadi
+3. **Real-time Monitoring** - Har bir tool output'ida stop flag tekshiriladi
+4. **Avtomatik Reset** - Yangi scan boshlanishida flag avtomatik tozalanadi
+5. **Frontend Integratsiya** - Foydalanuvchi interfeysi orqali oson boshqarish
 
 ### 📊 **Funksiyalar**
 
