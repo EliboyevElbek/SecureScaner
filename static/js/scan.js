@@ -1416,8 +1416,8 @@ function stopIndividualTool(toolName, domain) {
         if (data.success) {
             showNotification(`${toolName} tool to\'xtatildi`, 'success');
             
-            // Update UI to show tool is stopped
-            const stopBtn = document.getElementById('stopToolBtn');
+            // Update UI to show tool is stopped - use unique ID for each tool
+            const stopBtn = document.getElementById(`stopToolBtn_${toolName}_${domain.replace(/[^a-zA-Z0-9]/g, '_')}`);
             if (stopBtn) {
                 stopBtn.textContent = '✅ To\'xtatildi';
                 stopBtn.disabled = true;
@@ -1716,7 +1716,7 @@ function createToolResultsSection(toolName, domain) {
             <div class="log-modal-body">
                 <div class="log-modal-header">
                     <h3>${toolName} natijalari - ${domain}</h3>
-                    <button class="btn btn-danger btn-small" onclick="stopIndividualTool('${toolName}', '${domain}')" id="stopToolBtn">
+                    <button class="btn btn-danger btn-small" onclick="stopIndividualTool('${toolName}', '${domain}')" id="stopToolBtn_${toolName}_${domain.replace(/[^a-zA-Z0-9]/g, '_')}">
                         ⏹️ To'xtatish
                     </button>
                 </div>
