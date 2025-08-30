@@ -97,18 +97,16 @@ def scan(request):
                 # 1. ScanSession bazasini tozalash (avvalgi yangi tahlillarni "Barcha tahlillar"ga o'tkazish uchun)
                 try:
                     ScanSession.objects.all().delete()
-                    print("ScanSession bazasi tozalandi - avvalgi yangi tahlillar 'Barcha tahlillar'ga o'tdi")
                 except Exception as e:
-                    print(f"ScanSession tozalashda xatolik: {e}")
+                    pass
                 
                 # 2. Yangi ScanSession yaratish va domainlarni saqlash
                 try:
                     new_session = ScanSession.objects.create(
                         domains=domains
                     )
-                    print(f"Yangi ScanSession yaratildi: {new_session.id} - {len(domains)} ta domain")
                 except Exception as e:
-                    print(f"ScanSession yaratishda xatolik: {e}")
+                    pass
                 
                 # 3. Har bir domen uchun tahlil qilish
                 scan_results = []
@@ -136,25 +134,19 @@ def scan(request):
                     from .models import KeshDomain
                     deleted_count = KeshDomain.objects.count()
                     KeshDomain.objects.all().delete()
-                    print(f"Tahlil tugagandan so'ng {deleted_count} ta domain KeshDomain bazasidan o'chirildi")
                     
                     # DomainScan bazasiga saqlangan domainlarni ko'rsatish
                     completed_domains = [r['domain'] for r in scan_results if r['status'] == 'completed']
-                    print(f"DomainScan bazasiga saqlangan domainlar: {completed_domains}")
                     
                     # Bazadagi ma'lumotlarni tekshirish
                     for domain in completed_domains:
                         try:
                             domain_scan = DomainScan.objects.filter(domain_name=domain, status='completed').first()
-                            if domain_scan:
-                                print(f"✅ {domain} - DomainScan bazasida mavjud (ID: {domain_scan.id})")
-                            else:
-                                print(f"❌ {domain} - DomainScan bazasida topilmadi!")
                         except Exception as e:
-                            print(f"❌ {domain} - Bazada tekshirishda xatolik: {e}")
+                            pass
                     
                 except Exception as e:
-                    print(f"KeshDomain o'chirishda xatolik: {e}")
+                    pass
                 
                 return JsonResponse({
                     'success': True,
@@ -185,46 +177,35 @@ def scan(request):
 def scan_history(request):
     """Scan history sahifasi - yangi va eski tahlillarni ko'rsatish"""
     try:
-        print("=== Scan History Debug ===")
-        
         # 1. Barcha completed tahlillarni olish
         all_scans = DomainScan.objects.filter(status='completed').order_by('-scan_date')
-        print(f"Barcha completed tahlillar: {all_scans.count()} ta")
         
         if all_scans.exists():
             # 2. Eng so'nggi ScanSession ni olish
             latest_session = ScanSession.objects.order_by('-created_at').first()
-            print(f"Eng so'nggi ScanSession: {latest_session}")
             
             if latest_session and latest_session.domains:
                 new_domains = latest_session.domains
-                print(f"ScanSession dan domainlar: {new_domains}")
                 
                 # 3. Yangi tahlillarni olish (ScanSession dagi domainlar)
                 new_scans = DomainScan.objects.filter(domain_name__in=new_domains, status='completed').order_by('-scan_date')
-                print(f"Yangi tahlillar: {new_scans.count()} ta")
-                print(f"Yangi tahlillar domainlari: {list(new_scans.values_list('domain_name', flat=True))}")
             else:
                 # ScanSession yo'q bo'lsa, eng so'nggi tahlil qilingan domainni olish
                 latest_scan = all_scans.first()
                 new_scans = DomainScan.objects.filter(domain_name=latest_scan.domain_name, status='completed').order_by('-scan_date')[:1]
                 new_domains = [latest_scan.domain_name]
-                print(f"ScanSession yo'q, eng so'nggi domain: {new_domains}")
 
             # 4. Barcha tahlillarni olish (pagination bilan)
             from django.core.paginator import Paginator
             page_number = request.GET.get('page', 1)
             all_scans_for_pagination = DomainScan.objects.filter(status='completed').order_by('-scan_date')
-            print(f"Barcha tahlillar (pagination uchun): {all_scans_for_pagination.count()} ta")
             
             paginator = Paginator(all_scans_for_pagination, 10)
             old_scans = paginator.get_page(page_number)
-            print(f"Joriy sahifa: {page_number}, jami sahifalar: {paginator.num_pages}")
         else:
             new_scans = []
             old_scans = []
             new_domains = []
-            print("Hech qanday completed tahlil yo'q")
 
         context = {
             'new_scans': new_scans,  # ScanSession dan - oxirgi tahlillar
@@ -234,14 +215,10 @@ def scan_history(request):
             'total_count': all_scans.count(),
             'paginator': old_scans.paginator if hasattr(old_scans, 'paginator') else None
         }
-        
-        print(f"Context: new_count={context['new_count']}, old_count={context['old_count']}, total_count={context['total_count']}")
-        print("=== Scan History Debug End ===")
 
         return render(request, 'scan_history.html', context)
 
     except Exception as e:
-        print(f"Scan history xatolik: {e}")
         context = {
             'new_scans': [],
             'old_scans': [],
@@ -395,7 +372,6 @@ def perform_domain_scan(domain):
         except socket.gaierror:
             ip_address = None
         except Exception as e:
-            print(f"IP olishda xatolik {domain}: {e}")
             ip_address = None
         
         # DNS ma'lumotlarini olish
@@ -428,10 +404,7 @@ def perform_domain_scan(domain):
         scan.status = 'completed'
         scan.save()
         
-        print(f"DomainScan bazasiga {domain} ma'lumotlari saqlandi. ID: {scan.id}")
-        
         # Log fayllarni avtomatik o'chirish
-        print(f"🧹 {domain} uchun log fayllar o'chirilmoqda...")
         cleanup_log_files(domain)
         
         return {
@@ -452,11 +425,9 @@ def perform_domain_scan(domain):
             scan.status = 'failed'
             scan.error_message = str(e)
             scan.save()
-            print(f"❌ {domain} - Xatolik bilan DomainScan bazasiga saqlandi (ID: {scan.id})")
         else:
-            print(f"❌ {domain} - Scan yaratilmagan, xatolik: {e}")
+            pass
         
-        print(f"Domain tahlilida xatolik {domain}: {e}")
         return {
             'domain': domain,
             'status': 'failed',
@@ -603,16 +574,13 @@ def get_security_headers(domain):
     try:
         response = requests.get(f"https://{domain}", timeout=10, verify=False, allow_redirects=True)
         headers = response.headers
-        print(f"HTTPS orqali muvaffaqiyatli ulanish {domain}")
     except requests.exceptions.SSLError:
-        print(f"SSL xatolik {domain} uchun, HTTP bilan urinish")
         # SSL xatolik bo'lsa HTTP bilan urinish
         try:
             response = requests.get(f"http://{domain}", timeout=10, allow_redirects=True)
             headers = response.headers
-            print(f"HTTP orqali muvaffaqiyatli ulanish {domain}")
         except Exception as e:
-            print(f"HTTP ham xatolik {domain}: {e}")
+            pass
         return {
             'x_frame_options': 'SSL xatolik',
             'x_content_type_options': 'SSL xatolik',
@@ -621,14 +589,12 @@ def get_security_headers(domain):
             'content_security_policy': 'SSL xatolik'
         }
     except requests.exceptions.ConnectionError:
-        print(f"HTTPS ulanish xatolik {domain} uchun, HTTP bilan urinish")
         # HTTPS ulanish xatolik bo'lsa HTTP bilan urinish
         try:
             response = requests.get(f"http://{domain}", timeout=10, allow_redirects=True)
             headers = response.headers
-            print(f"HTTP orqali muvaffaqiyatli ulanish {domain}")
         except Exception as e:
-            print(f"HTTP ham xatolik {domain}: {e}")
+            pass
         return {
             'x_frame_options': 'Ulanish xatolik',
             'x_content_type_options': 'Ulanish xatolik',
@@ -637,14 +603,12 @@ def get_security_headers(domain):
             'content_security_policy': 'Ulanish xatolik'
         }
     except requests.exceptions.Timeout:
-        print(f"HTTPS vaqt tugadi {domain} uchun, HTTP bilan urinish")
         # HTTPS vaqt tugasa HTTP bilan urinish
         try:
             response = requests.get(f"http://{domain}", timeout=10, allow_redirects=True)
             headers = response.headers
-            print(f"HTTP orqali muvaffaqiyatli ulanish {domain}")
         except Exception as e:
-            print(f"HTTP ham xatolik {domain}: {e}")
+            pass
         return {
             'x_frame_options': 'Vaqt tugadi',
             'x_content_type_options': 'Vaqt tugadi',
@@ -653,14 +617,12 @@ def get_security_headers(domain):
             'content_security_policy': 'Vaqt tugadi'
         }
     except Exception as e:
-        print(f"HTTPS xatolik {domain}: {e}, HTTP bilan urinish")
         # Boshqa xatolik bo'lsa HTTP bilan urinish
         try:
             response = requests.get(f"http://{domain}", timeout=10, allow_redirects=True)
             headers = response.headers
-            print(f"HTTP orqali muvaffaqiyatli ulanish {domain}")
         except Exception as e2:
-            print(f"HTTP ham xatolik {domain}: {e2}")
+            pass
         return {
             'x_frame_options': 'Tekshirilmadi',
             'x_content_type_options': 'Tekshirilmadi',
@@ -679,12 +641,6 @@ def get_security_headers(domain):
         'referrer_policy': headers.get('Referrer-Policy', 'Yo\'q'),
         'permissions_policy': headers.get('Permissions-Policy', 'Yo\'q')
     }
-    
-    # Debug ma'lumotlari
-    print(f"Domain {domain} uchun topilgan sarlavhalar:")
-    for key, value in security_headers.items():
-        if value != 'Yo\'q':
-            print(f"  {key}: {value}")
     
     return security_headers
 
@@ -917,29 +873,20 @@ def update_tool_commands(request):
             domain_name = data.get('domain_name', '').strip()
             tool_commands = data.get('tool_commands', [])
             
-            print(f"update_tool_commands called for domain: {domain_name}")
-            print(f"Tool commands received: {tool_commands}")
-            
             if not domain_name:
                 return JsonResponse({'error': 'Domain nomi kiritilmagan'}, status=400)
             
             try:
                 # Domain ni bazadan topish
                 kesh_domain = KeshDomain.objects.get(domain_name=domain_name)
-                print(f"Found domain: {kesh_domain.domain_name}")
-                print(f"Current tool_commands: {kesh_domain.tool_commands}")
                 
                 # Tool buyruqlarini yangilash - mavjud buyruqlar bilan birlashtirish
                 if tool_commands:
-                    print(f"Merging tool commands...")
                     kesh_domain.merge_tool_commands(tool_commands)
                 else:
                     # Agar tool_commands bo'sh bo'lsa, to'g'ridan to'g'ri saqlash
-                    print(f"Setting empty tool commands...")
                     kesh_domain.tool_commands = tool_commands
                     kesh_domain.save()
-                
-                print(f"Final tool_commands: {kesh_domain.tool_commands}")
                 
                 return JsonResponse({
                     'success': True,
@@ -948,16 +895,13 @@ def update_tool_commands(request):
                 })
             
             except KeshDomain.DoesNotExist:
-                print(f"Domain {domain_name} not found")
                 return JsonResponse({
                     'error': f'Domain {domain_name} bazada topilmadi'
                 }, status=404)
             
         except json.JSONDecodeError:
-            print(f"JSON decode error: {request.body}")
             return JsonResponse({'error': 'Noto\'g\'ri JSON format'}, status=400)
         except Exception as e:
-            print(f"Error in update_tool_commands: {str(e)}")
             return JsonResponse({'error': f'Xatolik yuz berdi: {str(e)}'}, status=500)
     
     return JsonResponse({'error': 'Faqat POST so\'rov qabul qilinadi'}, status=405)
@@ -2531,15 +2475,12 @@ def stop_all():
 
     # To'xtatilgan domain va tool'larni chiqarish (print o'rniga log)
     if stopped_tools:
-        print("To'xtatildi")
-        print("=" * 24)
         current_domain = None
         for domain, tool_type in sorted(stopped_tools):  # Domain bo'yicha tartiblash
             if domain != current_domain:
                 if current_domain is not None:
-                    print("-" * 34)
+                    pass
                 current_domain = domain
-            print(f"{domain} - {tool_type}")
 
     running_processes.clear()  # Ro'yxatni tozalash
     return len(stopped_tools) > 0
@@ -2570,18 +2511,14 @@ def cleanup_log_files(domain):
             for log_file in log_files:
                 try:
                     log_file.unlink()
-                    print(f"🗑️ Log fayl o'chirildi: {log_file}")
                 except Exception as e:
-                    print(f"❌ Log fayl o'chirishda xatolik {log_file}: {e}")
+                    pass
             
-            print(f"🧹 {len(log_files)} ta log fayl o'chirildi: {domain}")
             return True
         else:
-            print(f"📁 Log papkasi mavjud emas: {domain}")
             return False
             
     except Exception as e:
-        print(f"❌ Log fayllarni o'chirishda xatolik {domain}: {e}")
         return False
 
 @csrf_exempt
@@ -2642,7 +2579,6 @@ def stop_all_tools_api(request):
                 })
                 
         except Exception as e:
-            print(f"stop_all_tools_api da xatolik: {e}")
             return JsonResponse({'error': f'Xatolik yuz berdi: {str(e)}'}, status=500)
     
     return JsonResponse({'error': 'Faqat POST so\'rov qabul qilinadi'}, status=405)
@@ -2668,7 +2604,6 @@ def stop_all_api(request):
                 })
                 
         except Exception as e:
-            print(f"stop_all_api da xatolik: {e}")
             return JsonResponse({'error': f'Xatolik yuz berdi: {str(e)}'}, status=500)
     
     return JsonResponse({'error': 'Faqat POST so\'rov qabul qilinadi'}, status=405)
@@ -2688,7 +2623,6 @@ def reset_stop_flag_api(request):
             })
                 
         except Exception as e:
-            print(f"reset_stop_flag_api da xatolik: {e}")
             return JsonResponse({'error': f'Xatolik yuz berdi: {str(e)}'}, status=500)
     
     return JsonResponse({'error': 'Faqat POST so\'rov qabul qilinadi'}, status=405)
