@@ -2362,6 +2362,12 @@ def run_xsstrike_with_logging(domain, command):
         return False
 
 
+import subprocess
+import time
+import os
+from concurrent.futures import ThreadPoolExecutor, as_completed
+import threading
+
 running_processes = []  # Barcha ishlayotgan subprocess Popen obyektlari
 process_lock = threading.Lock()  # running_processes ni himoyalash uchun lock
 stop_event = threading.Event()  # Global stop signal
@@ -2373,12 +2379,33 @@ def write_to_log_file(domain, tool_type, message):
 
 
 def get_execution_tool_command(tool_type, domain):
-    # Bu funksiya ta'riflanmagan, shuning uchun misol qilib qaytaryapman
-    return f"python tool_{tool_type}.py {domain}"  # Haqiqiy implementatsiyani qo'shing
+    """To'g'ri fayl yo'lini qaytarish va mavjudligini tekshirish"""
+    base_path = r"C:\Users\user\Desktop\SiteScaner"  # Asosiy ishchi direktoriya
+    execution_commands = {
+        'nmap': f"tools/nmap/nmap.exe {domain.replace('https://', '').replace('http://', '')}",
+        'sqlmap': f"python tools/sqlmap/sqlmap.py -u {domain}",
+        'xsstrike': f"python tools/XSStrike/xsstrike.py -u {domain}",
+        'gobuster': f"tools/gobuster/gobuster.exe dir -u {domain} -w tools/gobuster/common-files.txt"
+    }
+
+    if tool_type not in execution_commands:
+        raise ValueError(f"Noma'lum tool: {tool_type}")
+
+    command = execution_commands[tool_type]
+    # Fayl yo'lini aniqlash (python uchun emas, faqat .exe yoki .py fayllari uchun)
+    if tool_type == 'nmap' or tool_type == 'gobuster':
+        tool_path = os.path.join(base_path, command.split()[0])
+    elif tool_type in ['sqlmap', 'xsstrike']:
+        tool_path = os.path.join(base_path, command.split()[1])  # python dan keyingi yo'l
+
+    if not os.path.exists(tool_path):
+        raise FileNotFoundError(f"Fayl topilmadi: {tool_path}")
+
+    return command
 
 
 def run_tools_parallel(domain, tool_commands):
-    """Tool'larni parallel ishga tushirish - yangi Process Control yondashuv"""
+    """Tool'larni parallel ishga tushirish"""
     global running_processes
     results = {}
 
@@ -2393,7 +2420,8 @@ def run_tools_parallel(domain, tool_commands):
             write_to_log_file(domain, tool_type, "=" * 50)
 
             cmd_parts = command.split() if isinstance(command, str) else command
-            proc = subprocess.Popen(cmd_parts, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, cwd='.')
+            proc = subprocess.Popen(cmd_parts, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+                                    cwd=r'C:\Users\user\Desktop\SiteScaner')
 
             # Process'ni global ro'yxatga qo'shish (lock bilan)
             with process_lock:
@@ -2431,13 +2459,17 @@ def run_tools_parallel(domain, tool_commands):
     with ThreadPoolExecutor(max_workers=4) as executor:
         future_to_tool = {}
         for tool_command in tool_commands:
-            for tool_type, command in tool_command.items():
+            for tool_type, _ in tool_command.items():
                 if stop_event.is_set():
                     continue
 
-                execution_command = get_execution_tool_command(tool_type, domain)
-                future = executor.submit(run_single_tool, tool_type, execution_command)
-                future_to_tool[future] = tool_type
+                try:
+                    execution_command = get_execution_tool_command(tool_type, domain)
+                    future = executor.submit(run_single_tool, tool_type, execution_command)
+                    future_to_tool[future] = tool_type
+                except (ValueError, FileNotFoundError) as e:
+                    write_to_log_file(domain, tool_type, f"Xatolik: {str(e)}")
+                    results[tool_type] = f"Xatolik: {str(e)}"
 
         # Natijalarni olish
         for future in as_completed(future_to_tool):
@@ -2453,7 +2485,7 @@ def run_tools_parallel(domain, tool_commands):
 
 
 def stop_all():
-    """Yangi Process Control yondashuv bilan barcha scan'larni to'xt autoturn off"""
+    """Barcha scan'larni to'xtatish"""
     global running_processes
     stop_event.set()  # Global stop signalni yoqish (navbatdagilar uchun)
 
@@ -2492,6 +2524,14 @@ def stop_all():
 def reset_stop_flag():
     """Yangi scan boshlash uchun stop flag'ni tozalash"""
     stop_event.clear()
+
+
+# Misol: Asosiy tsikl (domainlar uchun) - bu qismni sizning asosiy kodingizga qo'shing
+def main_process(domains, tool_commands):
+    for domain in domains:
+        if stop_event.is_set():
+            break
+        run_tools_parallel(domain, tool_commands)
 
 
 
