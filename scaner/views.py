@@ -2385,13 +2385,11 @@ def run_tools_parallel(domain, tool_commands):
     def run_single_tool(tool_type, command):
         """Bitta tool'ni ishga tushirish va process'ni nazorat qilish"""
         if stop_event.is_set():
-            print(f"🛑 {tool_type}_{domain} to'xtatildi (stop signal oldi)")
-            return tool_type, False, "🛑 To'xtatildi"
+            return tool_type, False, "To'xtatildi"
 
         try:
-            print(f"🚀 {tool_type.upper()} parallel ishga tushirilmoqda: {command}")
-            write_to_log_file(domain, tool_type, f"🚀 {tool_type.upper()} ishga tushirilmoqda: {command}")
-            write_to_log_file(domain, tool_type, f"⏰ Vaqt: {time.strftime('%Y-%m-%d %H:%M:%S')}")
+            write_to_log_file(domain, tool_type, f"{tool_type.upper()} ishga tushirilmoqda: {command}")
+            write_to_log_file(domain, tool_type, f"Vaqt: {time.strftime('%Y-%m-%d %H:%M:%S')}")
             write_to_log_file(domain, tool_type, "=" * 50)
 
             cmd_parts = command.split() if isinstance(command, str) else command
@@ -2399,8 +2397,7 @@ def run_tools_parallel(domain, tool_commands):
 
             # Process'ni global ro'yxatga qo'shish (lock bilan)
             with process_lock:
-                running_processes.append(proc)
-            print(f"🚀 {tool_type}_{domain} ishga tushdi (PID={proc.pid}) - Process ro'yxatga qo'shildi")
+                running_processes.append((proc, domain, tool_type))  # Domain va tool_type ni saqlash
 
             # Tool output'ini o'qish
             stdout, stderr = proc.communicate()
@@ -2408,9 +2405,8 @@ def run_tools_parallel(domain, tool_commands):
 
             # Process tugagandan so'ng ro'yxatdan o'chirish (lock bilan)
             with process_lock:
-                if proc in running_processes:
-                    running_processes.remove(proc)
-                    print(f"✅ {tool_type}_{domain} tugadi (PID={proc.pid}) - Process ro'yxatdan o'chirildi")
+                if (proc, domain, tool_type) in running_processes:
+                    running_processes.remove((proc, domain, tool_type))
 
             # Log faylga yozish
             if stdout:
@@ -2419,15 +2415,15 @@ def run_tools_parallel(domain, tool_commands):
                 write_to_log_file(domain, tool_type, f"STDERR: {stderr}")
 
             write_to_log_file(domain, tool_type, "=" * 50)
-            write_to_log_file(domain, tool_type, f"✅ {tool_type.upper()} tugallandi")
+            write_to_log_file(domain, tool_type, f"{tool_type.upper()} tugallandi")
 
             if return_code == 0:
-                return tool_type, True, stdout if stdout else "✅ Muvaffaqiyatli tugadi"
+                return tool_type, True, stdout if stdout else "Muvaffaqiyatli tugadi"
             else:
-                return tool_type, False, stderr if stderr else f"❌ Xatolik (kod: {return_code})"
+                return tool_type, False, stderr if stderr else f"Xatolik (kod: {return_code})"
 
         except Exception as e:
-            error_msg = f"❌ Xatolik: {str(e)}"
+            error_msg = f"Xatolik: {str(e)}"
             write_to_log_file(domain, tool_type, error_msg)
             return tool_type, False, error_msg
 
@@ -2437,103 +2433,65 @@ def run_tools_parallel(domain, tool_commands):
         for tool_command in tool_commands:
             for tool_type, command in tool_command.items():
                 if stop_event.is_set():
-                    print(f"🛑 {tool_type} to'xtatildi (executor ichida)")
                     continue
 
                 execution_command = get_execution_tool_command(tool_type, domain)
-                print(f"🔄 {tool_type} buyruq o'zgartirildi:")
-                print(f"   Foydalanuvchi: {command}")
-                print(f"   Bajarish: {execution_command}")
-
                 future = executor.submit(run_single_tool, tool_type, execution_command)
                 future_to_tool[future] = tool_type
 
         # Natijalarni olish
         for future in as_completed(future_to_tool):
             if stop_event.is_set():
-                break  # Natijalarni olishni to'xtatish
+                break
             try:
                 tool_type, result, output = future.result()
                 results[tool_type] = output
-                print(f"✅ {tool_type} parallel tugallandi: {result}")
             except Exception as e:
-                print(f"❌ {tool_type} natijasini olishda xatolik: {e}")
                 results[future_to_tool[future]] = f"Xatolik: {str(e)}"
 
     return results
 
 
 def stop_all():
-    """Yangi Process Control yondashuv bilan barcha scan'larni to'xtatish"""
+    """Yangi Process Control yondashuv bilan barcha scan'larni to'xt autoturn off"""
     global running_processes
     stop_event.set()  # Global stop signalni yoqish (navbatdagilar uchun)
 
-    print("\n" + "=" * 80)
-    print("🛑 TO'XTATISH TUGMASI BOSILDI!")
-    print("=" * 80)
-
-    # Running processes ro'yxatini ko'rsatish
-    print("\n" + "=" * 80)
-    print("🛑 RUNNING PROCESSES RO'YXATI (TO'XTATILMOQCHI):")
-    print("=" * 80)
-
+    stopped_tools = []
     with process_lock:
-        if not running_processes:
-            print("ℹ️ Running processes yo'q")
-            print("=" * 80)
-            return True
-
-        for i, proc in enumerate(running_processes, 1):
-            try:
-                if proc.poll() is None:  # Process hali ishlayotgan bo'lsa
-                    print(f"{i:>2}. PID: {proc.pid:>6} | Nomi: {proc.args[0] if proc.args else 'Noma\'lum'}")
-                else:
-                    print(f"{i:>2}. PID: {proc.pid:>6} | Holat: Tugagan")
-            except:
-                print(f"{i:>2}. PID: <topilmadi> | Holat: Xatolik")
-
-    print("-" * 80)
-    print(f"📊 To'xtatilmoqchi: {len([p for p in running_processes if p.poll() is None])} ta process")
-    print("=" * 80)
-
-    # Barcha running processes'larni to'xtatish
-    success_count = 0
-    with process_lock:
-        for proc in running_processes[:]:  # Nusxa ustida ishlaymiz
+        for proc, domain, tool_type in running_processes[:]:  # Nusxa ustida ishlaymiz
             try:
                 if proc.poll() is None:  # Process hali ishlayotgan bo'lsa
                     proc.terminate()  # Yumshoq to'xtatish
                     try:
                         proc.wait(timeout=3)
-                        print(f"✅ PID {proc.pid} to'xtatildi")
-                        success_count += 1
+                        stopped_tools.append((domain, tool_type))
                     except subprocess.TimeoutExpired:
                         proc.kill()  # Majburiy to'xtatish
-                        print(f"💀 PID {proc.pid} majburiy o'chirildi")
-                        success_count += 1
-                else:
-                    print(f"ℹ️ PID {proc.pid} allaqachon tugagan")
-                running_processes.remove(proc)  # Har holda o'chirish
-            except Exception as e:
-                print(f"❌ PID {proc.pid} to'xtatishda xatolik: {e}")
+                        stopped_tools.append((domain, tool_type))
+                running_processes.remove((proc, domain, tool_type))  # Har holda o'chirish
+            except Exception:
+                pass
 
-    print("-" * 80)
-    print(f"🎯 Muvaffaqiyatli to'xtatildi: {success_count} ta process")
-    print("=" * 80)
+    # To'xtatilgan domain va tool'larni chiqarish
+    if stopped_tools:
+        print("To'xtatildi")
+        print("=" * 24)
+        current_domain = None
+        for domain, tool_type in sorted(stopped_tools):  # Domain bo'yicha tartiblash
+            if domain != current_domain:
+                if current_domain is not None:
+                    print("-" * 34)
+                current_domain = domain
+            print(f"{domain} - {tool_type}")
 
-    if success_count > 0:
-        print("✅ Barcha scan'lar muvaffaqiyatli to'xtatildi!")
-    else:
-        print("⚠️ Scan'larni to'xtatishda muammo yuz berdi")
-
-    print("=" * 80 + "\n")
-    return success_count > 0
+    running_processes.clear()  # Ro'yxatni tozalash
+    return len(stopped_tools) > 0
 
 
 def reset_stop_flag():
     """Yangi scan boshlash uchun stop flag'ni tozalash"""
     stop_event.clear()
-    print("🔄 Stop flag tozalandi - yangi scan'lar mumkin")
 
 
 
