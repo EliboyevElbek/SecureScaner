@@ -203,4 +203,42 @@ class ScanSession(models.Model):
     def __str__(self):
         return f"Sessiya {self.id} - {len(self.domains)} ta domain - {self.created_at.strftime('%d.%m.%Y %H:%M')}"
 
+class Processes(models.Model):
+    """Processes - ScanSession bilan bir xil, lekin hech nima o'chirilmaydi"""
+    domains = models.JSONField(default=list, verbose_name="Domainlar")
+    created_at = models.DateTimeField(default=timezone.now, verbose_name="Yaratilgan sana")
+    
+    class Meta:
+        verbose_name = "Process"
+        verbose_name_plural = "Processes"
+        ordering = ['-created_at']
+        # Hech nima o'chirilmasin
+        managed = False
+    
+    def __str__(self):
+        return f"Process {self.id} - {len(self.domains)} ta domain - {self.created_at.strftime('%d.%m.%Y %H:%M')}"
+    
+    def delete(self, *args, **kwargs):
+        """Delete o'chiriladi - hech nima o'chirilmasin"""
+        pass
+    
+    def save(self, *args, **kwargs):
+        """Save faqat yangi ma'lumot qo'shadi"""
+        if not self.pk:  # Yangi yozuv
+            super().save(*args, **kwargs)
+        # Mavjud yozuv yangilanmaydi
+
 # ToolExecution modeli endi kerak emas, chunki ScanSession soddalashtirildi
+
+# Signal - ScanSession ga saqlangan ma'lumotni Processes ga ham saqlash
+from django.db.models.signals import post_save
+from django.dispatch import receiver
+
+@receiver(post_save, sender=ScanSession)
+def save_to_processes(sender, instance, created, **kwargs):
+    """ScanSession ga saqlangan ma'lumotni Processes ga ham saqlash"""
+    if created:  # Faqat yangi yozuv
+        Processes.objects.create(
+            domains=instance.domains,
+            created_at=instance.created_at
+        )
