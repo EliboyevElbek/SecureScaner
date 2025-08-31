@@ -29,7 +29,7 @@ stop_event = threading.Event()  # Global stop signal
 # Create your views here.
 
 def home(request):
-    """Bosh sahifa - stats bilan"""
+    """Bosh sahifa - admin dashboard ko'rinishida"""
     # Bazadan stats ni olish
     total_scans = DomainScan.objects.count()
     completed_scans = DomainScan.objects.filter(status='completed').count()
@@ -41,15 +41,83 @@ def home(request):
     # O'rtacha vaqt (barcha completed scanlar uchun)
     avg_duration = 5  # Default qiymat
     
+    # Domain ma'lumotlarini olish (DomainScan dan to'g'ridan-to'g'ri)
+    domains = []
+    
+    # DomainScan dan barcha domain'larni olish
+    domain_scans = DomainScan.objects.all().order_by('-scan_date')
+    
+    for domain_scan in domain_scans:
+        # Tool natijalarini olish
+        tool_results = {}
+        
+        if domain_scan.tool_results:
+            # tool_results ni to'g'ri formatda olish
+            if isinstance(domain_scan.tool_results, dict):
+                tool_results = domain_scan.tool_results
+            elif isinstance(domain_scan.tool_results, str):
+                try:
+                    tool_results = json.loads(domain_scan.tool_results)
+                except:
+                    tool_results = {}
+        
+        # Har bir tool uchun status ni aniqlash
+        tool_status = {}
+        for tool_name in ['sqlmap', 'nmap', 'xsstrike', 'gobuster']:
+            if tool_name in tool_results:
+                # Agar tool natijasi mavjud bo'lsa, completed deb hisoblash
+                tool_status[tool_name] = True
+            else:
+                tool_status[tool_name] = False
+        
+        domain_data = {
+            'domain_name': domain_scan.domain_name,
+            'ip_address': domain_scan.ip_address or 'N/A',
+            'tool_results': tool_status,
+            'status': domain_scan.status,
+            'scan_date': domain_scan.scan_date,
+            'updated_at': domain_scan.scan_date,
+            'created_at': domain_scan.scan_date,
+            'dns_records': domain_scan.dns_records,
+            'ssl_info': domain_scan.ssl_info,
+            'security_headers': domain_scan.security_headers,
+        }
+        
+        domains.append(domain_data)
+    
+    # Agar hech qanday DomainScan yo'q bo'lsa, KeshDomain dan olish
+    if not domains:
+        kesh_domains = KeshDomain.objects.all()
+        for kesh_domain in kesh_domains:
+            domain_data = {
+                'domain_name': kesh_domain.domain_name,
+                'ip_address': 'N/A',
+                'tool_results': {
+                    'sqlmap': False,
+                    'nmap': False,
+                    'xsstrike': False,
+                    'gobuster': False
+                },
+                'status': 'pending',
+                'scan_date': kesh_domain.created_at,
+                'updated_at': kesh_domain.updated_at,
+                'created_at': kesh_domain.created_at,
+                'dns_records': {},
+                'ssl_info': {},
+                'security_headers': {},
+            }
+            domains.append(domain_data)
+    
     context = {
         'total_scans': total_scans,
         'completed_scans': completed_scans,
         'total_domains': total_domains,
         'success_rate': success_rate,
-        'avg_duration': avg_duration
+        'avg_duration': avg_duration,
+        'domains': domains,
     }
     
-    return render(request, template_name='home.html', context=context)
+    return render(request, 'home.html', context)
 
 @csrf_exempt
 def scan(request):

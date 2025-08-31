@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 {% load static %}
 
-{% block title %}SiteScaner - Professional Domain Scanner{% endblock title %}
+{% block title %}SiteScaner - Admin Dashboard{% endblock title %}
 
 {% block extra_css %}
 <link rel="stylesheet" href="/static/css/home.css">
@@ -11,97 +11,201 @@
 <!-- Matrix Rain Background -->
 <div class="matrix-rain"></div>
 
-<!-- Hero Section -->
-<div class="hero">
-    <div class="hero-content">
-        <h1 class="hero-title glitch">SITE SCANER</h1>
-        <p class="hero-subtitle">Domain tahlil qilish tizimi</p>
-        <div class="hero-buttons">
-            <a href="{% url 'scan' %}" class="btn btn-success btn-large">Tahlilni Boshlash</a>
-            <a href="{% url 'scan_history' %}" class="btn btn-secondary btn-large">Tahlil Tarixi</a>
+<!-- Dashboard Header -->
+<div class="dashboard-header">
+    <div class="header-left">
+        <h1 class="dashboard-title">Domain Scanner Dashboard</h1>
+        <div class="stats-overview">
+            <div class="stat-item">
+                <span class="stat-label">Jami Tahlillar:</span>
+                <span class="stat-value">{{ total_scans }}+</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Domainlar:</span>
+                <span class="stat-value">{{ total_domains }}+</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Muvaffaqiyat:</span>
+                <span class="stat-value">{{ success_rate }}%</span>
+            </div>
+        </div>
+    </div>
+    <div class="header-right">
+        <button class="btn btn-primary" onclick="openScanModal()">
+            <i class="fas fa-plus"></i> Yangi Tahlil
+        </button>
+    </div>
+</div>
+
+<!-- Main Dashboard Table -->
+<div class="dashboard-table-container">
+    <div class="table-header">
+        <h2>Domain Tahlil Natijalari</h2>
+        <div class="table-actions">
+            <button class="btn btn-secondary" onclick="refreshTable()">
+                <i class="fas fa-refresh"></i> Yangilash
+            </button>
+            <button class="btn btn-success" onclick="exportData()">
+                <i class="fas fa-download"></i> Eksport
+            </button>
+        </div>
+    </div>
+    
+    <div class="table-wrapper">
+        <table class="dashboard-table">
+            <thead>
+                <tr>
+                    <th class="checkbox-col">
+                        <input type="checkbox" id="select-all" onchange="toggleSelectAll()">
+                    </th>
+                    <th>Nomi</th>
+                    <th>IP Manzil</th>
+                    <th>1-Tool</th>
+                    <th>2-Tool</th>
+                    <th>3-Tool</th>
+                    <th>4-Tool</th>
+                    <th>Status</th>
+                    <th>Amallar</th>
+                </tr>
+            </thead>
+            <tbody id="domains-table-body">
+                {% for domain in domains %}
+                <tr data-domain="{{ domain.domain_name }}">
+                    <td class="checkbox-col">
+                        <input type="checkbox" class="domain-checkbox" value="{{ domain.domain_name }}">
+                    </td>
+                    <td class="domain-name">
+                        <div class="domain-info">
+                            <div class="domain-icon">🌐</div>
+                            <div class="domain-details">
+                                <span class="domain-text">{{ domain.domain_name }}</span>
+                                <small class="domain-date">{{ domain.updated_at|date:"d.m.Y H:i" }}</small>
+                            </div>
+                        </div>
+                    </td>
+                    <td class="ip-address">
+                        <span class="ip-text">{{ domain.ip_address }}</span>
+                    </td>
+                    <td class="tool-result">
+                        {% if domain.tool_results.sqlmap %}
+                        <span class="tool-status success">✓ SQLMap</span>
+                        {% else %}
+                        <span class="tool-status pending">⏳ SQLMap</span>
+                        {% endif %}
+                    </td>
+                    <td class="tool-result">
+                        {% if domain.tool_results.nmap %}
+                        <span class="tool-status success">✓ Nmap</span>
+                        {% else %}
+                        <span class="tool-status pending">⏳ Nmap</span>
+                        {% endif %}
+                    </td>
+                    <td class="tool-result">
+                        {% if domain.tool_results.xsstrike %}
+                        <span class="tool-status success">✓ XSStrike</span>
+                        {% else %}
+                        <span class="tool-status pending">⏳ XSStrike</span>
+                        {% endif %}
+                    </td>
+                    <td class="tool-result">
+                        {% if domain.tool_results.gobuster %}
+                        <span class="tool-status success">✓ Gobuster</span>
+                        {% else %}
+                        <span class="tool-status pending">⏳ Gobuster</span>
+                        {% endif %}
+                    </td>
+                    <td class="status-col">
+                        <span class="status-badge status-{{ domain.status }}">
+                            {% if domain.status == 'completed' %}
+                                Tugallandi
+                            {% elif domain.status == 'scanning' %}
+                                Tahlil qilinmoqda
+                            {% elif domain.status == 'pending' %}
+                                Kutilmoqda
+                            {% elif domain.status == 'failed' %}
+                                Xatolik
+                            {% else %}
+                                {{ domain.status }}
+                            {% endif %}
+                        </span>
+                    </td>
+                    <td class="actions-col">
+                        <button class="btn btn-sm btn-info" onclick="viewDetails('{{ domain.domain_name }}')">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                        <button class="btn btn-sm btn-warning" onclick="editDomain('{{ domain.domain_name }}')">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="btn btn-sm btn-danger" onclick="deleteDomain('{{ domain.domain_name }}')">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="9" class="no-data">
+                        <div class="empty-state">
+                            <div class="empty-icon">🔍</div>
+                            <h3>Hali hech qanday domain tahlil qilinmagan</h3>
+                            <p>Birinchi domain tahlilini boshlash uchun "Yangi Tahlil" tugmasini bosing</p>
+                            <button class="btn btn-primary" onclick="openScanModal()">
+                                <i class="fas fa-plus"></i> Tahlilni Boshlash
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Scan Modal -->
+<div id="scanModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>Yangi Domain Tahlili</h3>
+            <span class="close" onclick="closeScanModal()">&times;</span>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label for="domainInput">Domain nomi:</label>
+                <input type="text" id="domainInput" placeholder="example.com" class="form-control">
+            </div>
+            <div class="form-group">
+                <label>Tool tanlash:</label>
+                <div class="tool-checkboxes">
+                    <label class="tool-checkbox">
+                        <input type="checkbox" value="sqlmap" checked> SQLMap
+                    </label>
+                    <label class="tool-checkbox">
+                        <input type="checkbox" value="nmap" checked> Nmap
+                    </label>
+                    <label class="tool-checkbox">
+                        <input type="checkbox" value="xsstrike"> XSStrike
+                    </label>
+                    <label class="tool-checkbox">
+                        <input type="checkbox" value="gobuster"> Gobuster
+                    </label>
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeScanModal()">Bekor</button>
+            <button class="btn btn-primary" onclick="startScan()">Tahlilni Boshlash</button>
         </div>
     </div>
 </div>
 
-<!-- Features Section -->
-<div class="features">
-    <div class="container">
-        <h2 class="section-title">Xususiyatlar</h2>
-        <div class="features-grid">
-            <div class="feature-card">
-                <div class="feature-icon">🔍</div>
-                <h3 class="feature-title">Domain Tahlil</h3>
-                <p class="feature-description">Bir yoki bir nechta domainlarni bir vaqtda tahlil qiling. IP manzil, DNS yozuvlari va xavfsizlik ma'lumotlarini oling.</p>
-            </div>
-            
-            <div class="feature-card">
-                <div class="feature-icon">🛡️</div>
-                <h3 class="feature-title">Xavfsizlik Tekshiruv</h3>
-                <p class="feature-description">SSL sertifikatlari, xavfsizlik sarlavhalari va boshqa xavfsizlik parametrlarini tekshiring.</p>
-            </div>
-            
-            <div class="feature-card">
-                <div class="feature-icon">📊</div>
-                <h3 class="feature-title">Batafsil Hisobotlar</h3>
-                <p class="feature-description">Har bir tahlil uchun batafsil hisobotlar va natijalarni ko'ring. Tarixni saqlang va taqqoslang.</p>
-            </div>
-            
-            <div class="feature-card">
-                <div class="feature-icon">⚡</div>
-                <h3 class="feature-title">Tezkor Natijalar</h3>
-                <p class="feature-description">Zamonaviy texnologiyalar yordamida tezkor va aniq natijalar oling.</p>
-            </div>
-            
-            <div class="feature-card">
-                <div class="feature-icon">🎯</div>
-                <h3 class="feature-title">Aniq Tahlil</h3>
-                <p class="feature-description">Yuqori aniqlikda domain xavfsizligini baholash va zaifliklarni aniqlash.</p>
-            </div>
-            
-            <div class="feature-card">
-                <div class="feature-icon">🔐</div>
-                <h3 class="feature-title">Maxfiy Ma'lumotlar</h3>
-                <p class="feature-description">Barcha ma'lumotlar xavfsiz saqlanadi va faqat sizga tegishli.</p>
-            </div>
+<!-- Domain Details Modal -->
+<div id="detailsModal" class="modal">
+    <div class="modal-content large">
+        <div class="modal-header">
+            <h3 id="detailsTitle">Domain Tafsilotlari</h3>
+            <span class="close" onclick="closeDetailsModal()">&times;</span>
         </div>
-    </div>
-</div>
-
-<!-- Stats Section -->
-<div class="stats">
-    <div class="container">
-        <div class="stats-grid">
-            <div class="stat-item">
-                <div class="stat-number">{{ total_scans }}+</div>
-                <div class="stat-label">Jami Tahlillar</div>
-            </div>
-            
-            <div class="stat-item">
-                <div class="stat-number">{{ total_domains }}+</div>
-                <div class="stat-label">Tahlil Qilingan Domainlar</div>
-            </div>
-            
-            <div class="stat-item">
-                <div class="stat-number">{{ success_rate }}%</div>
-                <div class="stat-label">Muvaffaqiyat Darajasi</div>
-            </div>
-            
-            <div class="stat-item">
-                <div class="stat-number">{{ avg_duration }}s</div>
-                <div class="stat-label">O'rtacha Vaqt</div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- CTA Section -->
-<div class="cta-section">
-    <div class="container">
-        <h2 class="cta-title">Hozir Boshlang</h2>
-        <p class="cta-description">Domainlaringizni tahlil qilishni boshlang va xavfsizlik holatini bilib oling. Professional vositalar bilan xavfsizlikni ta'minlang.</p>
-        <div class="hero-buttons">
-            <a href="{% url 'scan' %}" class="btn btn-success btn-large">Bepul Tahlil</a>
-            <a href="{% url 'scan_history' %}" class="btn btn-secondary btn-large">Tahlil Tarixi</a>
+        <div class="modal-body" id="detailsContent">
+            <!-- Content will be loaded here -->
         </div>
     </div>
 </div>

@@ -500,6 +500,47 @@ document.head.appendChild(enhancedStyle);
 
 // Global functions
 window.showNotification = showNotification;
-window.showLoading = showLoading;
+window.showLoading = hideLoading;
 window.hideLoading = hideLoading;
-window.clearAllNotifications = clearAllNotifications; 
+window.clearAllNotifications = clearAllNotifications;
+
+// Sidebar functionality
+function toggleSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('sidebarOverlay');
+    
+    if (sidebar.classList.contains('open')) {
+        sidebar.classList.remove('open');
+        overlay.classList.remove('open');
+        document.body.style.overflow = 'auto';
+    } else {
+        sidebar.classList.add('open');
+        overlay.classList.add('open');
+        document.body.style.overflow = 'hidden';
+    }
+}
+
+// Close sidebar when clicking outside
+document.addEventListener('click', function(e) {
+    const sidebar = document.getElementById('sidebar');
+    const hamburger = document.querySelector('.hamburger-menu');
+    
+    if (!sidebar.contains(e.target) && !hamburger.contains(e.target)) {
+        if (sidebar.classList.contains('open')) {
+            toggleSidebar();
+        }
+    }
+});
+
+// Close sidebar on escape key
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        const sidebar = document.getElementById('sidebar');
+        if (sidebar.classList.contains('open')) {
+            toggleSidebar();
+        }
+    }
+});
+
+// Make toggleSidebar globally available
+window.toggleSidebar = toggleSidebar; 

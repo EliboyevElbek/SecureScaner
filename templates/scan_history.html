@@ -3,124 +3,233 @@
 {% block title %}Tahlil Tarixi - SiteScaner{% endblock title %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="/static/css/scan.css">
+<link rel="stylesheet" href="/static/css/scan_history.css">
 {% endblock extra_css %}
 
 {% block content %}
-<!-- Page Header -->
-<div class="page-header">
-    <div class="page-title">Tahlil Tarixi</div>
-    <div class="page-subtitle">Barcha tahlil qilingan domainlar va natijalari</div>
-</div>
+<!-- Matrix Rain Background -->
+<div class="matrix-rain"></div>
 
-<!-- Stats Overview -->
+<!-- Dashboard Header -->
+<div class="dashboard-header">
+    <div class="header-left">
+        <h1 class="dashboard-title">Tahlil Tarixi Dashboard</h1>
 <div class="stats-overview">
-    <div class="stats-single">
-        <div class="stat-card">
-            <div class="stat-content">
-                <div class="stat-number">{{ total_count }}</div>
-                <div class="stat-label">Jami tahlillar soni</div>
+            <div class="stat-item">
+                <span class="stat-label">Jami Tahlillar:</span>
+                <span class="stat-value">{{ total_count }}+</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Oxirgi 24 soat:</span>
+                <span class="stat-value">{{ new_count }}+</span>
+        </div>
+            <div class="stat-item">
+                <span class="stat-label">Eski Tahlillar:</span>
+                <span class="stat-value">{{ old_count }}+</span>
             </div>
         </div>
     </div>
-    <div class="stats-single">
-        <div class="stat-card">
-            <div class="stat-content">
-                <div class="stat-number">{{ new_count }}</div>
-                <div class="stat-label">Oxirgi tahlillar soni</div>
-            </div>
-        </div>
+    <div class="header-right">
+        <button class="btn btn-primary" onclick="openScanModal()">
+            <i class="fas fa-plus"></i> Yangi Tahlil
+        </button>
+        <button class="btn btn-success" onclick="exportHistory()">
+            <i class="fas fa-download"></i> Eksport
+        </button>
     </div>
 </div>
 
-<!-- Scan History Container -->
-<div class="scan-container">
-    <!-- History Header -->
-    <div class="history-header">
-        <h2>Tahlil tarixi</h2>
-        <a href="{% url 'scan' %}" class="btn btn-primary">Yangi tahlil</a>
-    </div>
-    
-    <!-- Yangi tahlillar (24 soat ichida) -->
-    {% if new_scans %}
-    <div class="new-scans-section">
-        <h3 class="section-title new-title">
-            <span class="title-text">Oxirgi tahlillar</span>
-            <span class="title-count">{{ new_count }}</span>
-        </h3>
-        <div class="history-grid new-scans-grid">
-            {% for scan in new_scans %}
-            <div class="scan-item new-scan-item">
-                <div class="scan-item-header">
-                    <div class="domain-info-with-icon">
-                        <div class="domain-icon">
-                            <img src="https://www.google.com/s2/favicons?domain={{ scan.domain_name }}&sz=32" 
-                                 alt="{{ scan.domain_name }} icon" 
-                                 onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTEyIDJMMiA3VjIwQzIgMjAuNTUyMyAyLjQ0NzcyIDIxIDMgMjFIMjFDMjEuNTUyMyAyMSAyMiAyMC41NTIzIDIyIDIwVjdMMTIgMloiIHN0cm9rZT0iIiMwMGZmMDAiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIi8+CjxwYXRoIGQ9Ik05IDIxVjE0TDE1IDEwVjIxIiBzdHJva2U9IiMwMGZmMDAiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIi8+Cjwvc3ZnPg=='"
-                                 class="favicon">
-                        </div>
-                        <div class="domain-text">
-                            <h3>{{ scan.domain_name }}</h3>
-                        </div>
-                    </div>
-                    <span class="scan-status {{ scan.status }}">{{ scan.get_status_display }}</span>
-                </div>
-                <div class="scan-item-details">
-                    <p><strong>IP:</strong> {{ scan.ip_address|default:"N/A" }}</p>
-                    <p><strong>Sana:</strong> {{ scan.scan_date|date:"d.m.Y H:i" }}</p>
-                    <p><strong>Davomiyligi:</strong> {{ scan.get_duration }}</p>
-                </div>
-                {% if scan.status == 'completed' %}
-                <div class="scan-item-actions">
-                    <button class="btn btn-small" onclick="viewScanDetails({{ scan.id }})">Batafsil</button>
-                </div>
-                {% endif %}
+<!-- Main Dashboard Table -->
+<div class="dashboard-table-container">
+    <div class="table-header">
+        <h2>Barcha Tahlil Natijalari</h2>
+        <div class="table-actions">
+            <div class="filter-group">
+                <select id="statusFilter" class="form-control" onchange="filterTable()">
+                    <option value="">Barcha holatlar</option>
+                    <option value="completed">Tugallandi</option>
+                    <option value="scanning">Tahlil qilinmoqda</option>
+                    <option value="pending">Kutilmoqda</option>
+                    <option value="failed">Xatolik</option>
+                </select>
+                <select id="timeFilter" class="form-control" onchange="filterTable()">
+                    <option value="">Barcha vaqtlar</option>
+                    <option value="today">Bugun</option>
+                    <option value="week">Bu hafta</option>
+                    <option value="month">Bu oy</option>
+                    <option value="old">Eski</option>
+                </select>
             </div>
-            {% endfor %}
+            <button class="btn btn-secondary" onclick="refreshTable()">
+                <i class="fas fa-refresh"></i> Yangilash
+            </button>
         </div>
     </div>
-    {% endif %}
     
-    <!-- Eski tahlillar (24 soatdan oldin) -->
-    {% if old_scans %}
-    <div class="old-scans-section">
-        <h3 class="section-title old-title">
-            <span class="title-text">Barcha tahlillar</span>
-            <span class="title-count">{{ old_count }}</span>
-        </h3>
-        <div class="history-grid old-scans-grid">
-            {% for scan in old_scans %}
-            <div class="scan-item old-scan-item">
-                <div class="scan-item-header">
-                    <div class="domain-info-with-icon">
+    <div class="table-wrapper">
+        <table class="dashboard-table">
+            <thead>
+                <tr>
+                    <th class="checkbox-col">
+                        <input type="checkbox" id="select-all" onchange="toggleSelectAll()">
+                    </th>
+                    <th>Domain</th>
+                    <th>IP Manzil</th>
+                    <th>Holat</th>
+                    <th>Sana</th>
+                    <th>Davomiyligi</th>
+                    <th>Tool Natijalari</th>
+                    <th>Amallar</th>
+                </tr>
+            </thead>
+            <tbody id="scans-table-body">
+            {% for scan in new_scans %}
+                <tr data-scan="{{ scan.id }}" data-status="{{ scan.status }}" data-date="{{ scan.scan_date|date:'Y-m-d' }}" class="scan-row new-scan">
+                    <td class="checkbox-col">
+                        <input type="checkbox" class="scan-checkbox" value="{{ scan.id }}">
+                    </td>
+                    <td class="domain-name">
+                        <div class="domain-info">
                         <div class="domain-icon">
                             <img src="https://www.google.com/s2/favicons?domain={{ scan.domain_name }}&sz=32" 
                                  alt="{{ scan.domain_name }} icon" 
                                  onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTEyIDJMMiA3VjIwQzIgMjAuNTUyMyAyLjQ0NzcyIDIxIDMgMjFIMjFDMjEuNTUyMyAyMSAyMiAyMC41NTIzIDIyIDIwVjdMMTIgMloiIHN0cm9rZT0iIiMwMGZmMDAiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIi8+CjxwYXRoIGQ9Ik05IDIxVjE0TDE1IDEwVjIxIiBzdHJva2U9IiMwMGZmMDAiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIi8+Cjwvc3ZnPg=='"
                                  class="favicon">
                         </div>
-                        <div class="domain-text">
-                            <h3>{{ scan.domain_name }}</h3>
+                            <div class="domain-details">
+                                <span class="domain-text">{{ scan.domain_name }}</span>
+                                <small class="scan-type new-badge">Yangi</small>
+                            </div>
                         </div>
+                    </td>
+                    <td class="ip-address">
+                        <span class="ip-text">{{ scan.ip_address|default:"N/A" }}</span>
+                    </td>
+                    <td class="status-col">
+                        <span class="status-badge status-{{ scan.status }}">
+                            {{ scan.get_status_display }}
+                        </span>
+                    </td>
+                    <td class="scan-date">
+                        <div class="date-info">
+                            <span class="date-text">{{ scan.scan_date|date:"d.m.Y" }}</span>
+                            <small class="time-text">{{ scan.scan_date|date:"H:i" }}</small>
                     </div>
-                    <span class="scan-status {{ scan.status }}">{{ scan.get_status_display }}</span>
-                </div>
-                <div class="scan-item-details">
-                    <p><strong>IP:</strong> {{ scan.ip_address|default:"N/A" }}</p>
-                    <p><strong>Sana:</strong> {{ scan.scan_date|date:"d.m.Y H:i" }}</p>
-                    <p><strong>Davomiyligi:</strong> {{ scan.get_duration }}</p>
-                </div>
-                {% if scan.status == 'completed' %}
-                <div class="scan-item-actions">
-                    <button class="btn btn-small" onclick="viewScanDetails({{ scan.id }})">Batafsil</button>
-                </div>
+                    </td>
+                    <td class="duration">
+                        <span class="duration-text">{{ scan.get_duration }}</span>
+                    </td>
+                    <td class="tool-results">
+                        <div class="tool-statuses">
+                            {% if scan.tool_results %}
+                                {% for tool, result in scan.tool_results.items %}
+                                <span class="tool-status {% if result %}success{% else %}pending{% endif %}">
+                                    {{ tool|title }}
+                                </span>
+                                {% endfor %}
+                            {% else %}
+                                <span class="tool-status pending">N/A</span>
                 {% endif %}
             </div>
+                    </td>
+                    <td class="actions-col">
+                        <button class="btn btn-sm btn-info" onclick="viewScanDetails({{ scan.id }})" title="Batafsil">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                        <button class="btn btn-sm btn-warning" onclick="rescanDomain('{{ scan.domain_name }}')" title="Qayta tahlil">
+                            <i class="fas fa-redo"></i>
+                        </button>
+                        <button class="btn btn-sm btn-danger" onclick="deleteScan({{ scan.id }})" title="O'chirish">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </td>
+                </tr>
             {% endfor %}
+                
+            {% for scan in old_scans %}
+                <tr data-scan="{{ scan.id }}" data-status="{{ scan.status }}" data-date="{{ scan.scan_date|date:'Y-m-d' }}" class="scan-row old-scan">
+                    <td class="checkbox-col">
+                        <input type="checkbox" class="scan-checkbox" value="{{ scan.id }}">
+                    </td>
+                    <td class="domain-name">
+                        <div class="domain-info">
+                        <div class="domain-icon">
+                            <img src="https://www.google.com/s2/favicons?domain={{ scan.domain_name }}&sz=32" 
+                                 alt="{{ scan.domain_name }} icon" 
+                                 onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTEyIDJMMiA3VjIwQzIgMjAuNTUyMyAyLjQ0NzcyIDIxIDMgMjFIMjFDMjEuNTUyMyAyMSAyMiAyMC41NTIzIDIyIDIwVjdMMTIgMloiIHN0cm9rZT0iIiMwMGZmMDAiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIi8+CjxwYXRoIGQ9Ik05IDIxVjE0TDE1IDEwVjIxIiBzdHJva2U9IiMwMGZmMDAiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIi8+Cjwvc3ZnPg=='"
+                                 class="favicon">
+                        </div>
+                            <div class="domain-details">
+                                <span class="domain-text">{{ scan.domain_name }}</span>
+                                <small class="scan-type old-badge">Eski</small>
+                            </div>
+                        </div>
+                    </td>
+                    <td class="ip-address">
+                        <span class="ip-text">{{ scan.ip_address|default:"N/A" }}</span>
+                    </td>
+                    <td class="status-col">
+                        <span class="status-badge status-{{ scan.status }}">
+                            {{ scan.get_status_display }}
+                        </span>
+                    </td>
+                    <td class="scan-date">
+                        <div class="date-info">
+                            <span class="date-text">{{ scan.scan_date|date:"d.m.Y" }}</span>
+                            <small class="time-text">{{ scan.scan_date|date:"H:i" }}</small>
+                    </div>
+                    </td>
+                    <td class="duration">
+                        <span class="duration-text">{{ scan.get_duration }}</span>
+                    </td>
+                    <td class="tool-results">
+                        <div class="tool-statuses">
+                            {% if scan.tool_results %}
+                                {% for tool, result in scan.tool_results.items %}
+                                <span class="tool-status {% if result %}success{% else %}pending{% endif %}">
+                                    {{ tool|title }}
+                                </span>
+                                {% endfor %}
+                            {% else %}
+                                <span class="tool-status pending">N/A</span>
+                            {% endif %}
+                </div>
+                    </td>
+                    <td class="actions-col">
+                        <button class="btn btn-sm btn-info" onclick="viewScanDetails({{ scan.id }})" title="Batafsil">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                        <button class="btn btn-sm btn-warning" onclick="rescanDomain('{{ scan.domain_name }}')" title="Qayta tahlil">
+                            <i class="fas fa-redo"></i>
+                        </button>
+                        <button class="btn btn-sm btn-danger" onclick="deleteScan({{ scan.id }})" title="O'chirish">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </td>
+                </tr>
+                {% endfor %}
+                
+                {% if not new_scans and not old_scans %}
+                <tr>
+                    <td colspan="8" class="no-data">
+                        <div class="empty-state">
+                            <div class="empty-icon">📊</div>
+                            <h3>Hali hech qanday tahlil qilinmagan</h3>
+                            <p>Birinchi tahlilni boshlash uchun "Yangi Tahlil" tugmasini bosing</p>
+                            <button class="btn btn-primary" onclick="openScanModal()">
+                                <i class="fas fa-plus"></i> Tahlilni Boshlash
+                            </button>
+                </div>
+                    </td>
+                </tr>
+                {% endif %}
+            </tbody>
+        </table>
         </div>
         
         <!-- Pagination -->
         {% if paginator and paginator.has_other_pages %}
+    <div class="pagination-container">
         <div class="pagination">
             {% if paginator.has_previous %}
                 <a href="?page=1" class="page-link">&laquo; Birinchi</a>
@@ -136,30 +245,56 @@
                 <a href="?page={{ paginator.paginator.num_pages }}" class="page-link">Oxirgi &raquo;</a>
             {% endif %}
         </div>
-        {% endif %}
-    </div>
-    {% endif %}
-    
-    <!-- Hech qanday tahlil yo'q -->
-    {% if not new_scans and not old_scans %}
-    <div class="no-scans">
-        <p>Hali hech qanday tahlil qilinmagan.</p>
-        <a href="{% url 'scan' %}" class="btn btn-primary">Birinchi tahlilni boshlash</a>
     </div>
     {% endif %}
 </div>
 
 <!-- Scan Details Modal -->
-<div class="modal" id="scanDetailsModal" style="display: none;">
-    <div class="modal-content">
+<div id="scanDetailsModal" class="modal">
+    <div class="modal-content large">
         <div class="modal-header">
-            <div class="modal-title-section">
-                <h3 id="modalTitle">Tahlil tafsilotlari</h3>
-            </div>
-            <button class="modal-close" onclick="closeModal()">&times;</button>
+            <h3 id="modalTitle">Tahlil Tafsilotlari</h3>
+            <span class="close" onclick="closeModal()">&times;</span>
         </div>
         <div class="modal-body" id="modalBody">
             <!-- Modal content will be populated here -->
+        </div>
+    </div>
+</div>
+
+<!-- New Scan Modal -->
+<div id="newScanModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>Yangi Domain Tahlili</h3>
+            <span class="close" onclick="closeNewScanModal()">&times;</span>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label for="domainInput">Domain nomi:</label>
+                <input type="text" id="domainInput" placeholder="example.com" class="form-control">
+            </div>
+            <div class="form-group">
+                <label>Tool tanlash:</label>
+                <div class="tool-checkboxes">
+                    <label class="tool-checkbox">
+                        <input type="checkbox" value="sqlmap" checked> SQLMap
+                    </label>
+                    <label class="tool-checkbox">
+                        <input type="checkbox" value="nmap" checked> Nmap
+                    </label>
+                    <label class="tool-checkbox">
+                        <input type="checkbox" value="xsstrike"> XSStrike
+                    </label>
+                    <label class="tool-checkbox">
+                        <input type="checkbox" value="gobuster"> Gobuster
+                    </label>
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeNewScanModal()">Bekor</button>
+            <button class="btn btn-primary" onclick="startNewScan()">Tahlilni Boshlash</button>
         </div>
     </div>
 </div>

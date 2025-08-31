@@ -1,243 +1,347 @@
-// Home Page JavaScript Functionality - Professional Design
+// Home Dashboard JavaScript
 
 document.addEventListener('DOMContentLoaded', function() {
-    // Matrix rain ni typing tugagandan keyin boshlash, shuning uchun bu yerda o'chirildi
-    // initMatrixRain();
-    
-    // Add staggered animation to feature cards with Intersection Observer
-    const featureCards = document.querySelectorAll('.feature-card');
-    
-    const featureObserver = new IntersectionObserver((entries) => {
-        entries.forEach((entry, index) => {
-            if (entry.isIntersecting) {
-                setTimeout(() => {
-                    entry.target.style.opacity = '1';
-                    entry.target.style.transform = 'translateY(0)';
-                }, index * 150);
-                featureObserver.unobserve(entry.target);
-            }
-        });
-    }, { threshold: 0.1 });
-
-    featureCards.forEach((card) => {
-        card.style.opacity = '0';
-        card.style.transform = 'translateY(40px)';
-        featureObserver.observe(card);
-    });
-
-    // Add counter animation to stats with optimized performance
-    const statNumbers = document.querySelectorAll('.stat-number');
-    
-    function animateCounter(element, target, duration = 2500) {
-        let start = 0;
-        const increment = target / (duration / 16);
-        
-        function updateCounter() {
-            start += increment;
-            if (start < target) {
-                if (target.toString().includes('+')) {
-                    element.textContent = Math.floor(start) + '+';
-                } else if (target.toString().includes('%')) {
-                    element.textContent = Math.floor(start) + '%';
-                } else if (target.toString().includes('s')) {
-                    element.textContent = Math.floor(start) + 's';
-                } else {
-                    element.textContent = Math.floor(start);
-                }
-                requestAnimationFrame(updateCounter);
-            } else {
-                element.textContent = target;
-            }
-        }
-        
-        updateCounter();
-    }
-
-    // Intersection Observer for stats animation
-    const statsObserver = new IntersectionObserver((entries) => {
-        entries.forEach(entry => {
-            if (entry.isIntersecting) {
-                const statNumber = entry.target.querySelector('.stat-number');
-                const text = statNumber.textContent;
-                
-                if (text.includes('+')) {
-                    animateCounter(statNumber, parseInt(text), 2500);
-                } else if (text.includes('%')) {
-                    animateCounter(statNumber, 99.9, 2500);
-                } else if (text.includes('s')) {
-                    animateCounter(statNumber, 5, 2500);
-                } else {
-                    animateCounter(statNumber, parseInt(text), 2500);
-                }
-                
-                statsObserver.unobserve(entry.target);
-            }
-        });
-    }, { threshold: 0.5 });
-
-    // Observe stats section
-    const statsSection = document.querySelector('.stats');
-    if (statsSection) {
-        statsObserver.observe(statsSection);
-    }
-
-    // Optimized parallax effect with requestAnimationFrame
-    let ticking = false;
-    function updateParallax() {
-        const scrolled = window.pageYOffset;
-        const hero = document.querySelector('.hero');
-        
-        if (hero) {
-            const rate = scrolled * -0.2;
-            hero.style.transform = `translateY(${rate}px)`;
-        }
-        ticking = false;
-    }
-
-    window.addEventListener('scroll', function() {
-        if (!ticking) {
-            requestAnimationFrame(updateParallax);
-            ticking = true;
-        }
-    });
-
-    // Add ripple effect to buttons
-    document.querySelectorAll('.btn').forEach(button => {
-        button.addEventListener('click', function(e) {
-            const ripple = document.createElement('span');
-            const rect = this.getBoundingClientRect();
-            const size = Math.max(rect.width, rect.height);
-            const x = e.clientX - rect.left - size / 2;
-            const y = e.clientY - rect.top - size / 2;
-            
-            ripple.style.width = ripple.style.height = size + 'px';
-            ripple.style.left = x + 'px';
-            ripple.style.top = y + 'px';
-            ripple.classList.add('ripple');
-            
-            this.appendChild(ripple);
-            
-            setTimeout(() => {
-                ripple.remove();
-            }, 600);
-        });
-    });
-
-    // Add typing effect to hero title
-    const heroTitle = document.querySelector('.hero-title');
-    if (heroTitle) {
-        const text = heroTitle.textContent;
-        heroTitle.textContent = '';
-        
-        // Matrix rain ni typing bilan birga boshlash
-        initMatrixRain();
-        
-        let i = 0;
-        function typeWriter() {
-            if (i < text.length) {
-                heroTitle.textContent += text.charAt(i);
-                i++;
-                setTimeout(typeWriter, 100);
-            }
-        }
-        
-        // Start typing after a short delay
-        setTimeout(typeWriter, 500);
-    }
-
-    // Add scroll-triggered animations
-    const scrollElements = document.querySelectorAll('.scroll-animate');
-    
-    const scrollObserver = new IntersectionObserver((entries) => {
-        entries.forEach(entry => {
-            if (entry.isIntersecting) {
-                entry.target.classList.add('animate-in');
-            }
-        });
-    }, { threshold: 0.1 });
-
-    scrollElements.forEach(element => {
-        scrollObserver.observe(element);
-    });
-
-    // Performance optimization: Limit DOM queries and use will-change
-    const animatedElements = document.querySelectorAll('.feature-card, .stat-item, .cta-section');
-    animatedElements.forEach(element => {
-        element.style.willChange = 'transform, opacity';
-    });
+    console.log('Dashboard loaded');
+    initDashboard();
 });
 
-// Matrix Rain Effect - MORE INTENSE FOR HOME PAGE
-function initMatrixRain() {
-    const matrixContainer = document.querySelector('.matrix-rain');
-    if (!matrixContainer) return;
+function initDashboard() {
+    // Initialize dashboard functionality
+    initTableCheckboxes();
+    initModals();
+    initTooltips();
+}
+
+// Table Checkbox Functionality
+function initTableCheckboxes() {
+    const selectAllCheckbox = document.getElementById('select-all');
+    const domainCheckboxes = document.querySelectorAll('.domain-checkbox');
     
-    const columns = Math.min(Math.floor(window.innerWidth / 25), 60); // 80 dan 60 ga kamaytirildi, 25px oraliq
-    const characters = '01'; // Faqat 0 va 1
+    if (selectAllCheckbox) {
+        selectAllCheckbox.addEventListener('change', function() {
+            domainCheckboxes.forEach(checkbox => {
+                checkbox.checked = this.checked;
+            });
+        });
+    }
     
-    for (let i = 0; i < columns; i++) {
-        const column = document.createElement('div');
-        column.className = 'matrix-column';
-        column.style.left = (i * (100 / columns)) + '%';
-        
-        let columnText = '';
-        for (let j = 0; j < 35; j++) { // 25 dan 35 ga oshirildi
-            columnText += characters[Math.floor(Math.random() * characters.length)] + '\n';
+    domainCheckboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', function() {
+            updateSelectAllState();
+        });
+    });
+}
+
+function updateSelectAllState() {
+    const selectAllCheckbox = document.getElementById('select-all');
+    const domainCheckboxes = document.querySelectorAll('.domain-checkbox');
+    const checkedCount = document.querySelectorAll('.domain-checkbox:checked').length;
+    
+    if (selectAllCheckbox) {
+        selectAllCheckbox.checked = checkedCount === domainCheckboxes.length;
+        selectAllCheckbox.indeterminate = checkedCount > 0 && checkedCount < domainCheckboxes.length;
+    }
+}
+
+function toggleSelectAll() {
+    const selectAllCheckbox = document.getElementById('select-all');
+    const domainCheckboxes = document.querySelectorAll('.domain-checkbox');
+    
+    domainCheckboxes.forEach(checkbox => {
+        checkbox.checked = selectAllCheckbox.checked;
+    });
+}
+
+// Modal Functions
+function initModals() {
+    // Close modals when clicking outside
+    window.addEventListener('click', function(e) {
+        if (e.target.classList.contains('modal')) {
+            e.target.style.display = 'none';
         }
-        column.textContent = columnText;
-
-        const animationDuration = 8 + Math.random() * 12; // 8-20 soniya
-        const animationDelay = Math.random() * 0.1; // 0-3 dan 0-0.1 ga kamaytirildi (maksimal 100ms)
-
-        column.style.animationDuration = animationDuration + 's';
-        column.style.animationDelay = animationDelay + 's';
-        
-        matrixContainer.appendChild(column);
-    }
+    });
+    
+    // Close modals on escape key
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            closeAllModals();
+        }
+    });
 }
 
-// Add professional effects and animations
-function addProfessionalEffects() {
-    // Add entrance animations
-    const elements = document.querySelectorAll('.feature-card, .stat-item, .cta-section');
-    elements.forEach((element, index) => {
-        element.style.opacity = '0';
-        element.style.transform = 'translateY(30px)';
-        
-        setTimeout(() => {
-            element.style.transition = 'all 0.8s cubic-bezier(0.4, 0, 0.2, 1)';
-            element.style.opacity = '1';
-            element.style.transform = 'translateY(0)';
-        }, index * 200);
-    });
+function openScanModal() {
+    const modal = document.getElementById('scanModal');
+    modal.style.display = 'block';
+    document.getElementById('domainInput').focus();
+}
 
-    // Add hover effects to cards
-    const cards = document.querySelectorAll('.feature-card, .stat-item');
-    cards.forEach(card => {
-        card.addEventListener('mouseenter', function() {
-            this.style.transform = 'translateY(-10px) scale(1.02)';
-            this.style.boxShadow = '0 20px 40px rgba(0, 0, 0, 0.3)';
-        });
-        
-        card.addEventListener('mouseleave', function() {
-            this.style.transform = 'translateY(0) scale(1)';
-            this.style.boxShadow = '0 10px 30px rgba(0, 0, 0, 0.2)';
-        });
-    });
+function closeScanModal() {
+    const modal = document.getElementById('scanModal');
+    modal.style.display = 'none';
+    document.getElementById('domainInput').value = '';
+}
 
-    // Add pulse animation to CTA button
-    const ctaButton = document.querySelector('.cta-button');
-    if (ctaButton) {
-        setInterval(() => {
-            ctaButton.style.transform = 'scale(1.05)';
+function openDetailsModal() {
+    const modal = document.getElementById('detailsModal');
+    modal.style.display = 'block';
+}
+
+function closeDetailsModal() {
+    const modal = document.getElementById('detailsModal');
+    modal.style.display = 'none';
+}
+
+function closeAllModals() {
+    const modals = document.querySelectorAll('.modal');
+    modals.forEach(modal => {
+        modal.style.display = 'none';
+    });
+}
+
+// Scan Functions
+function startScan() {
+    const domainInput = document.getElementById('domainInput');
+    const domain = domainInput.value.trim();
+    
+    if (!domain) {
+        showNotification('Domain nomini kiriting', 'error');
+        return;
+    }
+    
+    // Get selected tools
+    const selectedTools = [];
+    document.querySelectorAll('.tool-checkbox input:checked').forEach(checkbox => {
+        selectedTools.push(checkbox.value);
+    });
+    
+    if (selectedTools.length === 0) {
+        showNotification('Kamida bitta tool tanlang', 'error');
+        return;
+    }
+    
+    // Show loading state
+    const startButton = document.querySelector('#scanModal .btn-primary');
+    const originalText = startButton.innerHTML;
+    startButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Tahlil qilinmoqda...';
+    startButton.disabled = true;
+    
+    // Simulate scan process (replace with actual API call)
             setTimeout(() => {
-                ctaButton.style.transform = 'scale(1)';
-            }, 200);
-        }, 3000);
+        showNotification(`${domain} uchun tahlil boshlandi`, 'success');
+        closeScanModal();
+        
+        // Reset button
+        startButton.innerHTML = originalText;
+        startButton.disabled = false;
+        
+        // Refresh table
+        refreshTable();
+    }, 2000);
+}
+
+// Table Functions
+function refreshTable() {
+    const tableBody = document.getElementById('domains-table-body');
+    if (tableBody) {
+        tableBody.classList.add('loading');
+        
+        // Simulate refresh (replace with actual API call)
+        setTimeout(() => {
+            tableBody.classList.remove('loading');
+            showNotification('Jadval yangilandi', 'success');
+        }, 1000);
     }
 }
 
-// Initialize professional effects
-document.addEventListener('DOMContentLoaded', function() {
-    addProfessionalEffects();
-}); 
+function exportData() {
+    const selectedDomains = document.querySelectorAll('.domain-checkbox:checked');
+    
+    if (selectedDomains.length === 0) {
+        showNotification('Eksport qilish uchun domain tanlang', 'warning');
+        return;
+    }
+    
+    const domains = Array.from(selectedDomains).map(checkbox => checkbox.value);
+    
+    // Create CSV data
+    let csvContent = 'Domain,Status,SQLMap,Nmap,XSStrike,Gobuster\n';
+    domains.forEach(domain => {
+        const row = document.querySelector(`tr[data-domain="${domain}"]`);
+        if (row) {
+            const status = row.querySelector('.status-badge')?.textContent || 'N/A';
+            const sqlmap = row.querySelector('td:nth-child(3) .tool-status')?.textContent.includes('✓') ? 'Yes' : 'No';
+            const nmap = row.querySelector('td:nth-child(4) .tool-status')?.textContent.includes('✓') ? 'Yes' : 'No';
+            const xsstrike = row.querySelector('td:nth-child(5) .tool-status')?.textContent.includes('✓') ? 'Yes' : 'No';
+            const gobuster = row.querySelector('td:nth-child(6) .tool-status')?.textContent.includes('✓') ? 'Yes' : 'No';
+            
+            csvContent += `${domain},${status},${sqlmap},${nmap},${xsstrike},${gobuster}\n`;
+        }
+    });
+    
+    // Download CSV file
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `domain_scan_results_${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    showNotification(`${domains.length} ta domain eksport qilindi`, 'success');
+}
+
+// Domain Action Functions
+function viewDetails(domainName) {
+    const modal = document.getElementById('detailsModal');
+    const title = document.getElementById('detailsTitle');
+    const content = document.getElementById('detailsContent');
+    
+    title.textContent = `${domainName} - Tafsilotlar`;
+    
+    // Get domain data from table row
+    const row = document.querySelector(`tr[data-domain="${domainName}"]`);
+    if (row) {
+        const status = row.querySelector('.status-badge')?.textContent || 'N/A';
+        const sqlmap = row.querySelector('td:nth-child(3) .tool-status')?.textContent || 'N/A';
+        const nmap = row.querySelector('td:nth-child(4) .tool-status')?.textContent || 'N/A';
+        const xsstrike = row.querySelector('td:nth-child(5) .tool-status')?.textContent || 'N/A';
+        const gobuster = row.querySelector('td:nth-child(6) .tool-status')?.textContent || 'N/A';
+        
+        content.innerHTML = `
+            <div class="domain-details-grid">
+                <div class="detail-section">
+                    <h4>Asosiy Ma'lumotlar</h4>
+                    <div class="detail-item">
+                        <strong>Domain:</strong> ${domainName}
+                    </div>
+                    <div class="detail-item">
+                        <strong>Holat:</strong> <span class="status-badge status-${status.toLowerCase()}">${status}</span>
+                    </div>
+                </div>
+                
+                <div class="detail-section">
+                    <h4>Tool Natijalari</h4>
+                    <div class="detail-item">
+                        <strong>SQLMap:</strong> ${sqlmap}
+                    </div>
+                    <div class="detail-item">
+                        <strong>Nmap:</strong> ${nmap}
+                    </div>
+                    <div class="detail-item">
+                        <strong>XSStrike:</strong> ${xsstrike}
+                    </div>
+                    <div class="detail-item">
+                        <strong>Gobuster:</strong> ${gobuster}
+                    </div>
+                </div>
+                
+                <div class="detail-section">
+                    <h4>Amallar</h4>
+                    <div class="detail-actions">
+                        <button class="btn btn-warning" onclick="editDomain('${domainName}')">
+                            <i class="fas fa-edit"></i> Tahrirlash
+                        </button>
+                        <button class="btn btn-danger" onclick="deleteDomain('${domainName}')">
+                            <i class="fas fa-trash"></i> O'chirish
+                        </button>
+                        <button class="btn btn-info" onclick="rescanDomain('${domainName}')">
+                            <i class="fas fa-redo"></i> Qayta Tahlil
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+    
+    openDetailsModal();
+}
+
+function editDomain(domainName) {
+    showNotification(`${domainName} tahrirlash rejimi ochildi`, 'info');
+    // Implement edit functionality
+}
+
+function deleteDomain(domainName) {
+    if (confirm(`${domainName} ni o'chirishni xohlaysizmi?`)) {
+        // Implement delete functionality
+        showNotification(`${domainName} o'chirildi`, 'success');
+        // Remove row from table
+        const row = document.querySelector(`tr[data-domain="${domainName}"]`);
+        if (row) {
+            row.remove();
+        }
+    }
+}
+
+function rescanDomain(domainName) {
+    showNotification(`${domainName} uchun qayta tahlil boshlandi`, 'info');
+    // Implement rescan functionality
+}
+
+// Tooltip Functionality
+function initTooltips() {
+    const tooltipElements = document.querySelectorAll('[data-tooltip]');
+    
+    tooltipElements.forEach(element => {
+        element.addEventListener('mouseenter', showTooltip);
+        element.addEventListener('mouseleave', hideTooltip);
+    });
+}
+
+function showTooltip(event) {
+    const tooltip = document.createElement('div');
+    tooltip.className = 'tooltip';
+    tooltip.textContent = event.target.getAttribute('data-tooltip');
+    
+    tooltip.style.cssText = `
+        position: absolute;
+        background: rgba(0, 0, 0, 0.9);
+        color: #fff;
+        padding: 8px 12px;
+        border-radius: 6px;
+        font-size: 12px;
+        z-index: 10000;
+        pointer-events: none;
+        white-space: nowrap;
+        border: 1px solid #00ff00;
+        box-shadow: 0 0 10px rgba(0, 255, 0, 0.3);
+    `;
+    
+    document.body.appendChild(tooltip);
+    
+    const rect = event.target.getBoundingClientRect();
+    tooltip.style.left = rect.left + (rect.width / 2) - (tooltip.offsetWidth / 2) + 'px';
+    tooltip.style.top = rect.top - tooltip.offsetHeight - 10 + 'px';
+    
+    event.target._tooltip = tooltip;
+}
+
+function hideTooltip(event) {
+    if (event.target._tooltip) {
+        event.target._tooltip.remove();
+        event.target._tooltip = null;
+    }
+}
+
+// Utility Functions
+function showNotification(message, type = 'info') {
+    if (window.showNotification) {
+        window.showNotification(message, type);
+    } else {
+        alert(message);
+    }
+}
+
+// Make functions globally available
+window.openScanModal = openScanModal;
+window.closeScanModal = closeScanModal;
+window.startScan = startScan;
+window.refreshTable = refreshTable;
+window.exportData = exportData;
+window.viewDetails = viewDetails;
+window.editDomain = editDomain;
+window.deleteDomain = deleteDomain;
+window.rescanDomain = rescanDomain;
+window.toggleSelectAll = toggleSelectAll; 

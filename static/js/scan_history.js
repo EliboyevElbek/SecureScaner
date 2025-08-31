@@ -1,152 +1,316 @@
-// Scan History Page JavaScript
+// Scan History Dashboard JavaScript
 
-// Sahifa yuklanganda
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('Scan History page loaded');
-    
-    // Sahifa yuklanganda hech narsa qilmaymiz
-    // Django view'da allaqachon to'g'ri logika yozilgan
-    // Yangi tahlillar va eski tahlillar to'g'ri ajratilgan
+    console.log('Scan History Dashboard loaded');
+    initDashboard();
 });
 
-// Bu funksiyalar endi kerak emas, chunki Django view'da allaqachon to'g'ri logika yozilgan
-// Yangi tahlillar va eski tahlillar soni Django template'da ko'rsatiladi
+function initDashboard() {
+    // Initialize dashboard functionality
+    initTableCheckboxes();
+    initModals();
+    initFilters();
+}
 
-async function viewScanDetails(scanId) {
-    try {
-        const response = await fetch(`/api/scan-details/${scanId}/`);
-        const data = await response.json();
-        
-        if (data.success) {
-            showScanDetailsModal(data.scan);
-        } else {
-            console.error('Failed to fetch scan details:', data.error);
-            alert('Tahlil ma\'lumotlarini olishda xatolik yuz berdi');
-        }
-    } catch (error) {
-        console.error('Error fetching scan details:', error);
-        alert('Tarmoq xatosi yuz berdi');
+// Table Checkbox Functionality
+function initTableCheckboxes() {
+    const selectAllCheckbox = document.getElementById('select-all');
+    const scanCheckboxes = document.querySelectorAll('.scan-checkbox');
+    
+    if (selectAllCheckbox) {
+        selectAllCheckbox.addEventListener('change', function() {
+            scanCheckboxes.forEach(checkbox => {
+                checkbox.checked = this.checked;
+            });
+        });
+    }
+    
+    scanCheckboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', function() {
+            updateSelectAllState();
+        });
+    });
+}
+
+function updateSelectAllState() {
+    const selectAllCheckbox = document.getElementById('select-all');
+    const scanCheckboxes = document.querySelectorAll('.scan-checkbox');
+    const checkedCount = document.querySelectorAll('.scan-checkbox:checked').length;
+    
+    if (selectAllCheckbox) {
+        selectAllCheckbox.checked = checkedCount === scanCheckboxes.length;
+        selectAllCheckbox.indeterminate = checkedCount > 0 && checkedCount < scanCheckboxes.length;
     }
 }
 
-function showScanDetailsModal(scanData) {
-    const modal = document.getElementById('scanDetailsModal');
-    const modalTitle = document.getElementById('modalTitle');
-    const modalBody = document.getElementById('modalBody');
+function toggleSelectAll() {
+    const selectAllCheckbox = document.getElementById('select-all');
+    const scanCheckboxes = document.querySelectorAll('.scan-checkbox');
     
-    // Modal title ga domain iconini qo'shish
-    modalTitle.innerHTML = `
-        <div class="modal-title-with-icon">
-            <div class="modal-domain-icon">
-                <img src="https://www.google.com/s2/favicons?domain=${scanData.domain_name}&sz=32" 
-                     alt="${scanData.domain_name} icon" 
-                     onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTEyIDJMMiA3VjIwQzIgMjAuNTUyMyAyLjQ0NzcyIDIxIDMgMjFIMjFDMjEuNTUyMyAyMSAyMiAyMC41NTIzIDIyIDIwVjdMMTIgMloiIHN0cm9rZT0iIzAwZmYwMCIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiLz4KPHBhdGggZD0iTTkgMjFWMTRMMTUgMTBWMjEiIHN0cm9rZT0iIzAwZmYwMCIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiLz4KPC9zdmc+'"
-                     class="modal-favicon">
-            </div>
-            <div class="modal-title-text">
-                <span class="domain-name">${scanData.domain_name}</span>
-                <span class="modal-subtitle">Batafsil natijalar</span>
-            </div>
-        </div>
-    `;
-    
-    let modalContent = `
-        <div class="detailed-result">
-            <h4>Asosiy ma'lumotlar</h4>
-            <p><strong>Domain:</strong> ${scanData.domain_name}</p>
-            <p><strong>IP manzil:</strong> ${scanData.ip_address || 'N/A'}</p>
-            <p><strong>Holat:</strong> ${scanData.status}</p>
-            <p><strong>Sana:</strong> ${new Date(scanData.scan_date).toLocaleString('uz-UZ')}</p>
-            <p><strong>Davomiyligi:</strong> ${scanData.get_duration || 'N/A'}</p>
-            
-            <h4>DNS ma'lumotlari</h4>
-            <ul>
-                <li><strong>A yozuvlari:</strong> ${(scanData.dns_records?.a_records || []).join(', ') || 'N/A'}</li>
-                <li><strong>MX yozuvlari:</strong> ${(scanData.dns_records?.mx_records || []).join(', ') || 'N/A'}</li>
-                <li><strong>Nameserverlar:</strong> ${(scanData.dns_records?.nameservers || []).join(', ') || 'N/A'}</li>
-            </ul>
-            
-            <h4>SSL ma'lumotlari</h4>
-            <p><strong>SSL yoqilgan:</strong> ${scanData.ssl_info?.ssl_enabled ? 'Ha' : 'Yo\'q'}</p>
-            <p><strong>SSL versiyasi:</strong> ${scanData.ssl_info?.ssl_version || 'N/A'}</p>
-            <p><strong>Sertifikat to\'g\'ri:</strong> ${scanData.ssl_info?.certificate_valid ? 'Ha' : 'Yo\'q'}</p>
-            
-            <h4>Xavfsizlik sarlavhalari</h4>
-            <ul>
-                <li><strong>X-Frame-Options:</strong> ${scanData.security_headers?.x_frame_options || 'N/A'}</li>
-                <li><strong>X-Content-Type-Options:</strong> ${scanData.security_headers?.x_content_type_options || 'N/A'}</li>
-                <li><strong>X-XSS-Protection:</strong> ${scanData.security_headers?.x_xss_protection || 'N/A'}</li>
-                <li><strong>Strict-Transport-Security:</strong> ${scanData.security_headers?.strict_transport_security || 'N/A'}</li>
-                <li><strong>Content-Security-Policy:</strong> ${scanData.security_headers?.content_security_policy || 'N/A'}</li>
-            </ul>
-            
-            <h4>Tool tahlil natijalari</h4>
-            ${renderToolResults(scanData.tool_results)}
-        </div>
-    `;
-    
-    // Xatolik xabari bo'lsa ko'rsatish
-    if (scanData.error_message) {
-        modalContent += `
-            <h4>Xatolik ma'lumotlari</h4>
-            <p class="error-message">${scanData.error_message}</p>
-        `;
-    }
-    
-    modalBody.innerHTML = modalContent;
-    modal.style.display = 'flex';
+    scanCheckboxes.forEach(checkbox => {
+        checkbox.checked = selectAllCheckbox.checked;
+    });
 }
 
-function renderToolResults(toolResults) {
-    if (!toolResults || Object.keys(toolResults).length === 0) {
-        return '<p>Tool tahlil natijalari mavjud emas</p>';
+// Filter Functionality
+function initFilters() {
+    // Status filter change event
+    const statusFilter = document.getElementById('statusFilter');
+    if (statusFilter) {
+        statusFilter.addEventListener('change', filterTable);
     }
     
-    let html = '<div class="tool-results">';
+    // Time filter change event
+    const timeFilter = document.getElementById('timeFilter');
+    if (timeFilter) {
+        timeFilter.addEventListener('change', filterTable);
+    }
+}
+
+function filterTable() {
+    const statusFilter = document.getElementById('statusFilter').value;
+    const timeFilter = document.getElementById('timeFilter').value;
+    const rows = document.querySelectorAll('.scan-row');
     
-    for (const [toolName, result] of Object.entries(toolResults)) {
-        if (toolName === 'error') {
-            html += `<div class="tool-result error"><strong>Xatolik:</strong> ${result}</div>`;
-            continue;
+    rows.forEach(row => {
+        let showRow = true;
+        
+        // Status filter
+        if (statusFilter && row.dataset.status !== statusFilter) {
+            showRow = false;
         }
         
-        html += `<div class="tool-result ${toolName}">`;
-        html += `<h5>${toolName.toUpperCase()}</h5>`;
-        
-        if (result && typeof result === 'object') {
-            if (result.status === 'error') {
-                html += `<p class="error">Xatolik: ${result.error || 'Noma\'lum xatolik'}</p>`;
-            } else if (result.status === 'completed') {
-                html += `<p class="success">✅ Tahlil tugallandi</p>`;
-                if (result.output) {
-                    html += `<pre class="tool-output">${result.output}</pre>`;
-                }
-            } else {
-                html += `<p>Holat: ${result.status || 'Noma\'lum'}</p>`;
-                if (result.output) {
-                    html += `<pre class="tool-output">${result.output}</pre>`;
-                }
+        // Time filter
+        if (timeFilter && showRow) {
+            const scanDate = new Date(row.dataset.date);
+            const today = new Date();
+            const diffTime = Math.abs(today - scanDate);
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            
+            switch (timeFilter) {
+                case 'today':
+                    if (diffDays > 1) showRow = false;
+                    break;
+                case 'week':
+                    if (diffDays > 7) showRow = false;
+                    break;
+                case 'month':
+                    if (diffDays > 30) showRow = false;
+                    break;
+                case 'old':
+                    if (diffDays <= 30) showRow = false;
+                    break;
             }
-        } else {
-            html += `<p>Natija: ${result}</p>`;
         }
         
-        html += '</div>';
+        row.style.display = showRow ? 'table-row' : 'none';
+    });
+    
+    updateVisibleCount();
+}
+
+function updateVisibleCount() {
+    const visibleRows = document.querySelectorAll('.scan-row[style="display: table-row;"]').length;
+    const totalRows = document.querySelectorAll('.scan-row').length;
+    
+    // Update filter info
+    const filterInfo = document.querySelector('.filter-info');
+    if (filterInfo) {
+        filterInfo.textContent = `${visibleRows} ta natija ko'rsatilmoqda (jami: ${totalRows})`;
+    }
+}
+
+// Modal Functions
+function initModals() {
+    // Close modals when clicking outside
+    window.addEventListener('click', function(e) {
+        if (e.target.classList.contains('modal')) {
+            e.target.style.display = 'none';
+        }
+    });
+    
+    // Close modals on escape key
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            closeAllModals();
+        }
+    });
+}
+
+function openScanModal() {
+    const modal = document.getElementById('newScanModal');
+    modal.style.display = 'block';
+    document.getElementById('domainInput').focus();
+}
+
+function closeNewScanModal() {
+    const modal = document.getElementById('newScanModal');
+    modal.style.display = 'none';
+    document.getElementById('domainInput').value = '';
+}
+
+function closeAllModals() {
+    const modals = document.querySelectorAll('.modal');
+    modals.forEach(modal => {
+        modal.style.display = 'none';
+    });
+}
+
+// Scan Functions
+function startNewScan() {
+    const domainInput = document.getElementById('domainInput');
+    const domain = domainInput.value.trim();
+    
+    if (!domain) {
+        showNotification('Domain nomini kiriting', 'error');
+        return;
     }
     
-    html += '</div>';
-    return html;
-}
-
-function closeModal() {
-    const modal = document.getElementById('scanDetailsModal');
-    modal.style.display = 'none';
-}
-
-// Close modal when clicking outside
-document.addEventListener('click', function(e) {
-    const modal = document.getElementById('scanDetailsModal');
-    if (e.target === modal) {
-        closeModal();
+    // Get selected tools
+    const selectedTools = [];
+    document.querySelectorAll('.tool-checkbox input:checked').forEach(checkbox => {
+        selectedTools.push(checkbox.value);
+    });
+    
+    if (selectedTools.length === 0) {
+        showNotification('Kamida bitta tool tanlang', 'warning');
+        return;
     }
-}); 
+    
+    // Show loading state
+    const startButton = document.querySelector('#newScanModal .btn-primary');
+    const originalText = startButton.innerHTML;
+    startButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Tahlil qilinmoqda...';
+    startButton.disabled = true;
+    
+    // Simulate scan process (replace with actual API call)
+    setTimeout(() => {
+        showNotification(`${domain} uchun tahlil boshlandi`, 'success');
+        closeNewScanModal();
+        
+        // Reset button
+        startButton.innerHTML = originalText;
+        startButton.disabled = false;
+        
+        // Refresh table
+        refreshTable();
+    }, 2000);
+}
+
+// Table Functions
+function refreshTable() {
+    const tableBody = document.getElementById('scans-table-body');
+    if (tableBody) {
+        tableBody.classList.add('loading');
+        
+        // Simulate refresh (replace with actual API call)
+        setTimeout(() => {
+            tableBody.classList.remove('loading');
+            showNotification('Jadval yangilandi', 'success');
+        }, 1000);
+    }
+}
+
+function exportHistory() {
+    const selectedScans = document.querySelectorAll('.scan-checkbox:checked');
+    
+    if (selectedScans.length === 0) {
+        showNotification('Eksport qilish uchun tahlil tanlang', 'warning');
+        return;
+    }
+    
+    const scans = Array.from(selectedScans).map(checkbox => checkbox.value);
+    
+    // Create CSV data
+    let csvContent = 'Domain,IP Address,Status,Date,Duration,Tools\n';
+    scans.forEach(scanId => {
+        const row = document.querySelector(`tr[data-scan="${scanId}"]`);
+        if (row) {
+            const domain = row.querySelector('.domain-text')?.textContent || 'N/A';
+            const ip = row.querySelector('.ip-text')?.textContent || 'N/A';
+            const status = row.querySelector('.status-badge')?.textContent || 'N/A';
+            const date = row.querySelector('.date-text')?.textContent || 'N/A';
+            const duration = row.querySelector('.duration-text')?.textContent || 'N/A';
+            const tools = Array.from(row.querySelectorAll('.tool-status')).map(tool => tool.textContent).join('; ') || 'N/A';
+            
+            csvContent += `${domain},${ip},${status},${date},${duration},${tools}\n`;
+        }
+    });
+    
+    // Download CSV file
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `scan_history_${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    showNotification(`${scans.length} ta tahlil eksport qilindi`, 'success');
+}
+
+// Scan Action Functions
+function viewScanDetails(scanId) {
+    try {
+        // For now, show a simple modal (replace with actual API call)
+        const modal = document.getElementById('scanDetailsModal');
+        const modalTitle = document.getElementById('modalTitle');
+        const modalBody = document.getElementById('modalBody');
+        
+        modalTitle.textContent = `Tahlil ID: ${scanId}`;
+        modalBody.innerHTML = `
+            <div class="scan-details-content">
+                <p>Bu yerda tahlil tafsilotlari ko'rsatiladi.</p>
+                <p>API integratsiyasi qo'shilgandan keyin haqiqiy ma'lumotlar ko'rsatiladi.</p>
+            </div>
+        `;
+        
+        modal.style.display = 'block';
+    } catch (error) {
+        console.error('Error viewing scan details:', error);
+        showNotification('Tahlil tafsilotlarini ko\'rishda xatolik', 'error');
+    }
+}
+
+function rescanDomain(domainName) {
+    if (confirm(`${domainName} uchun qayta tahlilni boshlashni xohlaysizmi?`)) {
+        showNotification(`${domainName} uchun qayta tahlil boshlandi`, 'info');
+        // Implement rescan functionality
+    }
+}
+
+function deleteScan(scanId) {
+    if (confirm('Bu tahlilni o\'chirishni xohlaysizmi?')) {
+        // Implement delete functionality
+        showNotification('Tahlil o\'chirildi', 'success');
+        
+        // Remove row from table
+        const row = document.querySelector(`tr[data-scan="${scanId}"]`);
+        if (row) {
+            row.remove();
+        }
+    }
+}
+
+// Utility Functions
+function showNotification(message, type = 'info') {
+    if (window.showNotification) {
+        window.showNotification(message, type);
+    } else {
+        alert(message);
+    }
+}
+
+// Make functions globally available
+window.openScanModal = openScanModal;
+window.closeNewScanModal = closeNewScanModal;
+window.startNewScan = startNewScan;
+window.refreshTable = refreshTable;
+window.exportHistory = exportHistory;
+window.viewScanDetails = viewScanDetails;
+window.rescanDomain = rescanDomain;
+window.deleteScan = deleteScan;
+window.toggleSelectAll = toggleSelectAll;
+window.filterTable = filterTable;
