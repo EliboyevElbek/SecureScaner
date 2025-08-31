@@ -314,3 +314,4 @@ window.rescanDomain = rescanDomain;
 window.deleteScan = deleteScan;
 window.toggleSelectAll = toggleSelectAll;
 window.filterTable = filterTable;
+

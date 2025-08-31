@@ -5,8 +5,84 @@ document.addEventListener('DOMContentLoaded', function() {
     initDashboard();
 });
 
+// Chart.js kutubxonasini yuklash
+function loadChartJS() {
+    if (typeof Chart === 'undefined') {
+        const script = document.createElement('script');
+        script.src = 'https://cdn.jsdelivr.net/npm/chart.js';
+        script.onload = initChart;
+        document.head.appendChild(script);
+    } else {
+        initChart();
+    }
+}
+
+// Diagrammali grafik yaratish
+function initChart() {
+    const ctx = document.getElementById('scanChart');
+    if (!ctx) return;
+
+    // Django template'dan kelgan ma'lumotlarni olish
+    const chartLabels = window.chartLabels || ['01.09', '02.09', '03.09', '04.09', '05.09', '06.09', '07.09'];
+    const chartData = window.chartData || [5, 8, 12, 15, 18, 22, 25];
+
+    const chartConfig = {
+        type: 'bar',
+        data: {
+            labels: chartLabels,
+            datasets: [{
+                label: 'Kunlik domainlar soni',
+                data: chartData,
+                backgroundColor: 'rgba(0, 255, 136, 0.8)',
+                borderColor: '#00ff88',
+                borderWidth: 2,
+                borderRadius: 5,
+                borderSkipped: false,
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                }
+            },
+            scales: {
+                x: {
+                    grid: {
+                        color: 'rgba(255, 255, 255, 0.1)'
+                    },
+                    ticks: {
+                        color: '#fff',
+                        font: {
+                            size: 10
+                        }
+                    }
+                },
+                y: {
+                    grid: {
+                        color: 'rgba(255, 255, 255, 0.1)'
+                    },
+                    ticks: {
+                        color: '#fff',
+                        font: {
+                            size: 10
+                        },
+                        stepSize: 1,
+                        beginAtZero: true
+                    }
+                }
+            }
+        }
+    };
+
+    new Chart(ctx, chartConfig);
+}
+
+// Dashboard ni ishga tushirish
 function initDashboard() {
-    // Initialize dashboard functionality
+    loadChartJS();
     initTableCheckboxes();
     initModals();
     initTooltips();

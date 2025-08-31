@@ -14,6 +14,8 @@ import os
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from .models import DomainScan, Tool, KeshDomain, DomainToolConfiguration, ScanSession
+from django.utils import timezone
+from datetime import timedelta
 
 # SSL warnings ni o'chirish
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -30,6 +32,9 @@ stop_event = threading.Event()  # Global stop signal
 
 def home(request):
     """Bosh sahifa - admin dashboard ko'rinishida"""
+    from django.utils import timezone
+    from datetime import timedelta
+    
     # Bazadan stats ni olish
     total_scans = DomainScan.objects.count()
     completed_scans = DomainScan.objects.filter(status='completed').count()
@@ -40,6 +45,19 @@ def home(request):
     
     # O'rtacha vaqt (barcha completed scanlar uchun)
     avg_duration = 5  # Default qiymat
+    
+    # Grafik uchun kunlik domain sonlarini hisoblash (oxirgi 7 kun)
+    chart_data = []
+    chart_labels = []
+    
+    for i in range(6, -1, -1):  # 6 kundan 0 kungacha (7 kun)
+        date = timezone.now().date() - timedelta(days=i)
+        daily_domains = DomainScan.objects.filter(
+            scan_date__date=date
+        ).values('domain_name').distinct().count()
+        
+        chart_data.append(daily_domains)
+        chart_labels.append(date.strftime('%d.%m'))
     
     # Domain ma'lumotlarini olish (DomainScan dan to'g'ridan-to'g'ri)
     domains = []
@@ -115,6 +133,8 @@ def home(request):
         'success_rate': success_rate,
         'avg_duration': avg_duration,
         'domains': domains,
+        'chart_data': chart_data,
+        'chart_labels': chart_labels,
     }
     
     return render(request, 'home.html', context)

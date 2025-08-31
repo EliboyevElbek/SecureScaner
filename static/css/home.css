@@ -35,27 +35,33 @@
 
 /* Dashboard Header */
 .dashboard-header {
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(0, 255, 136, 0.2);
+    border-radius: 15px;
+    padding: 2rem;
+    margin-bottom: 2rem;
+    backdrop-filter: blur(10px);
     display: flex;
     justify-content: space-between;
-    align-items: center;
-    padding: 2rem;
-    background: rgba(255, 255, 255, 0.1);
-    backdrop-filter: blur(10px);
-    border-radius: 15px;
-    margin: 2rem;
-    border: 1px solid rgba(255, 255, 255, 0.2);
+    align-items: flex-start;
 }
 
-.header-left h1 {
-    color: #fff;
+.header-left {
+    flex: 1;
+    margin-right: 2rem;
+}
+
+.dashboard-title {
+    font-size: 1.8rem;
+    color: #00ff88;
     margin: 0 0 1rem 0;
-    font-size: 2.5rem;
-    font-weight: 700;
+    font-weight: 600;
 }
 
 .stats-overview {
     display: flex;
     gap: 2rem;
+    margin-bottom: 2rem;
 }
 
 .stat-item {
@@ -82,6 +88,84 @@
     font-size: 1.1rem;
 }
 
+/* Chart Section */
+.chart-section {
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid rgba(0, 255, 136, 0.1);
+    border-radius: 10px;
+    padding: 1.5rem;
+    margin-top: 1rem;
+}
+
+.chart-container h3 {
+    color: #00ff88;
+    margin-bottom: 1rem;
+    font-size: 1.1rem;
+    text-align: center;
+}
+
+.chart-wrapper {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 1rem;
+    height: 200px;
+}
+
+.chart-legend {
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: #fff;
+    font-size: 0.8rem;
+}
+
+.legend-color {
+    width: 12px;
+    height: 12px;
+    border-radius: 2px;
+}
+
+.legend-color.completed {
+    background: #00ff88;
+}
+
+.legend-color.scanning {
+    background: #007bff;
+}
+
+.legend-color.pending {
+    background: #ffc107;
+}
+
+/* Tool Badge */
+.tool-badge {
+    padding: 0.4rem 0.8rem;
+    border-radius: 15px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    text-align: center;
+    display: inline-block;
+    min-width: 80px;
+}
+
+.tool-badge.success {
+    background: rgba(0, 255, 136, 0.2);
+    color: #00ff88;
+    border: 1px solid rgba(0, 255, 136, 0.3);
+}
+
+.tool-badge.pending {
+    background: rgba(255, 193, 7, 0.2);
+    color: #ffc107;
+    border: 1px solid rgba(255, 193, 7, 0.3);
+}
+
 /* Dashboard Table Container */
 .dashboard-table-container {
     margin: 2rem;
@@ -95,7 +179,7 @@
 .table-header {
     display: flex;
     justify-content: space-between;
-    align-items: center;
+        align-items: center;
     padding: 1.5rem 2rem;
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
@@ -117,7 +201,7 @@
 }
 
 .dashboard-table {
-    width: 100%;
+        width: 100%;
     border-collapse: collapse;
     color: #fff;
 }
@@ -210,24 +294,37 @@
     color: #aaa;
 }
 
-/* Tool Status */
+/* Tool Status (Icons) */
 .tool-status {
-    padding: 0.5rem 1rem;
-    border-radius: 20px;
-    font-size: 0.9rem;
-    font-weight: 500;
+    display: inline-block;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+    font-weight: bold;
+    transition: all 0.3s ease;
 }
 
 .tool-status.success {
     background: rgba(0, 255, 136, 0.2);
     color: #00ff88;
-    border: 1px solid rgba(0, 255, 136, 0.3);
+    border: 2px solid rgba(0, 255, 136, 0.5);
+    box-shadow: 0 0 10px rgba(0, 255, 136, 0.3);
 }
 
 .tool-status.pending {
     background: rgba(255, 193, 7, 0.2);
     color: #ffc107;
-    border: 1px solid rgba(255, 193, 7, 0.3);
+    border: 2px solid rgba(255, 193, 7, 0.5);
+    box-shadow: 0 0 10px rgba(255, 193, 7, 0.3);
+}
+
+.tool-status:hover {
+    transform: scale(1.1);
+    box-shadow: 0 0 15px currentColor;
 }
 
 /* Status Badge */
@@ -666,4 +763,174 @@
 @keyframes spin {
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
+} 
+
+/* Tool Header */
+.tool-header {
+    text-align: center;
+    padding: 1rem 0.5rem;
+    background: linear-gradient(135deg, rgba(0, 255, 136, 0.1) 0%, rgba(0, 0, 0, 0.3) 100%);
+    border: 1px solid rgba(0, 255, 136, 0.2);
+    border-radius: 8px;
+    position: relative;
+    overflow: hidden;
+}
+
+.tool-header::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(0, 255, 136, 0.1), transparent);
+    transition: left 0.5s;
+}
+
+.tool-header:hover::before {
+    left: 100%;
+}
+
+.tool-name {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #00ff88;
+    text-shadow: 0 0 10px rgba(0, 255, 136, 0.5);
+    margin-bottom: 0.3rem;
+    letter-spacing: 0.5px;
+}
+
+.tool-subtitle {
+    font-size: 0.8rem;
+    color: #aaa;
+    font-weight: 500;
+    opacity: 0.8;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+/* Table Headers */
+.dashboard-table thead th {
+    background: rgba(0, 0, 0, 0.4);
+    border-bottom: 2px solid rgba(0, 255, 136, 0.3);
+    padding: 1rem 0.5rem;
+    font-weight: 600;
+    color: #fff;
+    text-align: center;
+    position: relative;
+}
+
+.dashboard-table thead th:first-child {
+    border-top-left-radius: 8px;
+}
+
+.dashboard-table thead th:last-child {
+    border-top-right-radius: 8px;
+}
+
+/* Tool Result */
+.tool-result {
+    text-align: center;
+    padding: 0.5rem;
+    vertical-align: middle;
+} 
+
+ 
+
+/* Tool Column Headers */
+.dashboard-table th:nth-child(4), /* SQLMap */
+.dashboard-table th:nth-child(5), /* Nmap */
+.dashboard-table th:nth-child(6), /* XSStrike */
+.dashboard-table th:nth-child(7)  /* Gobuster */ {
+    text-align: center;
+    padding: 1rem 0.5rem;
+    background: linear-gradient(135deg, rgba(0, 255, 136, 0.1) 0%, rgba(0, 0, 0, 0.3) 100%);
+    border: 1px solid rgba(0, 255, 136, 0.2);
+    border-radius: 8px;
+    position: relative;
+    overflow: hidden;
+    font-weight: 700;
+    color: #00ff88;
+    text-shadow: 0 0 10px rgba(0, 255, 136, 0.5);
+    letter-spacing: 0.5px;
+}
+
+.dashboard-table th:nth-child(4)::before, /* SQLMap */
+.dashboard-table th:nth-child(5)::before, /* Nmap */
+.dashboard-table th:nth-child(6)::before, /* XSStrike */
+.dashboard-table th:nth-child(7)::before  /* Gobuster */ {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+        width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(0, 255, 136, 0.1), transparent);
+    transition: left 0.5s;
+}
+
+.dashboard-table th:nth-child(4):hover::before, /* SQLMap */
+.dashboard-table th:nth-child(5):hover::before, /* Nmap */
+.dashboard-table th:nth-child(6):hover::before, /* XSStrike */
+.dashboard-table th:nth-child(7):hover::before  /* Gobuster */ {
+    left: 100%;
+}
+
+/* Specific tool header colors */
+.dashboard-table th:nth-child(4) { /* SQLMap */
+    background: linear-gradient(135deg, rgba(220, 53, 69, 0.1) 0%, rgba(0, 0, 0, 0.3) 100%);
+    border-color: rgba(220, 53, 69, 0.2);
+    color: #dc3545;
+    text-shadow: 0 0 10px rgba(220, 53, 69, 0.5);
+}
+
+.dashboard-table th:nth-child(5) { /* Nmap */
+    background: linear-gradient(135deg, rgba(0, 123, 255, 0.1) 0%, rgba(0, 0, 0, 0.3) 100%);
+    border-color: rgba(0, 123, 255, 0.2);
+    color: #007bff;
+    text-shadow: 0 0 10px rgba(0, 123, 255, 0.5);
+}
+
+.dashboard-table th:nth-child(6) { /* XSStrike */
+    background: linear-gradient(135deg, rgba(255, 193, 7, 0.1) 0%, rgba(0, 0, 0, 0.3) 100%);
+    border-color: rgba(255, 193, 7, 0.2);
+    color: #ffc107;
+    text-shadow: 0 0 10px rgba(255, 193, 7, 0.5);
+}
+
+.dashboard-table th:nth-child(7) { /* Gobuster */
+    background: linear-gradient(135deg, rgba(40, 167, 69, 0.1) 0%, rgba(0, 0, 0, 0.3) 100%);
+    border-color: rgba(40, 167, 69, 0.2);
+    color: #28a745;
+    text-shadow: 0 0 10px rgba(40, 167, 69, 0.5);
+} 
+
+/* Tool Info Container */
+.tool-info {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem;
+}
+
+.tool-name {
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 0.3rem 0.6rem;
+    border-radius: 12px;
+    border: 1px solid;
+    transition: all 0.3s ease;
+    background: rgba(0, 255, 136, 0.2);
+    color: #00ff88;
+    border-color: rgba(0, 255, 136, 0.3);
+}
+
+.tool-name:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0, 255, 136, 0.3);
+    background: rgba(0, 255, 136, 0.3);
+    border-color: rgba(0, 255, 136, 0.5);
 } 
