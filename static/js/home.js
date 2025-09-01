@@ -19,7 +19,7 @@ function loadChartJS() {
 
 // Diagrammali grafik yaratish
 function initChart() {
-    const ctx = document.getElementById('scanChart');
+    const ctx = document.getElementById('dashboardChart');
     if (!ctx) return;
 
     // Django template'dan kelgan ma'lumotlarni olish

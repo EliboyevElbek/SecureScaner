@@ -203,7 +203,7 @@ class ScanSession(models.Model):
     def __str__(self):
         return f"Sessiya {self.id} - {len(self.domains)} ta domain - {self.created_at.strftime('%d.%m.%Y %H:%M')}"
 
-class Processes(models.Model):
+class Diagram(models.Model):
     """Processes - ScanSession bilan bir xil, lekin hech nima o'chirilmaydi"""
     domains = models.JSONField(default=list, verbose_name="Domainlar")
     created_at = models.DateTimeField(default=timezone.now, verbose_name="Yaratilgan sana")

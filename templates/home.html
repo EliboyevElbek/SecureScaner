@@ -1,10 +1,10 @@
 {% extends 'base.html' %}
 {% load static %}
 
-{% block title %}SiteScaner - Domain Scanner Dashboard{% endblock title %}
+{% block title %}SiteScaner - Admin Dashboard{% endblock title %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="/static/css/home.css">
+<link rel="stylesheet" href="{% static 'css/home.css' %}">
 {% endblock extra_css %}
 
 {% block content %}
@@ -14,38 +14,36 @@
 <!-- Dashboard Header -->
 <div class="dashboard-header">
     <div class="header-left">
-        <div class="dashboard-title">
-            <h1>Domain Scanner Dashboard</h1>
-            <p>Domain tahlil natijalari va statistikasi</p>
-        </div>
+        <h1 class="dashboard-title">Domain Scanner Dashboard</h1>
         
-        <!-- Stats Overview -->
+        <!-- Stats Overview - Chap tomonda, kichikroq -->
         <div class="stats-overview">
             <div class="stat-item">
-                <div class="stat-value">{{ total_scans|default:0 }}</div>
+                <div class="stat-number">{{ total_scans|default:"0" }}</div>
                 <div class="stat-label">Jami Tahlillar</div>
             </div>
+            
             <div class="stat-item">
-                <div class="stat-value">{{ total_domains|default:0 }}</div>
+                <div class="stat-number">{{ total_domains|default:"0" }}</div>
                 <div class="stat-label">Domainlar</div>
             </div>
+            
             <div class="stat-item">
-                <div class="stat-value">{{ success_rate|default:0 }}%</div>
+                <div class="stat-number">{{ success_rate|default:"0" }}%</div>
                 <div class="stat-label">Muvaffaqiyat</div>
-            </div>
-        </div>
-        
-        <!-- Chart Section -->
-        <div class="chart-section">
-            <h3>Kunlik Domain Tahlillari</h3>
-            <div class="chart-container">
-                <canvas id="scanChart"></canvas>
             </div>
         </div>
     </div>
     
     <div class="header-right">
-        <button class="btn btn-primary" onclick="openScanModal()">
+        <!-- Chart Section - O'ng tomonda -->
+        <div class="chart-section">
+            <div class="chart-container">
+                <canvas id="dashboardChart"></canvas>
+            </div>
+        </div>
+        
+        <button class="btn btn-success" onclick="openScanModal()">
             <i class="fas fa-plus"></i> Yangi Tahlil
         </button>
     </div>
@@ -56,16 +54,16 @@
     <div class="table-header">
         <h2>Domain Tahlil Natijalari</h2>
         <div class="table-actions">
-            <button class="btn btn-secondary" onclick="refreshData()">
+            <button class="btn btn-secondary" onclick="refreshTable()">
                 <i class="fas fa-sync-alt"></i> Yangilash
             </button>
-            <button class="btn btn-success" onclick="exportData()">
-                <i class="fas fa-download"></i> Eksport
+            <button class="btn btn-info" onclick="exportData()">
+                <i class="fas fa-download"></i> Export
             </button>
         </div>
     </div>
     
-    <div class="table-container">
+    <div class="table-wrapper">
         <table class="dashboard-table">
             <thead>
                 <tr>
@@ -81,29 +79,30 @@
                     <th>Status</th>
                 </tr>
             </thead>
-            <tbody id="domains-table-body">
+            <tbody>
                 {% for domain in domains %}
-                <tr data-domain="{{ domain.domain_name }}">
+                <tr>
                     <td class="checkbox-col">
-                        <input type="checkbox" class="domain-checkbox" value="{{ domain.domain_name }}">
+                        <input type="checkbox" class="row-checkbox" value="{{ domain.id }}">
                     </td>
                     <td class="domain-name">
                         <div class="domain-info">
                             <div class="domain-icon">
-                                <img src="https://www.google.com/s2/favicons?domain={{ domain.domain_name }}&sz=32" 
-                                     alt="{{ domain.domain_name }} icon" 
-                                     onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTEyIDJMMiA3VjIwQzIgMjAuNTUyMyAyLjQ0NzcyIDIxIDMgMjFIMjFDMjEuNTUyMyAyMSAyMiAyMC41NTIzIDIyIDIwVjdMMTIgMloiIHN0cm9rZT0iIiMwMGZmMDAiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIi8+CjxwYXRoIGQ9Ik05IDIxVjE0TDE1IDEwVjIxIiBzdHJva2U9IiMwMGZmMDAiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIi8+Cjwvc3ZnPg=='"
-                                     class="favicon">
+                                <img src="https://www.google.com/s2/favicons?domain={{ domain.domain_name }}&sz=16" 
+                                     alt="Favicon" class="favicon" 
+                                     onerror="this.style.display='none'">
+                                <svg class="favicon-fallback" width="16" height="16" viewBox="0 0 16 16">
+                                    <rect width="16" height="16" fill="#00ff88" rx="2"/>
+                                    <text x="8" y="12" text-anchor="middle" fill="white" font-size="10">{{ domain.domain_name|first|upper }}</text>
+                                </svg>
                             </div>
                             <div class="domain-details">
-                                <span class="domain-text">{{ domain.domain_name }}</span>
-                                <small class="domain-date">{{ domain.updated_at|date:"d.m.Y H:i" }}</small>
+                                <div class="domain-text">{{ domain.domain_name }}</div>
+                                <div class="domain-date">{{ domain.scan_date|date:"d.m.Y H:i" }}</div>
                             </div>
                         </div>
                     </td>
-                    <td class="ip-address">
-                        <span class="ip-text">{{ domain.ip_address }}</span>
-                    </td>
+                    <td class="ip-address">{{ domain.ip_address|default:"-" }}</td>
                     <td class="tool-result">
                         <div class="tool-info">
                             <div class="tool-name">SQLMap</div>
@@ -125,7 +124,7 @@
                         </div>
                     </td>
                     <td class="status-col">
-                        <span class="status-badge status-{{ domain.status }}">
+                        <span class="status-badge {{ domain.status }}">
                             {% if domain.status == 'completed' %}
                                 Tugallandi
                             {% elif domain.status == 'scanning' %}
@@ -142,16 +141,7 @@
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="8" class="no-data">
-                        <div class="empty-state">
-                            <div class="empty-icon">🔍</div>
-                            <h3>Hali hech qanday domain tahlil qilinmagan</h3>
-                            <p>Birinchi domain tahlilini boshlash uchun "Yangi Tahlil" tugmasini bosing</p>
-                            <button class="btn btn-primary" onclick="openScanModal()">
-                                <i class="fas fa-plus"></i> Tahlilni Boshlash
-                            </button>
-                        </div>
-                    </td>
+                    <td colspan="8" class="no-data">Hech qanday ma'lumot topilmadi</td>
                 </tr>
                 {% endfor %}
             </tbody>
@@ -164,7 +154,7 @@
     <div class="modal-content">
         <div class="modal-header">
             <h3>Yangi Domain Tahlili</h3>
-            <span class="close" onclick="closeScanModal()">&times;</span>
+            <span class="close" onclick="closeModal('scanModal')">&times;</span>
         </div>
         <div class="modal-body">
             <form id="scanForm">
@@ -172,32 +162,11 @@
                     <label for="domainInput">Domain nomi:</label>
                     <input type="text" id="domainInput" name="domain" placeholder="example.com" required>
                 </div>
-                <div class="form-group">
-                    <label>Tool tanlash:</label>
-                    <div class="tool-checkboxes">
-                        <label class="tool-checkbox">
-                            <input type="checkbox" name="tools" value="sqlmap" checked>
-                            <span class="tool-label">SQLMap</span>
-                        </label>
-                        <label class="tool-checkbox">
-                            <input type="checkbox" name="tools" value="nmap" checked>
-                            <span class="tool-label">Nmap</span>
-                        </label>
-                        <label class="tool-checkbox">
-                            <input type="checkbox" name="tools" value="xsstrike" checked>
-                            <span class="tool-label">XSStrike</span>
-                        </label>
-                        <label class="tool-checkbox">
-                            <input type="checkbox" name="tools" value="gobuster" checked>
-                            <span class="tool-label">Gobuster</span>
-                        </label>
-                    </div>
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('scanModal')">Bekor</button>
+                    <button type="submit" class="btn btn-success">Tahlilni Boshlash</button>
                 </div>
             </form>
-        </div>
-        <div class="modal-footer">
-            <button class="btn btn-secondary" onclick="closeScanModal()">Bekor</button>
-            <button class="btn btn-primary" onclick="startScan()">Tahlilni Boshlash</button>
         </div>
     </div>
 </div>
@@ -207,26 +176,25 @@
     <div class="modal-content">
         <div class="modal-header">
             <h3>Domain Tafsilotlari</h3>
-            <span class="close" onclick="closeDetailsModal()">&times;</span>
+            <span class="close" onclick="closeModal('detailsModal')">&times;</span>
         </div>
         <div class="modal-body">
             <div id="domainDetails">
                 <!-- Domain details will be loaded here -->
             </div>
         </div>
-        <div class="modal-footer">
-            <button class="btn btn-secondary" onclick="closeDetailsModal()">Yopish</button>
-        </div>
     </div>
 </div>
 
-<!-- Chart Data for JavaScript -->
+<!-- JavaScript for Chart.js -->
 <script>
+    // Django context dan ma'lumotlarni JavaScript ga o'tkazish
     window.chartLabels = JSON.parse('{{ chart_labels|escapejs }}');
     window.chartData = JSON.parse('{{ chart_data|escapejs }}');
 </script>
+
 {% endblock content %}
 
 {% block extra_js %}
-<script src="/static/js/home.js"></script>
+<script src="{% static 'js/home.js' %}"></script>
 {% endblock extra_js %}

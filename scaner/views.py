@@ -16,7 +16,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from .models import DomainScan, Tool, KeshDomain, DomainToolConfiguration, ScanSession
 from django.utils import timezone
 from datetime import timedelta
-
+from .models import Diagram
 # SSL warnings ni o'chirish
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
@@ -46,18 +46,62 @@ def home(request):
     # O'rtacha vaqt (barcha completed scanlar uchun)
     avg_duration = 5  # Default qiymat
     
-    # Grafik uchun kunlik domain sonlarini hisoblash (oxirgi 7 kun)
+    # Grafik uchun kunlik domain sonlarini hisoblash (oxirgi 7 kun) - Diagram bazasidan
     chart_data = []
     chart_labels = []
-    
+
     for i in range(6, -1, -1):  # 6 kundan 0 kungacha (7 kun)
         date = timezone.now().date() - timedelta(days=i)
-        daily_domains = DomainScan.objects.filter(
-            scan_date__date=date
-        ).values('domain_name').distinct().count()
+        # Diagram bazasidan kunlik domain sonlarini olish
+        daily_diagrams = Diagram.objects.filter(created_at__date=date)
         
-        chart_data.append(daily_domains)
-        chart_labels.append(date.strftime('%d.%m'))
+        total_domains = 0
+        for diagram in daily_diagrams:
+            if isinstance(diagram.domains, list):
+                total_domains += len(diagram.domains)
+            elif isinstance(diagram.domains, dict):
+                total_domains += 1
+            else:
+                total_domains += 1
+        
+        chart_data.append(total_domains)               # Y o'qi = domenlar soni
+        chart_labels.append(date.strftime('%d.%m.%Y'))
+    
+    # Test uchun - agar Diagram bazasi bo'sh bo'lsa, test ma'lumotlari yaratamiz
+    if not Diagram.objects.exists():
+        from datetime import datetime, timedelta
+        
+        # Test ma'lumotlari - oxirgi 7 kun uchun
+        test_domains = ['example.com', 'test.com', 'demo.org', 'sample.net']
+        
+        for i in range(7):
+            test_date = timezone.now() - timedelta(days=i)
+            test_domains_count = (i + 1) * 2  # Har kunda o'sib boruvchi son
+            
+            Diagram.objects.create(
+                domains=test_domains[:test_domains_count],
+                created_at=test_date
+            )
+        
+        # Qayta hisoblash
+        chart_data = []
+        chart_labels = []
+        
+        for i in range(6, -1, -1):
+            date = timezone.now().date() - timedelta(days=i)
+            daily_diagrams = Diagram.objects.filter(created_at__date=date)
+            
+            total_domains = 0
+            for diagram in daily_diagrams:
+                if isinstance(diagram.domains, list):
+                    total_domains += len(diagram.domains)
+                elif isinstance(diagram.domains, dict):
+                    total_domains += 1
+                else:
+                    total_domains += 1
+            
+            chart_data.append(total_domains)
+            chart_labels.append(date.strftime('%d.%m.%Y'))
     
     # Domain ma'lumotlarini olish (DomainScan dan to'g'ridan-to'g'ri)
     domains = []
