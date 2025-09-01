@@ -99,11 +99,7 @@
     align-items: flex-end;
 }
 
-.header-right .btn {
-    padding: 0.8rem 1.5rem;
-    font-size: 1rem;
-    align-self: flex-end;
-}
+
 
 /* Chart Section */
 .chart-section {

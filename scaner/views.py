@@ -36,9 +36,9 @@ def home(request):
     from datetime import timedelta
     
     # Bazadan stats ni olish
-    total_scans = DomainScan.objects.count()
-    completed_scans = DomainScan.objects.filter(status='completed').count()
-    total_domains = DomainScan.objects.values('domain_name').distinct().count()
+    total_scans = DomainScan.objects.count()  # Jami tahlillar soni (barcha yozuvlar)
+    completed_scans = DomainScan.objects.filter(status='completed').count()  # Tugallangan tahlillar
+    total_domains = DomainScan.objects.values('domain_name').distinct().count()  # Uniq domainlar soni
     
     # Muvaffaqiyat darajasi (completed / total * 100)
     success_rate = 99.9 if total_scans == 0 else round((completed_scans / total_scans) * 100, 1)
